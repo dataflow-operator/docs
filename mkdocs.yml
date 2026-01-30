@@ -2,6 +2,8 @@ site_name: DataFlow Operator Documentation
 site_description: Kubernetes operator for data flow between different sources
 site_author: DataFlow Team
 
+docs_dir: .
+
 theme:
   name: material
   language: en
