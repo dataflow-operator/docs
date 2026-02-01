@@ -32,6 +32,7 @@ nav:
   - Transformations: en/transformations.md
   - Examples: en/examples.md
   - Metrics: en/metrics.md
+  - MCP: en/mcp.md
   - Development: en/development.md
   - "---"
   - "Русский":
@@ -41,6 +42,7 @@ nav:
     - "Трансформации": ru/transformations.md
     - "Примеры": ru/examples.md
     - "Метрики": ru/metrics.md
+    - "MCP": ru/mcp.md
     - "Разработка": ru/development.md
 
 markdown_extensions:
