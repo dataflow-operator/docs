@@ -7,7 +7,7 @@ docs_dir: docs
 theme:
   name: material
   language: en
-  logo: images/logo.png
+  # logo: images/logo.png
   palette:
     - scheme: default
       primary: blue
@@ -32,6 +32,7 @@ nav:
   - Connectors: en/connectors.md
   - Transformations: en/transformations.md
   - Examples: en/examples.md
+  - Errors: en/errors.md
   - Metrics: en/metrics.md
   - MCP: en/mcp.md
   - Development: en/development.md
@@ -42,6 +43,7 @@ nav:
     - "Коннекторы": ru/connectors.md
     - "Трансформации": ru/transformations.md
     - "Примеры": ru/examples.md
+    - "Обработка ошибок": ru/errors.md
     - "Метрики": ru/metrics.md
     - "MCP": ru/mcp.md
     - "Разработка": ru/development.md
