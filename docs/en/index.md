@@ -44,7 +44,7 @@ Support for configuring connectors from Kubernetes Secrets through `SecretRef` a
 
 ```bash
 # Install operator via Helm from OCI registry
-helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
 
 # Verify installation
 kubectl get pods -l app.kubernetes.io/name=dataflow-operator

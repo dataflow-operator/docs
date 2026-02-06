@@ -44,7 +44,7 @@ DataFlow Operator позволяет декларативно определят
 
 ```bash
 # Установка оператора через Helm из OCI registry
-helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
 
 # Проверка установки
 kubectl get pods -l app.kubernetes.io/name=dataflow-operator

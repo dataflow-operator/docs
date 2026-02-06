@@ -25,7 +25,7 @@
 Перед установкой оператора необходимо установить Custom Resource Definition (CRD):
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/ilyario/dataflow/refs/heads/main/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
+kubectl apply -f https://raw.githubusercontent.com/dataflow-operator/dataflow/refs/heads/main/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
 ```
 
 Или используйте локальный файл:
@@ -41,7 +41,7 @@ kubectl apply -f config/crd/bases/dataflow.dataflow.io_dataflows.yaml
 Самый простой способ установить оператор из OCI registry:
 
 ```bash
-helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
 ```
 
 Эта команда установит оператор с настройками по умолчанию в namespace `default`.
@@ -49,7 +49,7 @@ helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operat
 #### Установка в конкретный namespace
 
 ```bash
-helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator \
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
   --namespace dataflow-system \
   --create-namespace
 ```
@@ -64,7 +64,7 @@ helm install dataflow-operator ./helm/dataflow-operator
 Вы можете переопределить значения по умолчанию через флаги:
 
 ```bash
-helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator \
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
   --set image.repository=your-registry/controller \
   --set image.tag=v1.0.0 \
   --set replicaCount=2 \
@@ -113,7 +113,7 @@ securityContext:
 Затем установите:
 
 ```bash
-helm install dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator -f my-values.yaml
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator -f my-values.yaml
 ```
 
 #### Проверка установки
@@ -146,19 +146,19 @@ dataflow-operator-7d8f9c4b5d-xxxxx   1/1     Running   0          1m
 Для обновления оператора до новой версии:
 
 ```bash
-helm upgrade dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator
+helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
 ```
 
 С кастомными значениями:
 
 ```bash
-helm upgrade dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator -f my-values.yaml
+helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator -f my-values.yaml
 ```
 
 Для обновления до конкретной версии:
 
 ```bash
-helm upgrade dataflow-operator oci://ghcr.io/ilyario/helm-charts/dataflow-operator \
+helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
   --set image.tag=v1.1.0
 ```
 
