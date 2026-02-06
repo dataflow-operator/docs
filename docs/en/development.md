@@ -115,6 +115,33 @@ make generate
 
 Generates `DeepCopy` methods for all types in `api/v1/`.
 
+## Logging
+
+### Structured fields
+
+Operator and processor logs use consistent fields for correlation:
+
+| Field | Where | Purpose |
+|-------|-------|---------|
+| `dataflow_name` | Operator, processor, connectors | DataFlow resource name |
+| `dataflow_namespace` | Operator, processor, connectors | DataFlow namespace |
+| `reconcile_id` | Operator | Short id for one reconcile cycle (8 hex chars) |
+| `connector_type` | Processor, connectors | Connector type (e.g. `kafka-source`, `trino-sink`) |
+| `message_id` | Processor, connectors | Message id from metadata (if present) or Kafka partition/offset |
+
+Use these fields to filter logs (e.g. by `dataflow_name` and `reconcile_id`) and correlate errors with a specific DataFlow and message.
+
+### Log level (LOG_LEVEL)
+
+Operator and processor read the **LOG_LEVEL** environment variable. Allowed values (case-insensitive): `debug`, `info`, `warn`, `error`.
+
+- **Production**: set `LOG_LEVEL=info` (or leave default; Helm uses `info`) to reduce log volume.
+- **Debugging**: set `LOG_LEVEL=debug` for more verbose output.
+
+In Helm, the operator level is set via the **logLevel** value (default `"info"`), which is passed as env `LOG_LEVEL` in the operator pod.
+
+Processor pod log level is controlled by the operator env **PROCESSOR_LOG_LEVEL** (processor pods default to `LOG_LEVEL=info`). To enable verbose processor logs when debugging, set env `PROCESSOR_LOG_LEVEL=debug` in the operator Deployment.
+
 ## Testing
 
 ### Unit Tests
