@@ -1,6 +1,6 @@
 # Transformations
 
-DataFlow Operator supports various message transformations that are applied sequentially to each message in the order specified in the configuration. All transformations support JSONPath for working with nested data structures.
+DataFlow Operator supports message transformations that are applied sequentially to each message in the order specified in the configuration. Transformations use [gjson](https://github.com/tidwall/gjson) JSONPath for field access.
 
 > **Note**: This is a simplified English version. For complete documentation, see the [Russian version](../ru/transformations.md).
 
@@ -8,17 +8,15 @@ DataFlow Operator supports various message transformations that are applied sequ
 
 | Transformation | Description | Input | Output |
 |----------------|------------|-------|--------|
-| Timestamp | Adds timestamp | 1 message | 1 message |
-| Flatten | Expands arrays | 1 message | N messages |
-| Filter | Filters by condition | 1 message | 0 or 1 message |
-| Mask | Masks data | 1 message | 1 message |
-| Router | Routes to different sinks | 1 message | 0 or 1 message |
-| Select | Selects fields | 1 message | 1 message |
-| Remove | Removes fields | 1 message | 1 message |
+| Timestamp | Adds a timestamp field | 1 message | 1 message |
+| Flatten | Expands an array into separate messages | 1 message | N messages |
+| Filter | Keeps messages where a field is truthy | 1 message | 0 or 1 message |
+| Mask | Masks sensitive fields | 1 message | 1 message |
+| Router | Sends matching messages to alternate sinks | 1 message | 0 or 1 message |
+| Select | Keeps only specified fields | 1 message | 1 message |
+| Remove | Removes specified fields | 1 message | 1 message |
 | SnakeCase | Converts keys to snake_case | 1 message | 1 message |
 | CamelCase | Converts keys to CamelCase | 1 message | 1 message |
-| ReplaceField | Renames fields | 1 message | 1 message |
-| HeaderFrom | Extracts data from Kafka headers | 1 message | 1 message |
 
 ## Timestamp
 
@@ -36,17 +34,13 @@ transformations:
       format: RFC3339
 ```
 
-### Supported Formats
+### Format
 
-- `RFC3339` - `2006-01-02T15:04:05Z07:00` (default)
-- `RFC3339Nano` - `2006-01-02T15:04:05.999999999Z07:00`
-- `Unix` - Unix timestamp in seconds
-- `UnixMilli` - Unix timestamp in milliseconds
-- Any custom Go time package format
+The `format` value is a [Go time layout](https://pkg.go.dev/time#pkg-constants) string. Default is `RFC3339` (e.g. `2006-01-02T15:04:05Z07:00`). Examples: `RFC3339`, `RFC3339Nano`, or custom layouts like `2006-01-02 15:04:05`.
 
 ## Flatten
 
-Expands an array into separate messages, preserving all parent fields. Useful for processing nested data structures.
+Expands an array into separate messages, preserving all other fields from the original message. Each array element is merged into the root; objects are flattened to top-level keys. If the field is not an array, the message is returned unchanged. Supports Avro-style arrays wrapped in an object with an `array` key.
 
 ### Configuration
 
@@ -54,13 +48,13 @@ Expands an array into separate messages, preserving all parent fields. Useful fo
 transformations:
   - type: flatten
     flatten:
-      # JSONPath to array to expand (required)
+      # JSONPath to the array to expand (required)
       field: items
 ```
 
 ## Filter
 
-Filters messages based on JSONPath conditions. Messages that don't match the condition are removed from the stream.
+Keeps only messages where the field at the given JSONPath exists and is *truthy* (boolean `true`, non-empty string, non-zero number). Other messages are dropped. Comparison expressions (e.g. `==`) are not supported; use Router for value-based routing.
 
 ### Configuration
 
@@ -68,7 +62,7 @@ Filters messages based on JSONPath conditions. Messages that don't match the con
 transformations:
   - type: filter
     filter:
-      # JSONPath expression that must be true (required)
+      # JSONPath to a field; message passes if field exists and is truthy (required)
       condition: "$.active"
 ```
 
@@ -94,7 +88,14 @@ transformations:
 
 ## Router
 
-Routes messages to different sinks based on conditions. Messages matching a condition are sent to the specified sink instead of the main one.
+Routes messages to different sinks based on conditions. The first matching route determines the sink; if none matches, the message goes to the main sink.
+
+### Condition syntax
+
+- **Truthiness**: `$.field` — the message matches if the field exists and is truthy (non-empty string, non-zero number, `true`).
+- **Comparison**: `$.field == 'value'` or `$.field == "value"` — matches when the field equals the given string.
+
+Conditions are evaluated in order; the first match wins.
 
 ### Configuration
 
@@ -103,17 +104,23 @@ transformations:
   - type: router
     router:
       routes:
-        - condition: "$.level"
+        - condition: "$.level == 'error'"
           sink:
             type: kafka
             kafka:
               brokers: ["localhost:9092"]
               topic: error-topic
+        - condition: "$.level == 'warning'"
+          sink:
+            type: postgresql
+            postgresql:
+              connectionString: "postgres://..."
+              table: warnings
 ```
 
 ## Select
 
-Selects only specified fields from a message. Useful for reducing data size and improving performance.
+Keeps only the specified fields; all others are dropped. Each field is taken by JSONPath; the last path segment is used as the key in the output (e.g. `user.name` → key `name`), so the result is flat.
 
 ### Configuration
 
@@ -121,7 +128,7 @@ Selects only specified fields from a message. Useful for reducing data size and 
 transformations:
   - type: select
     select:
-      # List of JSONPath expressions to fields to select (required)
+      # List of JSONPath expressions for fields to keep (required)
       fields:
         - id
         - name
@@ -226,96 +233,14 @@ transformations:
 }
 ```
 
-## ReplaceField
+## Planned transformations
 
-Renames fields in messages. Useful for normalizing data structure and changing field paths.
+The following are not yet available in the API (CRD):
 
-### Configuration
+- **ReplaceField** — rename fields (e.g. `old.path` → `new.path`)
+- **HeaderFrom** — copy Kafka message headers into the message body
 
-```yaml
-transformations:
-  - type: replaceField
-    replaceField:
-      # List of rename rules in format "old.path:new.path" (required)
-      renames:
-        - key.sku:sku
-        - body.lc:lc
-```
-
-### Rename Rule Format
-
-Rename rules have the format `old.path:new.path`:
-- Left part (before `:`) - JSONPath to existing field
-- Right part (after `:`) - JSONPath to new field
-- JSONPath syntax is supported (you can use `$.` prefix)
-
-### Example
-
-**Input:**
-```json
-{
-  "key": {
-    "sku": "12345"
-  },
-  "body": {
-    "lc": "en"
-  }
-}
-```
-
-**Output:**
-```json
-{
-  "sku": "12345",
-  "lc": "en"
-}
-```
-
-## HeaderFrom
-
-Extracts data from Kafka message headers and adds them to the message body. Useful for enriching messages with metadata from headers.
-
-### Configuration
-
-```yaml
-transformations:
-  - type: headerFrom
-    headerFrom:
-      # List of mappings in format "headerName:field.path" (required)
-      mappings:
-        - X-Request-Id:requestId
-        - X-Language:metadata.language
-```
-
-### Mapping Format
-
-Mappings have the format `headerName:field.path`:
-- Left part (before `:`) - Kafka message header name
-- Right part (after `:`) - JSONPath to field in message body where header value will be written
-- JSONPath syntax is supported (you can use `$.` prefix)
-
-### Example
-
-**Input message (with header `X-Request-Id: req-123`):**
-```json
-{
-  "data": "value"
-}
-```
-
-**Output:**
-```json
-{
-  "data": "value",
-  "requestId": "req-123"
-}
-```
-
-### Notes
-
-- Headers are only available for messages from Kafka sources
-- If a header doesn't exist, the mapping is skipped
-- Header values are always added as strings
+Use the [Connectors](connectors.md) and [Examples](examples.md) for current capabilities.
 
 For complete transformation documentation with examples, see the [Russian version](../ru/transformations.md).
 

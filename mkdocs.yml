@@ -34,6 +34,7 @@ nav:
   - Examples: en/examples.md
   - Errors: en/errors.md
   - Metrics: en/metrics.md
+  - Kubernetes Events: en/kubernetes-events.md
   - MCP: en/mcp.md
   - Development: en/development.md
   - "---"
@@ -45,6 +46,7 @@ nav:
     - "Примеры": ru/examples.md
     - "Обработка ошибок": ru/errors.md
     - "Метрики": ru/metrics.md
+    - "События Kubernetes": ru/kubernetes-events.md
     - "MCP": ru/mcp.md
     - "Разработка": ru/development.md
 
