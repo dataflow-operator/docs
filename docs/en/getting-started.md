@@ -68,7 +68,6 @@ helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataf
   --set image.repository=your-registry/controller \
   --set image.tag=v1.0.0 \
   --set replicaCount=2 \
-  --set leaderElection.enabled=true \
   --set resources.limits.memory=1Gi \
   --set resources.limits.cpu=500m \
   --set resources.requests.memory=256Mi \
@@ -85,9 +84,6 @@ image:
   tag: v1.0.0
 
 replicaCount: 2
-
-leaderElection:
-  enabled: true
 
 resources:
   limits:
