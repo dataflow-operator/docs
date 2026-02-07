@@ -187,7 +187,37 @@ make manifests
 
 В Helm для оператора уровень задаётся через value **logLevel** (по умолчанию `"info"`); он подставляется в env `LOG_LEVEL` в поде оператора.
 
-Уровень лога подов процессора задаётся переменной окружения оператора **PROCESSOR_LOG_LEVEL** (по умолчанию поды процессора получают `LOG_LEVEL=info`). Чтобы включить детальные логи процессора при отладке, задайте в Deployment оператора env `PROCESSOR_LOG_LEVEL=debug`.
+#### PROCESSOR_LOG_LEVEL
+
+Оператор читает переменную окружения **PROCESSOR_LOG_LEVEL** и передаёт её в каждый под процессора как **LOG_LEVEL**. Поды процессора — это рабочие нагрузки, создаваемые для каждого DataFlow; в них выполняются сами пайплайны.
+
+| Аспект | Описание |
+|--------|----------|
+| **По умолчанию** | `info` (если переменная не задана, поды процессора получают `LOG_LEVEL=info`) |
+| **Допустимые значения** | Те же, что у LOG_LEVEL: `debug`, `info`, `warn`, `error` (регистр не важен) |
+| **Где задавать** | В Deployment **оператора** (не в ресурсе DataFlow). Оператор подставляет это значение в env `LOG_LEVEL` каждого пода процессора. При установке через Helm задаётся value **processorLogLevel** (см. ниже). |
+
+**Через Helm:** используйте value **processorLogLevel** (по умолчанию `"info"`). Пример для детальных логов процессоров:
+
+```bash
+helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
+  --set processorLogLevel=debug \
+  --reuse-values
+```
+
+Или в `values.yaml`:
+
+```yaml
+processorLogLevel: "debug"   # поды процессора получают LOG_LEVEL=debug
+```
+
+**Без Helm:** задайте переменную окружения в Deployment оператора, например:
+
+```bash
+kubectl set env deployment/dataflow-operator PROCESSOR_LOG_LEVEL=debug -n <namespace-оператора>
+```
+
+После этого перезапустите или пересоздайте оператор, чтобы поды процессора пересоздались с новым уровнем.
 
 ## Тестирование
 

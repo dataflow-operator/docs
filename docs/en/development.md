@@ -140,7 +140,37 @@ Operator and processor read the **LOG_LEVEL** environment variable. Allowed valu
 
 In Helm, the operator level is set via the **logLevel** value (default `"info"`), which is passed as env `LOG_LEVEL` in the operator pod.
 
-Processor pod log level is controlled by the operator env **PROCESSOR_LOG_LEVEL** (processor pods default to `LOG_LEVEL=info`). To enable verbose processor logs when debugging, set env `PROCESSOR_LOG_LEVEL=debug` in the operator Deployment.
+#### PROCESSOR_LOG_LEVEL
+
+The operator reads the **PROCESSOR_LOG_LEVEL** environment variable and passes it to every processor pod as **LOG_LEVEL**. Processor pods are the workloads created for each DataFlow; they run the actual data pipelines.
+
+| Aspect | Description |
+|--------|-------------|
+| **Default** | `info` (if unset, processor pods get `LOG_LEVEL=info`) |
+| **Allowed values** | Same as LOG_LEVEL: `debug`, `info`, `warn`, `error` (case-insensitive) |
+| **Where to set** | In the **operator** Deployment (not in the DataFlow resource). The operator injects this value into each processor pod's `LOG_LEVEL` env. When using Helm, set the **processorLogLevel** value (see below). |
+
+**With Helm:** use the **processorLogLevel** value (default `"info"`). Example for verbose processor logs:
+
+```bash
+helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
+  --set processorLogLevel=debug \
+  --reuse-values
+```
+
+Or in `values.yaml`:
+
+```yaml
+processorLogLevel: "debug"   # processor pods get LOG_LEVEL=debug
+```
+
+**Without Helm:** set the env in the operator Deployment, e.g.:
+
+```bash
+kubectl set env deployment/dataflow-operator PROCESSOR_LOG_LEVEL=debug -n <operator-namespace>
+```
+
+Then restart or recreate the operator so it recreates processor pods with the new level.
 
 ## Testing
 
