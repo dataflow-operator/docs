@@ -219,6 +219,45 @@ kubectl set env deployment/dataflow-operator PROCESSOR_LOG_LEVEL=debug -n <names
 
 После этого перезапустите или пересоздайте оператор, чтобы поды процессора пересоздались с новым уровнем.
 
+## Настройка Validating Webhook
+
+Validating Webhook проверяет spec ресурса DataFlow при создании и обновлении и отклоняет невалидные объекты до записи в кластер. Это даёт немедленную обратную связь (ошибка при `kubectl apply` или в GUI) и не создаёт лишние объекты и поды с заведомо нерабочей конфигурацией. Подробнее о роли webhook в архитектуре см. [Admission Webhook (Validating)](architecture.md#admission-webhook-validating).
+
+### Включение через Helm
+
+Webhook **опционален** и по умолчанию выключен. Чтобы включить его:
+
+1. **Включите webhook и задайте CA для TLS:** в `values.yaml` или через `--set`:
+   - `webhook.enabled: true`
+   - `webhook.caBundle` — строка в base64 (PEM-сертификат CA, которым подписан сертификат оператора на порту 9443). Без неё ValidatingWebhookConfiguration не создаётся, так как API-сервер требует caBundle для вызова webhook по HTTPS.
+
+2. **Настройте TLS для оператора:** API-сервер подключается к оператору по HTTPS. Задайте:
+   - `webhook.certDir` — путь в контейнере, куда смонтированы сертификаты (например `/tmp/k8s-webhook-server/serving-certs`).
+   - `webhook.secretName` — имя Secret с ключами `tls.crt` и `tls.key` (и при необходимости `ca.crt`). Этот Secret монтируется в под оператора по пути `webhook.certDir`; переменная окружения `WEBHOOK_CERT_DIR` в поде устанавливается в это значение.
+
+Секрет с сертификатами можно создать вручную или через **cert-manager** (Certificate для сервиса оператора). CA из этого сертификата (или из выдавшего его CA) нужно подставить в `webhook.caBundle` в base64.
+
+Пример фрагмента `values.yaml` при использовании cert-manager и уже известного caBundle:
+
+```yaml
+webhook:
+  enabled: true
+  caBundle: "LS0tLS1CRUdJTi..."   # base64 PEM CA
+  certDir: /tmp/k8s-webhook-server/serving-certs
+  secretName: dataflow-operator-webhook-cert
+```
+
+После установки/обновления чарта с этими значениями создаётся ресурс ValidatingWebhookConfiguration; при следующем create/update DataFlow API-сервер будет вызывать оператор для валидации.
+
+### Что проверяет webhook
+
+- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из списка (`kafka`, `postgresql`, `trino`), наличие соответствующей конфигурации (например `source.kafka` при `source.type: kafka`).
+- Для каждого типа source/sink — обязательные поля или SecretRef (например для Kafka: brokers или brokersSecretRef, topic или topicSecretRef).
+- Список трансформаций: допустимые типы и наличие конфигурации для каждого типа; для router — валидация вложенных sink.
+- Опционально: `spec.errors` (если задан — как SinkSpec), SecretRef (name и key), неотрицательные ресурсы.
+
+При ошибке валидации API возвращает ответ с перечислением полей и сообщений (агрегат из `field.ErrorList`).
+
 ## Тестирование
 
 ### Unit тесты
@@ -549,6 +588,32 @@ jobs:
       - run: make vet
       - run: make fmt
 ```
+
+## Сборка документации
+
+Документация собирается с помощью [MkDocs](https://www.mkdocs.org/) и темы Material. Диаграммы строятся на [Mermaid](https://mermaid.js.org/) через плагин `mkdocs-mermaid2-plugin`.
+
+**Установка зависимостей** (из корня репозитория):
+
+```bash
+pip install -r docs/requirements.txt
+```
+
+Или вручную:
+
+```bash
+pip install "mkdocs-material[imaging]" pymdown-extensions mkdocs-mermaid2-plugin
+```
+
+**Сборка и просмотр** (из корня репозитория):
+
+```bash
+cd docs && mkdocs build
+# или локальный сервер:
+cd docs && mkdocs serve
+```
+
+При использовании `mkdocs serve` откройте в браузере `http://127.0.0.1:8000`.
 
 ## Вклад в проект
 

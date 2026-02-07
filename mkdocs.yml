@@ -4,6 +4,10 @@ site_author: DataFlow Team
 
 docs_dir: docs
 
+plugins:
+  - search
+  - mermaid2
+
 theme:
   name: material
   language: en
@@ -29,6 +33,7 @@ theme:
 nav:
   - Home: en/index.md
   - Getting Started: en/getting-started.md
+  - Architecture: en/architecture.md
   - Connectors: en/connectors.md
   - Transformations: en/transformations.md
   - Examples: en/examples.md
@@ -41,6 +46,7 @@ nav:
   - "Русский":
     - "Главная": ru/index.md
     - "Начало работы": ru/getting-started.md
+    - "Архитектура": ru/architecture.md
     - "Коннекторы": ru/connectors.md
     - "Трансформации": ru/transformations.md
     - "Примеры": ru/examples.md
@@ -52,7 +58,11 @@ nav:
 
 markdown_extensions:
   - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
   - pymdownx.tabbed
   - admonition
   - tables

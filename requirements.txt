@@ -1,0 +1,6 @@
+# Documentation build dependencies (run from repo root: pip install -r docs/requirements.txt)
+# Then build from docs directory: cd docs && mkdocs build
+
+mkdocs-material[imaging]
+pymdown-extensions
+mkdocs-mermaid2-plugin
