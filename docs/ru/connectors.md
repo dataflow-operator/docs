@@ -9,6 +9,7 @@ DataFlow Operator поддерживает различные коннектор
 | Kafka | ✅ | ✅ | Consumer groups, TLS, SASL, Avro, Schema Registry |
 | PostgreSQL | ✅ | ✅ | SQL запросы, батч-вставки, автосоздание таблиц, UPSERT режим |
 | Trino | ✅ | ✅ | SQL запросы, аутентификация Keycloak OAuth2, батч-вставки |
+| ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
 
 ## Kafka
 
@@ -339,6 +340,83 @@ sink:
 - Это особенно полезно для синхронизации данных, когда источник периодически отправляет обновленные записи
 
 **Важно:** Для работы UPSERT таблица должна иметь PRIMARY KEY или UNIQUE constraint на указанном `conflictKey`.
+
+## ClickHouse
+
+ClickHouse коннектор поддерживает чтение из таблиц и запись в таблицы ClickHouse. Поддерживает периодический опрос для инкрементального чтения, кастомные SQL запросы, батч-вставки и автосоздание MergeTree таблиц.
+
+### Источник (Source)
+
+```yaml
+source:
+  type: clickhouse
+  clickhouse:
+    # Connection string (обязательно)
+    # Native: clickhouse://host:9000?username=default&password=xxx&database=default
+    # HTTP: http://host:8123/default?username=default&password=xxx
+    connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
+
+    # Таблица для чтения (обязательно, если не указан query)
+    table: source_table
+
+    # Кастомный SQL запрос (опционально)
+    query: "SELECT * FROM source_table WHERE id > 100"
+
+    # Интервал опроса в секундах (опционально, по умолчанию: 5)
+    pollInterval: 60
+```
+
+#### Особенности ClickHouse источника
+
+- **Опрос**: Периодически опрашивает таблицу на наличие новых данных
+- **Инкрементальное чтение**: Использует колонки `id` или `created_at` при наличии для избежания дубликатов
+- **Кастомные запросы**: Поддержка кастомных SQL запросов
+
+### Приемник (Sink)
+
+```yaml
+sink:
+  type: clickhouse
+  clickhouse:
+    connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
+    table: output_table
+
+    # Размер батча для вставок (опционально, по умолчанию: 100)
+    batchSize: 100
+
+    # Автосоздание MergeTree таблицы с колонками data + created_at (опционально)
+    autoCreateTable: true
+```
+
+#### Особенности ClickHouse приемника
+
+- **Батч-вставки**: Группирует сообщения для эффективной записи (размер батча по умолчанию: 100)
+- **Автосоздание таблиц**: Создаёт MergeTree таблицу с колонками `data` (String) и `created_at` (DateTime)
+- **JSON**: Сообщения хранятся как JSON строки в колонке `data`
+
+#### Пример: Kafka → ClickHouse
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-to-clickhouse
+spec:
+  source:
+    type: kafka
+    kafka:
+      brokers:
+        - kafka:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://default@clickhouse:9000/default"
+      table: output_table
+      batchSize: 100
+      autoCreateTable: true
+```
 
 ## Trino
 
@@ -813,6 +891,10 @@ secretRef:
 - `avroSchemaSecretRef` - Avro схема из секрета (для статической схемы)
 
 #### PostgreSQL
+- `connectionStringSecretRef` - строка подключения
+- `tableSecretRef` - название таблицы
+
+#### ClickHouse
 - `connectionStringSecretRef` - строка подключения
 - `tableSecretRef` - название таблицы
 

@@ -9,6 +9,7 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 | Kafka | ✅ | ✅ | Consumer groups, TLS, SASL, Avro, Schema Registry |
 | PostgreSQL | ✅ | ✅ | SQL queries, batch inserts, auto-create tables, UPSERT mode |
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
+| ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
 
 > **Note**: This is a simplified English version. For complete documentation, see the [Russian version](../ru/connectors.md) or refer to the code examples in `config/samples/`.
 
@@ -50,6 +51,10 @@ All connectors support secret references for the following fields:
 - `avroSchemaSecretRef` - Avro schema from secret (for static schema)
 
 #### PostgreSQL
+- `connectionStringSecretRef` - connection string
+- `tableSecretRef` - table name
+
+#### ClickHouse
 - `connectionStringSecretRef` - connection string
 - `tableSecretRef` - table name
 
@@ -344,6 +349,85 @@ sink:
       - kafka1:9092
     topic: output-topic
     # TLS and SASL configuration similar to source
+```
+
+## ClickHouse
+
+The ClickHouse connector supports reading from and writing to ClickHouse tables. It supports polling for incremental reads, custom SQL queries, batch inserts, and auto-creation of MergeTree tables.
+
+### Source
+
+```yaml
+source:
+  type: clickhouse
+  clickhouse:
+    # Connection string (required)
+    # Native: clickhouse://host:9000?username=default&password=xxx&database=default
+    # HTTP: http://host:8123/default?username=default&password=xxx
+    connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
+
+    # Table to read from (required, if not using query)
+    table: source_table
+
+    # Custom SQL query (optional)
+    # If specified, used instead of reading from table
+    query: "SELECT * FROM source_table WHERE id > 100"
+
+    # Poll interval in seconds (optional, default: 5)
+    pollInterval: 60
+```
+
+### Features
+
+- **Polling**: Periodically polls the table for new data
+- **Incremental Reads**: Uses `id` or `created_at` columns when available to avoid duplicates
+- **Custom Queries**: Support for custom SQL queries
+- **Metadata**: Each message contains metadata: `table`, `id` (if present)
+
+### Sink
+
+```yaml
+sink:
+  type: clickhouse
+  clickhouse:
+    connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
+    table: output_table
+
+    # Batch size for inserts (optional, default: 100)
+    batchSize: 100
+
+    # Auto-create MergeTree table with data + created_at columns (optional)
+    autoCreateTable: true
+```
+
+### Features
+
+- **Batch Inserts**: Groups messages for efficient writing (default batch size: 100)
+- **Auto-create Tables**: Creates MergeTree table with `data` (String) and `created_at` (DateTime) columns
+- **JSON Storage**: Messages are stored as JSON strings in the `data` column
+
+### Example: Kafka to ClickHouse
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-to-clickhouse
+spec:
+  source:
+    type: kafka
+    kafka:
+      brokers:
+        - kafka:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://default@clickhouse:9000/default"
+      table: output_table
+      batchSize: 100
+      autoCreateTable: true
 ```
 
 ## Trino
