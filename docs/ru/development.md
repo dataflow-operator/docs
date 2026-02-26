@@ -328,6 +328,8 @@ docker push your-registry/dataflow-operator:v1.0.0
 
 ## Добавление нового коннектора
 
+> **Подробное руководство:** см. [Разработка коннекторов с baseConnector](connector-development.md) — пошаговая инструкция с примерами использования `baseConnector` и `baseConnectorRWMutex`.
+
 ### 1. Определение типов в API
 
 Добавьте спецификацию в `api/v1/dataflow_types.go`:
@@ -349,28 +351,36 @@ type SourceSpec struct {
 
 ### 2. Реализация коннектора
 
-Создайте файл `internal/connectors/newconnector.go`:
+Создайте файл `internal/connectors/newconnector.go`. **Рекомендуется** встраивать `baseConnector` для общей синхронизации Connect/Close:
 
 ```go
 package connectors
 
 import (
     "context"
+    "fmt"
     v1 "github.com/dataflow-operator/dataflow/api/v1"
     "github.com/dataflow-operator/dataflow/internal/types"
+    "github.com/go-logr/logr"
 )
 
 type NewConnectorSourceConnector struct {
+    baseConnector
     config *v1.NewConnectorSourceSpec
-    // connection fields
+    conn   *Connection
+    logger logr.Logger
 }
 
 func NewNewConnectorSourceConnector(config *v1.NewConnectorSourceSpec) *NewConnectorSourceConnector {
-    return &NewConnectorSourceConnector{config: config}
+    return &NewConnectorSourceConnector{config: config, logger: logr.Discard()}
 }
 
 func (n *NewConnectorSourceConnector) Connect(ctx context.Context) error {
-    // Implement connection logic
+    if !n.guardConnect() {
+        return fmt.Errorf("connector is closed")
+    }
+    defer n.Unlock()
+    // ... connection logic
     return nil
 }
 
@@ -380,7 +390,11 @@ func (n *NewConnectorSourceConnector) Read(ctx context.Context) (<-chan *types.M
 }
 
 func (n *NewConnectorSourceConnector) Close() error {
-    // Implement close logic
+    if n.guardClose() {
+        return nil
+    }
+    defer n.Unlock()
+    // ... close logic
     return nil
 }
 ```

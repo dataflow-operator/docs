@@ -260,8 +260,10 @@ make docker-push IMG=your-registry/dataflow-operator:v1.0.0
 
 ## Adding a New Connector
 
+> **Detailed guide:** see [Connector Development with baseConnector](connector-development.md) for a step-by-step guide with examples using `baseConnector` and `baseConnectorRWMutex`.
+
 1. Define types in API (`api/v1/dataflow_types.go`)
-2. Implement connector (`internal/connectors/newconnector.go`)
+2. Implement connector (`internal/connectors/newconnector.go`) — embed `baseConnector` for Connect/Close synchronization
 3. Register in factory (`internal/connectors/factory.go`)
 4. Generate code (`make generate && make manifests`)
 5. Write tests

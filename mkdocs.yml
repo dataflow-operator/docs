@@ -42,6 +42,7 @@ nav:
   - Kubernetes Events: en/kubernetes-events.md
   - MCP: en/mcp.md
   - Development: en/development.md
+  - Connector Development: en/connector-development.md
   - "---"
   - "Русский":
     - "Главная": ru/index.md
@@ -55,6 +56,7 @@ nav:
     - "События Kubernetes": ru/kubernetes-events.md
     - "MCP": ru/mcp.md
     - "Разработка": ru/development.md
+    - "Разработка коннекторов": ru/connector-development.md
 
 markdown_extensions:
   - pymdownx.highlight
