@@ -10,9 +10,10 @@ DataFlow Operator allows you to declaratively define data flows between differen
 
 ### Multiple Data Source Support
 
-- **Kafka** - read and write messages from/to Kafka topics with TLS and SASL authentication support
-- **PostgreSQL** - read from tables and write to PostgreSQL tables with support for custom SQL queries and batch inserts
-- **Trino** - read from tables and write to Trino tables with support for SQL queries, Keycloak OAuth2 authentication, and batch inserts
+- **Kafka** — read and write messages from/to Kafka topics (TLS, SASL, Avro, Schema Registry)
+- **PostgreSQL** — read from tables and write with custom SQL, batch inserts, UPSERT mode
+- **ClickHouse** — polling, batch inserts, auto-create MergeTree tables
+- **Trino** — SQL queries, Keycloak OAuth2, batch inserts
 
 ### Rich Transformation Set
 
@@ -104,90 +105,6 @@ Message transformation modules that are applied sequentially to each message in 
 
 Message processing orchestrator that coordinates the work of source, transformations, and sink. Handles errors, maintains statistics, and manages the data flow lifecycle.
 
-## Supported Sources and Sinks
-
-### Kafka
-
-- Consumer groups support for scaling
-- TLS and SASL authentication
-- Initial read position configuration
-- Message key support
-
-### PostgreSQL
-
-- Custom SQL queries for sources
-- Periodic polling with configurable interval
-- Batch inserts for improved performance
-- Automatic table creation
-- JSONB support for flexible schema
-- UPSERT mode for updating existing records
-
-### Trino
-
-- Custom SQL queries for sources
-- Periodic polling with configurable interval
-- Batch inserts for improved performance
-- Automatic table creation
-- Keycloak OAuth2/OIDC authentication
-
-## Security
-
-### Kubernetes Secrets
-
-All connectors support configuration from Kubernetes Secrets through `*SecretRef` fields:
-
-- **Kafka**: brokers, topic, consumerGroup, SASL credentials, TLS certificates
-- **PostgreSQL**: connectionString, table
-- **Trino**: serverURL, catalog, schema, table, Keycloak credentials
-
-This enables:
-- Secure storage of sensitive data
-- Centralized credential management
-- Secret rotation without changing DataFlow resources
-- Access control through Kubernetes RBAC
-
-For more details, see the [Using Kubernetes Secrets](connectors.md#using-kubernetes-secrets) section in the connectors documentation.
-
-## Transformations
-
-All transformations support JSONPath for working with nested data structures.
-
-### Timestamp
-
-Adds a field with timestamp in RFC3339 or custom format.
-
-### Flatten
-
-Expands arrays into separate messages, preserving all parent fields. Useful for processing nested structures.
-
-### Filter
-
-Filters messages based on JSONPath conditions. Supports complex logical expressions.
-
-### Mask
-
-Masks sensitive data, supporting length preservation or full character replacement.
-
-### Router
-
-Routes messages to different sinks based on conditions. Enables complex processing scenarios.
-
-### Select
-
-Selects only specified fields from messages, reducing data size and improving performance.
-
-### Remove
-
-Removes specified fields from messages, useful for data cleanup before sending.
-
-### SnakeCase
-
-Converts field names to snake_case format. Supports recursive conversion of nested objects.
-
-### CamelCase
-
-Converts field names to CamelCase format. Supports recursive conversion of nested objects.
-
 ## Monitoring and Status
 
 Each `DataFlow` resource has a status that includes:
@@ -208,12 +125,13 @@ See [Metrics](metrics.md) for more details.
 
 ## Documentation
 
-- [Getting Started](getting-started.md) - detailed getting started guide
-- [Connectors](connectors.md) - detailed description of all connectors
-- [Transformations](transformations.md) - detailed transformation descriptions with examples
-- [Examples](examples.md) - practical usage examples
-- [Metrics](metrics.md) - Prometheus metrics and monitoring
-- [Development](development.md) - developer guide
+- [Getting Started](getting-started.md) — installation and first data flow
+- [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino (sources and sinks)
+- [Transformations](transformations.md) — message transformations
+- [Examples](examples.md) — practical examples
+- [Errors](errors.md) — error handling and error sink
+- [Metrics](metrics.md) — Prometheus metrics
+- [Development](development.md) — developer guide
 
 ## License
 

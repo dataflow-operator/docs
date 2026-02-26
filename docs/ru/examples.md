@@ -102,7 +102,7 @@ spec:
 
 ## Обработка ошибок с error sink
 
-Пример настройки отдельного приемника для сообщений, которые не удалось записать в основной sink.
+Пример настройки отдельного приёмника для сообщений, которые не удалось записать в основной sink.
 
 ```yaml
 apiVersion: dataflow.dataflow.io/v1
@@ -131,60 +131,12 @@ spec:
       topic: error-topic
 ```
 
-**Структура сообщения в error sink:**
-
-Когда сообщение не удается записать в основной sink, оно отправляется в error sink со следующей структурой:
-
-```json
-{
-  "error": {
-    "message": "текст ошибки (например: failed to send message: connection refused)",
-    "timestamp": "2026-01-24T12:34:56Z",
-    "original_sink": "postgresql",
-    "metadata": {
-      // Метаданные из оригинального сообщения (если были)
-    }
-  },
-  "original_message": {
-    // Оригинальные данные сообщения
-    // Если оригинальное сообщение было JSON, оно будет здесь как объект
-    // Если нет - будет поле "original_data" со строкой
-  }
-}
+**Применение:**
+```bash
+kubectl apply -f config/samples/kafka-to-postgres-with-errors.yaml
 ```
 
-**Пример сообщения об ошибке:**
-
-Если оригинальное сообщение было:
-```json
-{
-  "id": 1,
-  "name": "test",
-  "value": 100
-}
-```
-
-То в error sink будет записано:
-```json
-{
-  "error": {
-    "message": "failed to send message: connection refused",
-    "timestamp": "2026-01-24T12:34:56Z",
-    "original_sink": "postgresql"
-  },
-  "original_message": {
-    "id": 1,
-    "name": "test",
-    "value": 100
-  }
-}
-```
-
-**Важно:**
-- Если `errors` не указан, ошибки записи будут приводить к остановке обработки
-- Error sink может быть любого типа (Kafka, PostgreSQL, Trino)
-- Оригинальные данные сообщения сохраняются в поле `original_message`
-- Информация об ошибке добавляется в структуру сообщения, что гарантирует её сохранение независимо от типа error sink
+Структура сообщений об ошибках и детали конфигурации — в разделе [Обработка ошибок](errors.md).
 
 ## С роутером для множественных приемников
 
@@ -513,52 +465,9 @@ spec:
                 topic: product-events
 ```
 
-      autoCreateNamespace: true
-      autoCreateTable: true
-  transformations:
-    - type: timestamp
-      timestamp:
-        fieldName: ingested_at
-    - type: remove
-      remove:
-        fields:
-          - internal_id
-          - audit_trail
-    - type: mask
-      mask:
-        fields:
-          - credit_card
-        keepLength: true
-```
-
-## Использование Secrets для credentials
-      url: "amqp://guest:guest@localhost:5672/"
-      queue: events-queue
-      exchange: events-exchange
-      routingKey: events.*
-  sink:
-    type: postgresql
-    postgresql:
-      connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
-      table: events
-      autoCreateTable: true
-      batchSize: 50
-  transformations:
-    - type: filter
-      filter:
-        condition: "$.status"
-    - type: timestamp
-      timestamp:
-        fieldName: received_at
-```
-
 ## Использование Secrets для credentials
 
-DataFlow Operator поддерживает конфигурацию коннекторов из Kubernetes Secrets через поля `*SecretRef`. Это позволяет безопасно хранить чувствительные данные без их явного указания в спецификации DataFlow.
-
-### Пример: Kafka → PostgreSQL с Secrets
-
-#### Шаг 1: Создание Secrets
+DataFlow Operator поддерживает конфигурацию коннекторов из Kubernetes Secrets через поля `*SecretRef`.
 
 ```yaml
 apiVersion: v1
@@ -583,11 +492,7 @@ type: Opaque
 stringData:
   connectionString: "postgres://user:password@postgres:5432/dbname?sslmode=disable"
   table: "output_table"
-```
-
-#### Шаг 2: DataFlow с SecretRef
-
-```yaml
+---
 apiVersion: dataflow.dataflow.io/v1
 kind: DataFlow
 metadata:
@@ -630,86 +535,7 @@ spec:
 kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
 ```
 
-### Пример: TLS сертификаты из Secrets
-
-Для TLS конфигурации оператор автоматически определяет, является ли значение из secret путем к файлу или содержимым сертификата.
-
-**Как это работает:**
-- Если значение начинается с `-----BEGIN` (например, `-----BEGIN CERTIFICATE-----`), оператор распознает его как содержимое сертификата и создает временный файл
-- Если значение не начинается с `-----BEGIN` и существует как файл, оно используется как путь к файлу
-- Сертификаты могут храниться в секретах как в текстовом формате (PEM), так и в base64-кодированном виде (в поле `data` секрета)
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kafka-tls-certs
-type: Opaque
-stringData:
-  ca.crt: |
-    -----BEGIN CERTIFICATE-----
-    MIIDXTCCAkWgAwIBAgIJAK...
-    -----END CERTIFICATE-----
-  client.crt: |
-    -----BEGIN CERTIFICATE-----
-    MIIDXTCCAkWgAwIBAgIJAK...
-    -----END CERTIFICATE-----
-  client.key: |
-    -----BEGIN PRIVATE KEY-----
-    MIIEvQIBADANBgkqhkiG9w0...
-    -----END PRIVATE KEY-----
----
-apiVersion: dataflow.dataflow.io/v1
-kind: DataFlow
-metadata:
-  name: kafka-tls-secure
-spec:
-  source:
-    type: kafka
-    kafka:
-      brokers:
-        - secure-kafka:9093
-      topic: secure-topic
-      tls:
-        caSecretRef:
-          name: kafka-tls-certs
-          key: ca.crt
-        certSecretRef:
-          name: kafka-tls-certs
-          key: client.crt
-        keySecretRef:
-          name: kafka-tls-certs
-          key: client.key
-```
-
-### Пример: Secrets в разных namespace
-
-Вы можете использовать secrets из других namespace:
-
-```yaml
-apiVersion: dataflow.dataflow.io/v1
-kind: DataFlow
-metadata:
-  name: cross-namespace-secrets
-  namespace: dataflow
-spec:
-  source:
-    type: postgresql
-    postgresql:
-      connectionStringSecretRef:
-        name: postgres-credentials
-        namespace: shared-secrets  # Другой namespace
-        key: connectionString
-```
-
-### Преимущества использования SecretRef
-
-- **Безопасность**: Credentials не хранятся в спецификации DataFlow
-- **Управление**: Централизованное управление secrets через Kubernetes
-- **Ротация**: Обновление secrets без изменения DataFlow ресурсов
-- **RBAC**: Контроль доступа через Kubernetes RBAC
-
-Подробнее см. раздел [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes) в документации по коннекторам.
+Поддерживаемые поля, TLS сертификаты и устранение неполадок — в разделе [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes).
 
 ## Мониторинг и отладка
 

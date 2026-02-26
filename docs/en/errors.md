@@ -4,7 +4,7 @@ DataFlow Operator allows you to send messages that failed to be written to the m
 
 ## Overview
 
-The `errors` section in the DataFlow spec defines the error sink. When a message cannot be written to the main sink (e.g., connection failure, validation error, constraint violation), it is written to the error sink instead. The same connector types supported as main sinks can be used for the error sink (e.g. Kafka, PostgreSQL).
+The `errors` section in the DataFlow spec defines the error sink. When a message cannot be written to the main sink (e.g., connection failure, validation error, constraint violation), it is written to the error sink instead. The same connector types supported as main sinks can be used for the error sink (Kafka, PostgreSQL, ClickHouse, Trino).
 
 !!! tip "When to use"
     Use an error sink when you need to avoid losing failed messages and want to reprocess or analyze them later.

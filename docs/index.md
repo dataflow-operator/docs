@@ -45,24 +45,9 @@ Documentation is available in two languages:
 
 ## Key Features
 
-### Multiple Data Source Support
-
-- **Kafka** - read and write messages from/to Kafka topics with TLS and SASL authentication support
-- **PostgreSQL** - read from tables and write to PostgreSQL tables with support for custom SQL queries and batch inserts
-
-### Rich Transformation Set
-
-- **Timestamp** - add timestamp to each message
-- **Flatten** - expand arrays into separate messages while preserving parent fields
-- **Filter** - filter messages based on JSONPath conditions
-- **Mask** - mask sensitive data with or without preserving length
-- **Router** - route messages to different sinks based on conditions
-- **Select** - select specific fields from messages
-- **Remove** - remove specified fields from messages
-
-### Secure Configuration
-
-Support for configuring connectors from Kubernetes Secrets through `SecretRef` allows secure storage of credentials, tokens, and connection strings without explicitly specifying them in the DataFlow specification.
+- **Connectors**: Kafka, PostgreSQL, ClickHouse, Trino (sources and sinks)
+- **Transformations**: Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase
+- **Security**: Kubernetes Secrets via `SecretRef` for credentials
 
 ## License
 

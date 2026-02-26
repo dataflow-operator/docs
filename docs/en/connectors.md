@@ -11,7 +11,6 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
 
-> **Note**: This is a simplified English version. For complete documentation, see the [Russian version](../ru/connectors.md) or refer to the code examples in `config/samples/`.
 
 ## Using Kubernetes Secrets
 
@@ -351,6 +350,51 @@ sink:
     # TLS and SASL configuration similar to source
 ```
 
+## PostgreSQL
+
+The PostgreSQL connector supports reading from and writing to PostgreSQL tables. It supports custom SQL queries, periodic polling, batch inserts, auto-create tables, and UPSERT mode.
+
+### Source
+
+```yaml
+source:
+  type: postgresql
+  postgresql:
+    connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
+    table: source_table
+    # Custom SQL query (optional)
+    query: "SELECT * FROM source_table WHERE updated_at > NOW() - INTERVAL '1 hour'"
+    # Poll interval in seconds (optional, default: 5)
+    pollInterval: 60
+```
+
+### Features
+
+- **Periodic Polling**: Regularly polls the table for new data
+- **Custom Queries**: Support for complex SQL with JOIN, WHERE, etc.
+- **Metadata**: Each message contains `table` metadata
+
+### Sink
+
+```yaml
+sink:
+  type: postgresql
+  postgresql:
+    connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
+    table: target_table
+    batchSize: 100
+    autoCreateTable: true
+    # UPSERT mode (optional, default: false)
+    upsertMode: true
+    conflictKey: "id"
+```
+
+### Features
+
+- **Batch Inserts**: Groups messages for efficient writing
+- **Auto-create Tables**: Creates tables with JSONB field and GIN index
+- **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`)
+
 ## ClickHouse
 
 The ClickHouse connector supports reading from and writing to ClickHouse tables. It supports polling for incremental reads, custom SQL queries, batch inserts, and auto-creation of MergeTree tables.
@@ -595,57 +639,9 @@ spec:
         # password: trino-password
 ```
 
-## Error Handling (Error Sink)
+## Error Sink
 
-DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. This allows preserving problematic messages for later analysis and processing.
+DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse) as the main sink.
 
-### Configuration
-
-The `errors` section in the DataFlow spec defines the error sink:
-
-```yaml
-spec:
-  source:
-    # ... source configuration
-  sink:
-    # ... main sink configuration
-  errors:
-    type: kafka
-    kafka:
-      brokers:
-        - localhost:9092
-      topic: error-topic
-```
-
-### Error Message Structure
-
-When a message fails to be written to the main sink, it is sent to the error sink with the following structure:
-
-```json
-{
-  "error": {
-    "message": "error text",
-    "timestamp": "2026-01-24T12:34:56Z",
-    "original_sink": "postgresql",
-    "metadata": {
-      // Metadata from the original message (if present)
-    }
-  },
-  "original_message": {
-    // Original message data
-    // If the original message was JSON, it will be here as an object
-    // If not - there will be an "original_data" field with a string
-  }
-}
-```
-
-### Features
-
-- **Any sink type**: Error sink can be of any type (Kafka, PostgreSQL, Trino)
-- **Data preservation**: Original message data is preserved in the `original_message` field
-- **Error information**: Error information is embedded in the message structure, ensuring it is preserved regardless of the error sink type
-- **Error handling**: If `errors` is not specified, write errors will cause processing to stop
-- **Router sinks**: Error sink also works for messages sent through router transformation
-
-For complete connector documentation, see the [Russian version](../ru/connectors.md).
+For configuration, error message structure, and error types, see [Error Handling](errors.md).
 

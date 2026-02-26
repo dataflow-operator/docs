@@ -2,8 +2,6 @@
 
 Practical examples of using DataFlow Operator for various data processing scenarios.
 
-> **Note**: This is a simplified English version. For complete documentation, see the [Russian version](../ru/examples.md).
-
 ## Simple Kafka → PostgreSQL Flow
 
 Basic example of transferring data from a Kafka topic to a PostgreSQL table.
@@ -65,65 +63,12 @@ spec:
       topic: error-topic
 ```
 
-**Error Message Structure:**
-
-When a message fails to be written to the main sink, it is sent to the error sink with the following structure:
-
-```json
-{
-  "error": {
-    "message": "error text (e.g., failed to send message: connection refused)",
-    "timestamp": "2026-01-24T12:34:56Z",
-    "original_sink": "postgresql",
-    "metadata": {
-      // Metadata from the original message (if present)
-    }
-  },
-  "original_message": {
-    // Original message data
-    // If the original message was JSON, it will be here as an object
-    // If not - there will be an "original_data" field with a string
-  }
-}
-```
-
-**Example Error Message:**
-
-If the original message was:
-```json
-{
-  "id": 1,
-  "name": "test",
-  "value": 100
-}
-```
-
-Then the error sink will contain:
-```json
-{
-  "error": {
-    "message": "failed to send message: connection refused",
-    "timestamp": "2026-01-24T12:34:56Z",
-    "original_sink": "postgresql"
-  },
-  "original_message": {
-    "id": 1,
-    "name": "test",
-    "value": 100
-  }
-}
-```
-
-**Important:**
-- If `errors` is not specified, write errors will cause processing to stop
-- Error sink can be of any type (Kafka, PostgreSQL, Trino)
-- Original message data is preserved in the `original_message` field
-- Error information is embedded in the message structure, ensuring it is preserved regardless of the error sink type
-
 **Apply:**
 ```bash
 kubectl apply -f config/samples/kafka-to-postgres-with-errors.yaml
 ```
+
+For error message structure and configuration details, see [Error Handling](errors.md).
 
 ## PostgreSQL → PostgreSQL (replication / ETL)
 
@@ -175,11 +120,7 @@ spec:
 
 ## Using Secrets for Credentials
 
-DataFlow Operator supports configuring connectors from Kubernetes Secrets through `*SecretRef` fields. This allows secure storage of credentials without explicitly specifying them in the DataFlow specification.
-
-### Example: Kafka → PostgreSQL with Secrets
-
-#### Step 1: Create Secrets
+DataFlow Operator supports configuring connectors from Kubernetes Secrets through `*SecretRef` fields.
 
 ```yaml
 apiVersion: v1
@@ -204,11 +145,7 @@ type: Opaque
 stringData:
   connectionString: "postgres://user:password@postgres:5432/dbname?sslmode=disable"
   table: "output_table"
-```
-
-#### Step 2: DataFlow with SecretRef
-
-```yaml
+---
 apiVersion: dataflow.dataflow.io/v1
 kind: DataFlow
 metadata:
@@ -251,86 +188,7 @@ spec:
 kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
 ```
 
-### Example: TLS Certificates from Secrets
-
-For TLS configuration, the operator automatically determines whether the value from the secret is a file path or certificate content.
-
-**How it works:**
-- If the value starts with `-----BEGIN` (e.g., `-----BEGIN CERTIFICATE-----`), the operator recognizes it as certificate content and creates a temporary file
-- If the value doesn't start with `-----BEGIN` and exists as a file, it's used as a file path
-- Certificates can be stored in secrets either as plain text (PEM format) or as base64-encoded values (in the secret's `data` field)
-
-**Supported formats:**
-
-1. **Certificate content** (PEM format):
-   ```yaml
-   ca.crt: |
-     -----BEGIN CERTIFICATE-----
-     MIIDXTCCAkWgAwIBAgIJAK...
-     -----END CERTIFICATE-----
-   ```
-
-2. **Base64-encoded content** (in secret's `data` field):
-   ```yaml
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: kafka-tls-certs
-   type: Opaque
-   data:
-     ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t...  # base64
-   ```
-   Kubernetes automatically decodes base64 when reading from the secret.
-
-3. **File path**:
-   ```yaml
-   ca.crt: /etc/kafka/ca.crt
-   ```
-
-**Example:**
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kafka-tls-certs
-type: Opaque
-stringData:
-  ca.crt: |
-    -----BEGIN CERTIFICATE-----
-    ...
-    -----END CERTIFICATE-----
----
-apiVersion: dataflow.dataflow.io/v1
-kind: DataFlow
-metadata:
-  name: kafka-tls-secure
-spec:
-  source:
-    type: kafka
-    kafka:
-      brokers:
-        - secure-kafka:9093
-      topic: secure-topic
-      tls:
-        caSecretRef:
-          name: kafka-tls-certs
-          key: ca.crt
-```
-
-**Important:**
-- Temporary files are automatically created for certificate content and cleaned up after use
-- When using base64-encoded values in the `data` field, Kubernetes automatically decodes them when reading
-- Ensure certificates are in proper PEM format with `-----BEGIN` and `-----END` headers
-
-### Benefits of Using SecretRef
-
-- **Security**: Credentials are not stored in the DataFlow specification
-- **Management**: Centralized credential management through Kubernetes
-- **Rotation**: Update secrets without changing DataFlow resources
-- **RBAC**: Access control through Kubernetes RBAC
-
-For more details, see the [Using Kubernetes Secrets](../ru/connectors.md#использование-secrets-в-kubernetes) section in the connectors documentation.
+For supported fields, TLS certificates, and troubleshooting, see [Using Kubernetes Secrets](connectors.md#using-kubernetes-secrets).
 
 ## Configuring Pod Resources and Placement
 
@@ -461,5 +319,5 @@ kubectl describe pod dataflow-<name>-<hash>
 kubectl top pod dataflow-<name>-<hash>
 ```
 
-For more examples, see the [Russian version](../ru/examples.md) or check `config/samples/` directory.
+Additional examples are available in `config/samples/` directory.
 
