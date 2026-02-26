@@ -32,6 +32,54 @@ spec:
 kubectl apply -f config/samples/kafka-to-postgres.yaml
 ```
 
+## Kafka с режимом сырой записи (rawMode)
+
+Пример сохранения полного контекста Kafka-сообщения: value + метаданные (offset, partition, timestamp, key, topic).
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-raw-to-clickhouse
+spec:
+  source:
+    type: kafka
+    kafka:
+      brokers:
+        - localhost:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+      rawMode: true  # Оборачивает каждое сообщение в {"value": ..., "_metadata": {...}}
+  sink:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://default@clickhouse:9000/default"
+      table: raw_events
+      autoCreateTable: true
+```
+
+**Формат выходного сообщения при rawMode:**
+```json
+{
+  "value": {"id": 1, "event": "user_login"},
+  "_metadata": {
+    "offset": 100,
+    "partition": 0,
+    "timestamp": 1709000000000,
+    "key": "user-123",
+    "topic": "input-topic"
+  }
+}
+```
+
+Для sink, ожидающего только данные без обёртки, добавьте трансформацию select с полем `value`:
+```yaml
+transformations:
+  - type: select
+    select:
+      fields: ["value"]
+```
+
 ## С трансформациями (Flatten + Timestamp)
 
 Пример обработки сообщений с массивом товаров, развертывание в отдельные сообщения и добавление временной метки.

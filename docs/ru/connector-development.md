@@ -221,7 +221,24 @@ func (c *MyDBSinkConnector) Close() error {
 }
 ```
 
-### Шаг 5. Регистрация в фабрике
+### Шаг 5. Поддержка rawMode (опционально)
+
+Для source-коннекторов можно добавить режим сырой записи — обёртку данных в `{"value": ..., "_metadata": {...}}`:
+
+1. Добавьте в spec поле `RawMode *bool` с тегом `json:"rawMode,omitempty"`
+2. При формировании сообщения проверяйте `config.RawMode != nil && *config.RawMode`
+3. Используйте `buildRawModeJSON(value, metadata)` из пакета `connectors` для формирования JSON
+
+Пример (PostgreSQL, ClickHouse, Trino):
+```go
+if p.config.RawMode != nil && *p.config.RawMode {
+    metadata := map[string]interface{}{"table": p.config.Table}
+    if idIndex >= 0 { metadata["id"] = values[idIndex] }
+    jsonData, err = buildRawModeJSON(rowMap, metadata)
+}
+```
+
+### Шаг 6. Регистрация в фабрике
 
 В `internal/connectors/factory.go`:
 
@@ -253,7 +270,7 @@ func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
 }
 ```
 
-### Шаг 6. Генерация и тестирование
+### Шаг 7. Генерация и тестирование
 
 ```bash
 make generate

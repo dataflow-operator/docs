@@ -298,6 +298,10 @@ source:
     # Supported formats: "json", "avro"
     format: json
 
+    # Raw mode (optional, default: false)
+    # When true, wraps each message as JSON: {"value": <message value>, "_metadata": {offset, partition, timestamp, key, topic}}
+    rawMode: true
+
     # Avro configuration (required if format: "avro")
     # Option 1: Use Confluent Schema Registry (recommended)
     schemaRegistry:
@@ -337,6 +341,7 @@ source:
   - `partition` - partition number
   - `offset` - message offset
   - `key` - message key (if present)
+- **Raw Mode**: When enabled, wraps each message as JSON with `value` (message data) and `_metadata` (offset, partition, timestamp in ms, key, topic). Useful for preserving full Kafka message context
 
 ### Sink
 
@@ -366,6 +371,10 @@ source:
     query: "SELECT * FROM source_table WHERE updated_at > NOW() - INTERVAL '1 hour'"
     # Poll interval in seconds (optional, default: 5)
     pollInterval: 60
+
+    # Raw mode (optional, default: false)
+    # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {table, id}}
+    rawMode: true
 ```
 
 ### Features
@@ -373,6 +382,7 @@ source:
 - **Periodic Polling**: Regularly polls the table for new data
 - **Custom Queries**: Support for complex SQL with JOIN, WHERE, etc.
 - **Metadata**: Each message contains `table` metadata
+- **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
 
 ### Sink
 
@@ -419,6 +429,10 @@ source:
 
     # Poll interval in seconds (optional, default: 5)
     pollInterval: 60
+
+    # Raw mode (optional, default: false)
+    # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {table, id}}
+    rawMode: true
 ```
 
 ### Features
@@ -427,6 +441,7 @@ source:
 - **Incremental Reads**: Uses `id` or `created_at` columns when available to avoid duplicates
 - **Custom Queries**: Support for custom SQL queries
 - **Metadata**: Each message contains metadata: `table`, `id` (if present)
+- **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
 
 ### Sink
 
@@ -504,6 +519,10 @@ source:
     # Used for periodic reading of new data
     pollInterval: 60
 
+    # Raw mode (optional, default: false)
+    # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {catalog, schema, table, id}}
+    rawMode: true
+
     # Keycloak authentication (optional)
     keycloak:
       # Option 1: Use long-lived token directly (recommended for long-lived tokens)
@@ -531,6 +550,7 @@ source:
   - `catalog` - catalog name
   - `schema` - schema name
   - `table` - table name
+- **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (catalog, schema, table, id)
 
 #### Obtaining a Token from Keycloak
 

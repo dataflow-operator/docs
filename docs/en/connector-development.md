@@ -221,7 +221,24 @@ func (c *MyDBSinkConnector) Close() error {
 }
 ```
 
-### Step 5. Register in Factory
+### Step 5. Raw Mode Support (optional)
+
+For source connectors, you can add raw mode — wrapping data as `{"value": ..., "_metadata": {...}}`:
+
+1. Add `RawMode *bool` field with tag `json:"rawMode,omitempty"` to the spec
+2. When building messages, check `config.RawMode != nil && *config.RawMode`
+3. Use `buildRawModeJSON(value, metadata)` from the `connectors` package to build JSON
+
+Example (PostgreSQL, ClickHouse, Trino):
+```go
+if p.config.RawMode != nil && *p.config.RawMode {
+    metadata := map[string]interface{}{"table": p.config.Table}
+    if idIndex >= 0 { metadata["id"] = values[idIndex] }
+    jsonData, err = buildRawModeJSON(rowMap, metadata)
+}
+```
+
+### Step 6. Register in Factory
 
 In `internal/connectors/factory.go`:
 
@@ -253,7 +270,7 @@ func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
 }
 ```
 
-### Step 6. Generate and Test
+### Step 7. Generate and Test
 
 ```bash
 make generate

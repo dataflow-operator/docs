@@ -32,6 +32,54 @@ spec:
 kubectl apply -f config/samples/kafka-to-postgres.yaml
 ```
 
+## Kafka with Raw Mode (rawMode)
+
+Example of preserving full Kafka message context: value + metadata (offset, partition, timestamp, key, topic).
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-raw-to-clickhouse
+spec:
+  source:
+    type: kafka
+    kafka:
+      brokers:
+        - localhost:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+      rawMode: true  # Wraps each message as {"value": ..., "_metadata": {...}}
+  sink:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://default@clickhouse:9000/default"
+      table: raw_events
+      autoCreateTable: true
+```
+
+**Output message format with rawMode:**
+```json
+{
+  "value": {"id": 1, "event": "user_login"},
+  "_metadata": {
+    "offset": 100,
+    "partition": 0,
+    "timestamp": 1709000000000,
+    "key": "user-123",
+    "topic": "input-topic"
+  }
+}
+```
+
+For sinks expecting only data without the wrapper, add a select transformation with the `value` field:
+```yaml
+transformations:
+  - type: select
+    select:
+      fields: ["value"]
+```
+
 ## Error Handling with Error Sink
 
 Example of configuring a separate sink for messages that failed to be written to the main sink.
