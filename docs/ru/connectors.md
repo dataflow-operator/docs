@@ -10,6 +10,7 @@ DataFlow Operator поддерживает различные коннектор
 | PostgreSQL | ✅ | ✅ | SQL запросы, батч-вставки, автосоздание таблиц, UPSERT режим |
 | Trino | ✅ | ✅ | SQL запросы, аутентификация Keycloak OAuth2, батч-вставки |
 | ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
+| Nessie | ✅ | ✅ | Таблицы Iceberg через каталог Nessie, ветки, Basic/Bearer auth, опрос, батч-дозапись |
 
 ## Kafka
 
@@ -719,9 +720,110 @@ spec:
         #   key: password
 ```
 
+## Nessie
+
+Коннектор Nessie читает из таблиц Apache Iceberg и записывает в них через каталог [Nessie](https://projectnessie.org/) (Iceberg REST API). Все операции выполняются в контексте ветки Nessie; метаданные и данные управляются каталогом.
+
+### Источник (Source)
+
+```yaml
+source:
+  type: nessie
+  nessie:
+    # Базовый URL сервера Nessie (обязательно), например https://nessie:19120
+    baseURL: "http://nessie:19120"
+
+    # Ветка Nessie для чтения (опционально, по умолчанию: main)
+    branch: main
+
+    # Имя warehouse для хранилища (опционально)
+    warehouse: ""
+
+    # Namespace (схема) таблицы Iceberg (обязательно)
+    namespace: my_schema
+
+    # Имя таблицы (обязательно)
+    table: my_table
+
+    # Интервал опроса в секундах (опционально, по умолчанию: 10)
+    pollInterval: 10
+
+    # Режим сырой записи: обёртка строки в {"value": <строка>, "_metadata": {namespace, table}}
+    rawMode: false
+
+    # Аутентификация (опционально)
+    bearerToken: "your-token"
+    # Или Basic auth:
+    # basicAuth:
+    #   username: user
+    #   password: pass
+```
+
+#### Особенности Nessie источника
+
+- **Контекст ветки**: Чтение из указанной ветки Nessie; метаданные таблицы берутся из каталога.
+- **Опрос**: Периодическое сканирование таблицы Iceberg для новых данных.
+- **Аутентификация**: Bearer токен (OAuth2) или Basic auth для Nessie/Iceberg REST.
+- **Режим rawMode**: При включении каждая строка оборачивается в JSON с полями `value` и `_metadata` (namespace, table).
+
+### Приемник (Sink)
+
+```yaml
+sink:
+  type: nessie
+  nessie:
+    baseURL: "http://nessie:19120"
+    branch: main
+    warehouse: ""
+    namespace: my_schema
+    table: my_table
+
+    # Размер батча для дозаписи (опционально, по умолчанию: 100)
+    batchSize: 100
+
+    # Создать таблицу, если не существует (опционально); создаётся таблица с одной колонкой "data" (string)
+    autoCreateTable: true
+
+    bearerToken: "your-token"
+    # Или basicAuth: { username, password }
+```
+
+#### Особенности Nessie приемника
+
+- **Контекст ветки**: Запись выполняется в указанную ветку Nessie через каталог.
+- **Батч-дозапись**: Группировка сообщений и дозапись батчами в Iceberg.
+- **Автосоздание таблицы**: Создание таблицы Iceberg с одной колонкой `data` (string) для JSON при отсутствии таблицы.
+- **Аутентификация**: Аналогично источнику (Bearer или Basic).
+
+#### Пример: Kafka → Nessie (Iceberg)
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-to-nessie
+spec:
+  source:
+    type: kafka
+    kafka:
+      brokers:
+        - kafka:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: nessie
+    nessie:
+      baseURL: "http://nessie:19120"
+      branch: main
+      namespace: analytics
+      table: events
+      batchSize: 100
+      autoCreateTable: true
+```
+
 ## Error Sink
 
-DataFlow Operator поддерживает настройку отдельного приёмника для сообщений, которые не удалось записать в основной sink. Секция `errors` использует те же типы коннекторов (Kafka, PostgreSQL, Trino, ClickHouse), что и основной sink.
+DataFlow Operator поддерживает настройку отдельного приёмника для сообщений, которые не удалось записать в основной sink. Секция `errors` использует те же типы коннекторов (Kafka, PostgreSQL, Trino, ClickHouse, Nessie), что и основной sink.
 
 Конфигурация, структура сообщений об ошибках и типы ошибок описаны в разделе [Обработка ошибок](errors.md).
 
@@ -782,6 +884,12 @@ secretRef:
 - `keycloak.usernameSecretRef` - имя пользователя для password grant
 - `keycloak.passwordSecretRef` - пароль для password grant
 - `keycloak.tokenSecretRef` - OAuth2 токен (для долгоживущих токенов)
+
+#### Nessie
+- `baseURLSecretRef` - базовый URL сервера Nessie
+- `tokenSecretRef` - Bearer токен для Nessie/Iceberg REST
+- `namespaceSecretRef` - namespace (схема)
+- `tableSecretRef` - название таблицы
 
 ### Примеры использования
 

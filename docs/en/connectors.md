@@ -10,6 +10,7 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 | PostgreSQL | ✅ | ✅ | SQL queries, batch inserts, auto-create tables, UPSERT mode |
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
+| Nessie | ✅ | ✅ | Iceberg tables via Nessie catalog, branches, Basic/Bearer auth, polling, batch appends |
 
 
 ## Using Kubernetes Secrets
@@ -69,6 +70,12 @@ All connectors support secret references for the following fields:
 - `keycloak.usernameSecretRef` - username for password grant
 - `keycloak.passwordSecretRef` - password for password grant
 - `keycloak.tokenSecretRef` - OAuth2 token (for long-lived tokens)
+
+#### Nessie
+- `baseURLSecretRef` - Nessie server base URL
+- `tokenSecretRef` - Bearer token for Nessie/Iceberg REST
+- `namespaceSecretRef` - namespace (schema) name
+- `tableSecretRef` - table name
 
 ### Usage Examples
 
@@ -659,9 +666,110 @@ spec:
         # password: trino-password
 ```
 
+## Nessie
+
+The Nessie connector reads from and writes to Apache Iceberg tables via the [Nessie](https://projectnessie.org/) catalog (Iceberg REST API). All operations are performed in the context of a Nessie branch; metadata and data are managed by the catalog.
+
+### Source
+
+```yaml
+source:
+  type: nessie
+  nessie:
+    # Nessie server base URL (required), e.g. https://nessie:19120
+    baseURL: "http://nessie:19120"
+
+    # Nessie branch to read from (optional, default: main)
+    branch: main
+
+    # Warehouse name for storage location (optional), e.g. for /iceberg/|warehouse
+    warehouse: ""
+
+    # Namespace (schema) of the Iceberg table (required)
+    namespace: my_schema
+
+    # Table name (required)
+    table: my_table
+
+    # Poll interval in seconds (optional, default: 10)
+    pollInterval: 10
+
+    # Raw mode (optional): wrap each row as {"value": <row>, "_metadata": {namespace, table}}
+    rawMode: false
+
+    # Authentication (optional)
+    bearerToken: "your-token"
+    # Or Basic auth:
+    # basicAuth:
+    #   username: user
+    #   password: pass
+```
+
+### Features
+
+- **Branch context**: Reads from the specified Nessie branch; table metadata is resolved from the catalog.
+- **Polling**: Periodically scans the Iceberg table for new data.
+- **Authentication**: Bearer token (OAuth2) or Basic auth for Nessie/Iceberg REST.
+- **Raw mode**: When enabled, wraps each row as JSON with `value` and `_metadata` (namespace, table).
+
+### Sink
+
+```yaml
+sink:
+  type: nessie
+  nessie:
+    baseURL: "http://nessie:19120"
+    branch: main
+    warehouse: ""
+    namespace: my_schema
+    table: my_table
+
+    # Batch size for appends (optional, default: 100)
+    batchSize: 100
+
+    # Create table if it does not exist (optional); creates table with single "data" (string) column
+    autoCreateTable: true
+
+    bearerToken: "your-token"
+    # Or basicAuth: { username, password }
+```
+
+### Features
+
+- **Branch context**: Writes are committed to the specified Nessie branch via the catalog.
+- **Batch appends**: Groups messages and appends as Iceberg batches.
+- **Auto-create table**: Creates an Iceberg table with one `data` (string) column for JSON payloads when the table does not exist.
+- **Authentication**: Same as source (Bearer or Basic).
+
+### Example: Kafka to Nessie (Iceberg)
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-to-nessie
+spec:
+  source:
+    type: kafka
+    kafka:
+      brokers:
+        - kafka:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: nessie
+    nessie:
+      baseURL: "http://nessie:19120"
+      branch: main
+      namespace: analytics
+      table: events
+      batchSize: 100
+      autoCreateTable: true
+```
+
 ## Error Sink
 
-DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse) as the main sink.
+DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse, Nessie) as the main sink.
 
 For configuration, error message structure, and error types, see [Error Handling](errors.md).
 
