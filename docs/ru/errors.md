@@ -82,11 +82,28 @@ spec:
 }
 ```
 
+## Типы ошибок
+
+Ошибки классифицируются по типу для метрик. Метка `error_type` в `dataflow_connector_errors_total`, `dataflow_transformer_errors_total` и `dataflow_task_stage_errors_total` может принимать следующие значения:
+
+| Тип | Описание |
+|-----|----------|
+| `context_canceled` | Операция отменена (`context.Canceled`) |
+| `timeout` | `context.DeadlineExceeded` или текст сообщения содержит "timeout", "deadline exceeded", "i/o timeout" |
+| `connection_error` | Connection refused, not connected, failed to connect или connection failure |
+| `constraint_violation` | Нарушение ограничения целостности PostgreSQL (SQLSTATE класс 23xx) |
+| `invalid_data` | Ошибка парсинга JSON, схемы, валидации или синтаксиса |
+| `transient` | Временные ошибки Trino (TOO_MANY_REQUESTS_FAILED, перегрузка worker, подсказки retry) |
+| `auth_error` | Ошибка аутентификации, SASL или авторизации |
+| `unknown` | Ошибка не удалось классифицировать |
+
 ## Метрики
 
 Обработка ошибок отражается в метриках оператора:
 
 - **Ошибки коннекторов**: `dataflow_connector_errors_total` (метки: `namespace`, `name`, `connector_type`, `connector_name`, `operation`, `error_type`)
+- **Ошибки трансформеров**: `dataflow_transformer_errors_total` (метки: `namespace`, `name`, `transformer_type`, `transformer_index`, `error_type`)
+- **Ошибки этапов задачи**: `dataflow_task_stage_errors_total` (метки: `namespace`, `name`, `stage`, `error_type`)
 - **Этапы задачи**: в `dataflow_task_stage_duration_seconds` присутствует этап `error_sink_write`, если настроен error sink
 - **Доля успешных задач**: `dataflow_task_success_rate` (0.0–1.0) для мониторинга состояния пайплайна
 

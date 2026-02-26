@@ -82,11 +82,28 @@ Example:
 }
 ```
 
+## Error types
+
+Errors are classified by type for metrics. The `error_type` label in `dataflow_connector_errors_total`, `dataflow_transformer_errors_total`, and `dataflow_task_stage_errors_total` can have the following values:
+
+| Type | Description |
+|------|-------------|
+| `context_canceled` | Operation was canceled (`context.Canceled`) |
+| `timeout` | `context.DeadlineExceeded` or error message contains "timeout", "deadline exceeded", "i/o timeout" |
+| `connection_error` | Connection refused, not connected, failed to connect, or connection failure |
+| `constraint_violation` | PostgreSQL integrity constraint violation (SQLSTATE class 23xx) |
+| `invalid_data` | JSON parse, schema, validation, or syntax error |
+| `transient` | Trino transient errors (TOO_MANY_REQUESTS_FAILED, worker overload, retry hints) |
+| `auth_error` | Authentication, SASL, or authorization failure |
+| `unknown` | Error could not be classified |
+
 ## Metrics
 
 Error handling is reflected in operator metrics:
 
 - **Connector errors**: `dataflow_connector_errors_total` (labels: `namespace`, `name`, `connector_type`, `connector_name`, `operation`, `error_type`)
+- **Transformer errors**: `dataflow_transformer_errors_total` (labels: `namespace`, `name`, `transformer_type`, `transformer_index`, `error_type`)
+- **Task stage errors**: `dataflow_task_stage_errors_total` (labels: `namespace`, `name`, `stage`, `error_type`)
 - **Task stages**: `dataflow_task_stage_duration_seconds` includes stage `error_sink_write` when an error sink is configured
 - **Success rate**: `dataflow_task_success_rate` (0.0–1.0) for monitoring pipeline health
 

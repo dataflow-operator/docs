@@ -28,6 +28,7 @@ DataFlow Operator экспортирует метрики Prometheus для мо
 
 - `dataflow_connector_errors_total` - количество ошибок в коннекторах
   - Метки: `namespace`, `name`, `connector_type`, `connector_name`, `operation`, `error_type`
+  - Возможные значения `error_type`: см. [Error types](errors.md#error-types)
 
 - `dataflow_connector_connection_status` - статус подключения коннектора (1 = connected, 0 = disconnected)
   - Метки: `namespace`, `name`, `connector_type`, `connector_name`
@@ -39,6 +40,7 @@ DataFlow Operator экспортирует метрики Prometheus для мо
 
 - `dataflow_transformer_errors_total` - количество ошибок в трансформерах
   - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`, `error_type`
+  - Возможные значения `error_type`: см. [Error types](errors.md#error-types)
 
 - `dataflow_transformer_duration_seconds` - время выполнения трансформера (гистограмма)
   - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`
@@ -88,6 +90,7 @@ DataFlow Operator экспортирует метрики Prometheus для мо
 
 - `dataflow_task_stage_errors_total` - количество ошибок на каждом этапе
   - Метки: `namespace`, `name`, `stage`, `error_type`
+  - Возможные значения `error_type`: см. [Error types](errors.md#error-types)
 
 ## Настройка мониторинга
 
