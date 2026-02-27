@@ -319,12 +319,14 @@ make docker-build IMG=your-registry/dataflow-operator:v1.0.0
 make docker-push IMG=your-registry/dataflow-operator:v1.0.0
 ```
 
-Или вручную:
+Или вручную. Если репозиторий — монорепо (есть папки `dataflow` и `dataflow-web`), сборка из **корня репозитория**:
 
 ```bash
-docker build -t your-registry/dataflow-operator:v1.0.0 .
+docker build -f dataflow/Dockerfile -t your-registry/dataflow-operator:v1.0.0 .
 docker push your-registry/dataflow-operator:v1.0.0
 ```
+
+Если вы находитесь в каталоге `dataflow` и контекст сборки — только он (без `dataflow-web`), используйте прежний вариант: `docker build -t ... .`
 
 ## Добавление нового коннектора
 

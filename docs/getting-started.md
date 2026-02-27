@@ -42,7 +42,7 @@ helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataf
 
 **Примечание**: Для локальной разработки вы также можете использовать локальный chart:
 ```bash
-helm install dataflow-operator ./helm/dataflow-operator
+helm install dataflow-operator ./helm-charts/dataflow-operator
 ```
 
 #### Установка с кастомными настройками
@@ -128,19 +128,19 @@ dataflow-operator-7d8f9c4b5d-xxxxx   1/1     Running   0          1m
 Для обновления оператора до новой версии:
 
 ```bash
-helm upgrade dataflow-operator ./helm/dataflow-operator
+helm upgrade dataflow-operator ./helm-charts/dataflow-operator
 ```
 
 С кастомными значениями:
 
 ```bash
-helm upgrade dataflow-operator ./helm/dataflow-operator -f my-values.yaml
+helm upgrade dataflow-operator ./helm-charts/dataflow-operator -f my-values.yaml
 ```
 
 Для обновления до конкретной версии:
 
 ```bash
-helm upgrade dataflow-operator ./helm/dataflow-operator \
+helm upgrade dataflow-operator ./helm-charts/dataflow-operator \
   --set image.tag=v1.1.0
 ```
 

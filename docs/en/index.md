@@ -126,6 +126,7 @@ See [Metrics](metrics.md) for more details.
 ## Documentation
 
 - [Getting Started](getting-started.md) — installation and first data flow
+- [Web GUI](gui.md) — web interface: how it works and capabilities
 - [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino (sources and sinks)
 - [Transformations](transformations.md) — message transformations
 - [Examples](examples.md) — practical examples

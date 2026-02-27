@@ -223,10 +223,10 @@ make docker-build IMG=your-registry/dataflow-operator:v1.0.0
 make docker-push IMG=your-registry/dataflow-operator:v1.0.0
 ```
 
-Или вручную:
+Или вручную. Из корня репозитория (есть папки `dataflow` и `dataflow-web`):
 
 ```bash
-docker build -t your-registry/dataflow-operator:v1.0.0 .
+docker build -f dataflow/Dockerfile -t your-registry/dataflow-operator:v1.0.0 .
 docker push your-registry/dataflow-operator:v1.0.0
 ```
 

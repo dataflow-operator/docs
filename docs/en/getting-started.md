@@ -56,7 +56,7 @@ helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataf
 
 **Note**: For local development, you can also use the local chart:
 ```bash
-helm install dataflow-operator ./helm/dataflow-operator
+helm install dataflow-operator ./helm-charts/dataflow-operator
 ```
 
 #### Installation with Custom Settings
