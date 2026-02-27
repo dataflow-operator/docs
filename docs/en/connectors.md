@@ -399,7 +399,10 @@ sink:
   postgresql:
     connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
     table: target_table
+    # Batch size (optional, default: 1). 0 = flush only by timer
     batchSize: 100
+    # Flush interval in seconds (optional, default: 10). 0 = disable timer
+    batchFlushIntervalSeconds: 10
     autoCreateTable: true
     # UPSERT mode (optional, default: false)
     upsertMode: true
@@ -459,8 +462,10 @@ sink:
     connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
     table: output_table
 
-    # Batch size for inserts (optional, default: 100)
+    # Batch size for inserts (optional, default: 100). 0 = flush only by timer
     batchSize: 100
+    # Flush interval in seconds (optional, default: 10). 0 = disable timer
+    batchFlushIntervalSeconds: 10
 
     # Auto-create MergeTree table with data + created_at columns (optional)
     autoCreateTable: true
@@ -468,7 +473,7 @@ sink:
 
 ### Features
 
-- **Batch Inserts**: Groups messages for efficient writing (default batch size: 100)
+- **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
 - **Auto-create Tables**: Creates MergeTree table with `data` (String) and `created_at` (DateTime) columns
 - **JSON Storage**: Messages are stored as JSON strings in the `data` column
 
@@ -605,9 +610,10 @@ sink:
     # Table to write to (required)
     table: target_table
 
-    # Batch size for inserts (optional, default: 1)
-    # Increase for better performance
+    # Batch size for inserts (optional, default: 1). 0 = flush only by timer
     batchSize: 100
+    # Flush interval in seconds (optional, default: 10). 0 = disable timer
+    batchFlushIntervalSeconds: 10
 
     # Auto-create table (optional, default: false)
     # If true, creates table with VARCHAR column for JSON data
@@ -625,7 +631,7 @@ sink:
 
 ### Features
 
-- **Batch Inserts**: Groups messages for efficient writing
+- **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
 - **Auto-create Tables**: Automatically creates tables if they don't exist
 - **Keycloak Authentication**: OAuth2/OIDC authentication via Keycloak
 - **Automatic Token Refresh**: Tokens are automatically refreshed
@@ -724,8 +730,10 @@ sink:
     namespace: my_schema
     table: my_table
 
-    # Batch size for appends (optional, default: 100)
+    # Batch size for appends (optional, default: 100). 0 = flush only by timer
     batchSize: 100
+    # Flush interval in seconds (optional, default: 10). 0 = disable timer
+    batchFlushIntervalSeconds: 10
 
     # Create table if it does not exist (optional); creates table with single "data" (string) column
     autoCreateTable: true
@@ -737,7 +745,7 @@ sink:
 ### Features
 
 - **Branch context**: Writes are committed to the specified Nessie branch via the catalog.
-- **Batch appends**: Groups messages and appends as Iceberg batches.
+- **Batch appends**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
 - **Auto-create table**: Creates an Iceberg table with one `data` (string) column for JSON payloads when the table does not exist.
 - **Authentication**: Same as source (Bearer or Basic).
 
