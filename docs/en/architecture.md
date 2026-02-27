@@ -95,7 +95,7 @@ flowchart LR
   CM["ConfigMap"]
   Dep["Deployment"]
   Proc["Processor Pod"]
-  Ext["Kafka / PostgreSQL / Trino"]
+  Ext["Kafka / PostgreSQL / Trino / Nessie"]
 
   User -->|"apply DataFlow"| API
   API --> CRD
@@ -164,7 +164,7 @@ It reads the spec from the file, builds a **Processor** from it, and runs `Proce
 
 The **Processor** (in `internal/processor/processor.go`) is built from the spec and contains:
 
-- **Source**: a **SourceConnector** (Kafka, PostgreSQL, or Trino) — `Connect`, `Read`, `Close`.
+- **Source**: a **SourceConnector** (Kafka, PostgreSQL, Trino, or Nessie) — `Connect`, `Read`, `Close`.
 - **Sink**: a **SinkConnector** for the main destination — `Connect`, `Write`, `Close`.
 - **Error sink** (optional): another SinkConnector for failed writes.
 - **Transformations**: an ordered list of **Transformer** implementations (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase).
@@ -193,7 +193,7 @@ Connector interfaces are defined in `internal/connectors/interface.go`: **Source
 
 ### Connectors and Transformations
 
-- **Source/Sink types**: Kafka, PostgreSQL, Trino (selected by `spec.source.type` and `spec.sink.type`).
+- **Source/Sink types**: Kafka, PostgreSQL, Trino, Nessie (selected by `spec.source.type` and `spec.sink.type`).
 - **Transformations** (order matters): timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase. They are applied in the order listed in `spec.transformations`.
 
 ### Data Flow in the Processor (Diagram)

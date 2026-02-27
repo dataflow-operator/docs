@@ -4,7 +4,7 @@ A detailed guide for adding new connectors to DataFlow Operator using the shared
 
 ## Overview
 
-All connectors (ClickHouse, PostgreSQL, Kafka, Trino) share a common pattern for synchronizing `Connect` and `Close` methods:
+All connectors (ClickHouse, PostgreSQL, Kafka, Trino, Nessie) share a common pattern for synchronizing `Connect` and `Close` methods:
 
 - `sync.Mutex` (or `sync.RWMutex`) to protect state
 - A `closed` flag for idempotent `Close` and blocking `Connect` after close
@@ -229,7 +229,7 @@ For source connectors, you can add raw mode — wrapping data as `{"value": ...,
 2. When building messages, check `config.RawMode != nil && *config.RawMode`
 3. Use `buildRawModeJSON(value, metadata)` from the `connectors` package to build JSON
 
-Example (PostgreSQL, ClickHouse, Trino):
+Example (PostgreSQL, ClickHouse, Trino, Nessie):
 ```go
 if p.config.RawMode != nil && *p.config.RawMode {
     metadata := map[string]interface{}{"table": p.config.Table}

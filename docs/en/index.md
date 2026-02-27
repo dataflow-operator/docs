@@ -14,6 +14,7 @@ DataFlow Operator allows you to declaratively define data flows between differen
 - **PostgreSQL** — read from tables and write with custom SQL, batch inserts, UPSERT mode
 - **ClickHouse** — polling, batch inserts, auto-create MergeTree tables
 - **Trino** — SQL queries, Keycloak OAuth2, batch inserts
+- **Nessie** — Apache Iceberg tables via Nessie catalog (branches, Basic/Bearer auth, polling, batch appends)
 
 ### Rich Transformation Set
 
@@ -127,7 +128,7 @@ See [Metrics](metrics.md) for more details.
 
 - [Getting Started](getting-started.md) — installation and first data flow
 - [Web GUI](gui.md) — web interface: how it works and capabilities
-- [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino (sources and sinks)
+- [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino, Nessie (sources and sinks)
 - [Transformations](transformations.md) — message transformations
 - [Examples](examples.md) — practical examples
 - [Errors](errors.md) — error handling and error sink

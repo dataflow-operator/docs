@@ -95,7 +95,7 @@ flowchart LR
   CM["ConfigMap"]
   Dep["Deployment"]
   Proc["Processor Pod"]
-  Ext["Kafka / PostgreSQL / Trino"]
+  Ext["Kafka / PostgreSQL / Trino / Nessie"]
 
   User -->|"apply DataFlow"| API
   API --> CRD
@@ -164,7 +164,7 @@ flowchart TD
 
 **Processor** (в `internal/processor/processor.go`) строится из spec и содержит:
 
-- **Source**: **SourceConnector** (Kafka, PostgreSQL или Trino) — `Connect`, `Read`, `Close`.
+- **Source**: **SourceConnector** (Kafka, PostgreSQL, Trino или Nessie) — `Connect`, `Read`, `Close`.
 - **Sink**: **SinkConnector** основного приёмника — `Connect`, `Write`, `Close`.
 - **Error sink** (опционально): ещё один SinkConnector для неудачных записей.
 - **Transformations**: упорядоченный список реализаций **Transformer** (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase).
@@ -193,7 +193,7 @@ flowchart TD
 
 ### Коннекторы и трансформации
 
-- **Типы source/sink**: Kafka, PostgreSQL, Trino (выбор по `spec.source.type` и `spec.sink.type`).
+- **Типы source/sink**: Kafka, PostgreSQL, Trino, Nessie (выбор по `spec.source.type` и `spec.sink.type`).
 - **Трансформации** (порядок задаётся в spec): timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase.
 
 ### Поток данных в процессоре (схема)

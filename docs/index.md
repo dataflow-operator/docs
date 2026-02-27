@@ -45,7 +45,7 @@ Documentation is available in two languages:
 
 ## Key Features
 
-- **Connectors**: Kafka, PostgreSQL, ClickHouse, Trino (sources and sinks)
+- **Connectors**: Kafka, PostgreSQL, ClickHouse, Trino, Nessie (sources and sinks)
 - **Transformations**: Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase
 - **Security**: Kubernetes Secrets via `SecretRef` for credentials
 

@@ -4,7 +4,7 @@
 
 ## Обзор
 
-Все коннекторы (ClickHouse, PostgreSQL, Kafka, Trino) используют единый паттерн для синхронизации методов `Connect` и `Close`:
+Все коннекторы (ClickHouse, PostgreSQL, Kafka, Trino, Nessie) используют единый паттерн для синхронизации методов `Connect` и `Close`:
 
 - `sync.Mutex` (или `sync.RWMutex`) для защиты состояния
 - Флаг `closed` для идемпотентности `Close` и блокировки `Connect` после закрытия
@@ -229,7 +229,7 @@ func (c *MyDBSinkConnector) Close() error {
 2. При формировании сообщения проверяйте `config.RawMode != nil && *config.RawMode`
 3. Используйте `buildRawModeJSON(value, metadata)` из пакета `connectors` для формирования JSON
 
-Пример (PostgreSQL, ClickHouse, Trino):
+Пример (PostgreSQL, ClickHouse, Trino, Nessie):
 ```go
 if p.config.RawMode != nil && *p.config.RawMode {
     metadata := map[string]interface{}{"table": p.config.Table}
