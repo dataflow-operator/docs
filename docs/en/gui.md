@@ -59,7 +59,7 @@ Logs are read from the DataFlow processor pod (container `processor`), using lab
 
 ## Backend API
 
-All endpoints return JSON except logs (plain text or SSE).
+All endpoints return JSON except logs (plain text or SSE) and metrics (Prometheus text format when operator URL is configured).
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -71,7 +71,7 @@ All endpoints return JSON except logs (plain text or SSE).
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Delete DataFlow |
 | GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false` | Processor pod logs (text or SSE when `follow=true`) |
 | GET | `/api/status?namespace=&name=` | DataFlow status (phase, message, processedCount, errorCount, lastProcessedTime) |
-| GET | `/api/metrics?namespace=&name=` | Metrics for DataFlow (reserved for future use) |
+| GET | `/api/metrics?namespace=&name=` | Prometheus metrics for DataFlow (proxied from operator when `OPERATOR_METRICS_URL` is set; otherwise returns empty stub). In Helm, `OPERATOR_METRICS_URL` is set automatically; override via `gui.extraEnv` if operator is in a different namespace. |
 
 CORS headers (`Access-Control-Allow-Origin: *`, etc.) are set so the API can be used from a different port during local development.
 

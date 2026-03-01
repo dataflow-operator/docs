@@ -92,6 +92,31 @@ DataFlow Operator экспортирует метрики Prometheus для мо
   - Метки: `namespace`, `name`, `stage`, `error_type`
   - Возможные значения `error_type`: см. [Типы ошибок](errors.md#типы-ошибок)
 
+### 6.2 Метки
+
+Метрики используют метки `namespace` и `name` для привязки к DataFlow, что удобно для фильтрации и агрегации в Prometheus/Grafana. Все метрики содержат как минимум эти две метки; дополнительные метки (`source_type`, `sink_type`, `connector_type`, `stage` и др.) позволяют детализировать запросы.
+
+Примеры:
+- Фильтрация по конкретному DataFlow: `dataflow_messages_received_total{namespace="default", name="my-dataflow"}`
+- Агрегация по namespace: `sum(rate(dataflow_messages_received_total[5m])) by (namespace, name)`
+
+### 6.3 Гистограммы
+
+Для гистограмм используются экспоненциальные buckets, подходящие для латентности и размеров сообщений:
+
+| Метрика | Buckets | Диапазон |
+|---------|---------|----------|
+| `dataflow_processing_duration_seconds` | ExponentialBuckets(0.001, 2, 10) | 1 мс — ~1 с |
+| `dataflow_transformer_duration_seconds` | ExponentialBuckets(0.0001, 2, 12) | 0.1 мс — ~400 мс |
+| `dataflow_task_stage_duration_seconds` | ExponentialBuckets(0.0001, 2, 14) | 0.1 мс — ~1.6 с |
+| `dataflow_task_message_size_bytes` | ExponentialBuckets(64, 2, 16) | 64 байт — ~4 МБ |
+| `dataflow_task_stage_latency_seconds` | ExponentialBuckets(0.0001, 2, 12) | 0.1 мс — ~400 мс |
+| `dataflow_task_end_to_end_latency_seconds` | ExponentialBuckets(0.001, 2, 12) | 1 мс — ~2 с |
+| `dataflow_task_queue_wait_time_seconds` | ExponentialBuckets(0.0001, 2, 12) | 0.1 мс — ~400 мс |
+
+- **Латентность** (время в секундах): начальное значение от 0.1 мс или 1 мс, множитель 2.
+- **Размер сообщений** (байты): начальное значение 64 байт, множитель 2.
+
 ## Настройка мониторинга
 
 ### Prometheus ServiceMonitor

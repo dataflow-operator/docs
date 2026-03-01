@@ -59,7 +59,7 @@ GUI состоит из двух частей:
 
 ## API backend
 
-Все эндпоинты отдаются в JSON (кроме логов — текст или SSE).
+Все эндпоинты отдаются в JSON (кроме логов — текст или SSE, и метрик — Prometheus text format при настроенном URL оператора).
 
 | Метод | Путь | Описание |
 |-------|------|----------|
@@ -71,7 +71,7 @@ GUI состоит из двух частей:
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Удалить DataFlow |
 | GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false` | Логи пода процессора (текст или SSE при `follow=true`) |
 | GET | `/api/status?namespace=&name=` | Статус DataFlow (phase, message, processedCount, errorCount, lastProcessedTime) |
-| GET | `/api/metrics?namespace=&name=` | Метрики по DataFlow (зарезервировано для расширения) |
+| GET | `/api/metrics?namespace=&name=` | Prometheus-метрики по DataFlow (проксируются с оператора при заданном `OPERATOR_METRICS_URL`; иначе — пустая заглушка) |
 
 Для CORS заданы заголовки `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, чтобы к API можно было обращаться с другого порта при локальной разработке.
 
