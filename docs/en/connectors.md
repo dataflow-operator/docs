@@ -364,7 +364,7 @@ sink:
 
 ## PostgreSQL
 
-The PostgreSQL connector supports reading from and writing to PostgreSQL tables. It supports custom SQL queries, periodic polling, batch inserts, auto-create tables, and UPSERT mode.
+The PostgreSQL connector supports reading from and writing to PostgreSQL tables. It supports custom SQL queries, periodic polling, batch inserts, auto-create tables, UPSERT mode, CDC-style change tracking (inserts and updates), soft delete, and SecretRef for credentials.
 
 ### Source
 
@@ -372,8 +372,11 @@ The PostgreSQL connector supports reading from and writing to PostgreSQL tables.
 source:
   type: postgresql
   postgresql:
+    # Connection string (required, or use connectionStringSecretRef)
     connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
+    # Table to read from (required if query not specified). Supports schema.table (e.g. public.products)
     table: source_table
+
     # Custom SQL query (optional)
     query: "SELECT * FROM source_table WHERE updated_at > NOW() - INTERVAL '1 hour'"
     # Poll interval in seconds (optional, default: 5)
@@ -382,14 +385,32 @@ source:
     # Raw mode (optional, default: false)
     # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {table, id}}
     rawMode: true
+
+    # CDC-style options (optional)
+    readBatchSize: 1000           # Limit rows per poll to reduce DB load (0 = no limit)
+    changeTrackingColumn: updated_at  # Column to track changes (default: updated_at). Not used when query is specified
+    autoCreateTable: true         # Create table if it doesn't exist before reading
+
+    # SecretRef (optional) - use instead of direct values
+    # connectionStringSecretRef:
+    #   name: postgres-credentials
+    #   key: connectionString
+    # tableSecretRef:
+    #   name: postgres-credentials
+    #   key: table
 ```
 
-### Features
+### Source Features
 
 - **Periodic Polling**: Regularly polls the table for new data
 - **Custom Queries**: Support for complex SQL with JOIN, WHERE, etc.
-- **Metadata**: Each message contains `table` metadata
+- **Metadata**: Each message contains `table` metadata and `operation` (insert/update)
 - **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
+- **Read Batch Size**: Limits rows per poll to reduce database load when many new records appear
+- **Change Tracking**: By default tracks changes via `updated_at` column (or `changeTrackingColumn`), captures both INSERTs and UPDATEs
+- **Auto-create Table**: Creates the table with CDC-friendly schema (id, created_at, updated_at) if it doesn't exist
+- **Schema notation**: Table name supports `schema.table` format (e.g. `public.products`)
+- **In-memory state**: Read position (lastReadChangeTime) is stored only in memory. On pod/connector restart, the table is fully re-read. For pg→pg flows, enable `upsertMode: true` in sink to update duplicates instead of inserting them again.
 
 ### Sink
 
@@ -398,22 +419,38 @@ sink:
   type: postgresql
   postgresql:
     connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
+    # Table to write to. Supports schema.table (e.g. public.products_clone)
     table: target_table
+
     # Batch size (optional, default: 1). 0 = flush only by timer
     batchSize: 100
     # Flush interval in seconds (optional, default: 10). 0 = disable timer
     batchFlushIntervalSeconds: 10
     autoCreateTable: true
+
+    # Raw mode (optional, default: false)
+    # When true, expects messages in format {"value": <data>, "_metadata": {...}}
+    # Table is created with value JSONB and _metadata JSONB columns
+    rawMode: false
+
     # UPSERT mode (optional, default: false)
     upsertMode: true
     conflictKey: "id"
+    # Soft delete column (optional). When set, DELETE operations UPDATE this column instead of physical delete
+    softDeleteColumn: "deleted_at"
+
+    # SecretRef (optional)
+    # connectionStringSecretRef: { name: postgres-credentials, key: connectionString }
+    # tableSecretRef: { name: postgres-credentials, key: table }
 ```
 
-### Features
+### Sink Features
 
-- **Batch Inserts**: Groups messages for efficient writing
-- **Auto-create Tables**: Creates tables with JSONB field and GIN index
+- **Batch Inserts**: Groups messages for efficient writing. Flush when `batchSize` reached or on timer. Use `batchFlushIntervalSeconds: 0` for size-only flush; `batchSize: 0` for timer-only flush.
+- **Auto-create Tables**: When `rawMode: true` — creates table with `value` JSONB, `_metadata` JSONB, created_at, updated_at, deleted_at and GIN index. When `rawMode: false` — infers table structure from the first message (replicates source schema).
+- **Raw Mode**: When true, expects `{"value": <data>, "_metadata": {...}}` and creates table with value/_metadata columns. When false, uses columnar format from message.
 - **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`)
+- **Soft Delete**: When `softDeleteColumn` is set and message has `metadata.operation=delete`, performs `UPDATE ... SET deleted_at = NOW()` instead of physical DELETE
 
 ## ClickHouse
 
