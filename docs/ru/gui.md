@@ -2,23 +2,17 @@
 
 Веб-интерфейс для управления DataFlow через браузер без необходимости использовать `kubectl` или редактировать YAML вручную.
 
-## Как это устроено
+## Обзор
 
 GUI состоит из двух частей:
 
-1. **Backend (Go)** — сервер в составе `dataflow-web`, который:
-   - подключается к кластеру Kubernetes (in-cluster или по `KUBECONFIG`);
-   - отдаёт REST API по префиксу `/api`;
-   - раздаёт статику собранного фронтенда (SPA) для путей вида `/`, `/manifests`, `/logs` и т.д.
+1. **Backend (Go)** — сервер в составе `dataflow-web`, который подключается к кластеру Kubernetes (in-cluster или по `KUBECONFIG`), отдаёт REST API по префиксу `/api` и раздаёт статику собранного фронтенда (SPA).
 
-2. **Frontend (Vue 3 + Vite)** — одностраничное приложение, которое:
-   - обращается к backend по `/api` (или по настроенному `VITE_API_BASE` при сборке);
-   - отображает дашборд, список манифестов, логи и метрики;
-   - поддерживает смену языка (русский/английский) и темы (светлая/тёмная).
+2. **Frontend (Vue 3 + Vite)** — одностраничное приложение, которое обращается к backend по `/api`, отображает дашборд, список манифестов, логи и метрики, поддерживает смену языка (русский/английский) и темы (светлая/тёмная).
 
-Запросы к API идут через тот же хост, что и интерфейс (например, при открытии GUI в браузере все вызовы уходят на тот же адрес). Backend по запросу обращается к Kubernetes API и возвращает данные в JSON.
+Запросы к API идут через тот же хост, что и интерфейс. Backend по запросу обращается к Kubernetes API и возвращает данные в JSON.
 
-## Возможности GUI
+## Возможности
 
 ### Дашборд
 
@@ -57,6 +51,96 @@ GUI состоит из двух частей:
 - **Локализация** — интерфейс на русском и английском (vue-i18n).
 - **Тема** — светлая и тёмная (переключатель в интерфейсе).
 
+## Конфигурация
+
+GUI настраивается через Helm values при развёртывании чарта dataflow-operator. Основные параметры:
+
+| Параметр | Описание | По умолчанию |
+|----------|----------|--------------|
+| `gui.enabled` | Включить веб-интерфейс | `false` |
+| `gui.image.repository` | Образ сервера GUI (отдельно от оператора) | `ghcr.io/dataflow-operator/dataflow-web` |
+| `gui.image.tag` | Тег образа | `v0.1.0` |
+| `gui.image.pullPolicy` | Политика загрузки образа | `IfNotPresent` |
+| `gui.replicaCount` | Количество реплик сервера GUI | `1` |
+| `gui.port` | Порт для сервера GUI | `8080` |
+| `gui.logLevel` | Уровень логирования: `debug`, `info`, `warn`, `error` | (пусто, используется по умолчанию) |
+| `gui.extraEnv` | Дополнительные переменные окружения (напр. `KUBECONFIG`, переопределение `OPERATOR_METRICS_URL`) | `[]` |
+| `gui.resources` | Лимиты и запросы ресурсов | `{}` |
+| `gui.serviceAccount.name` | Отдельный ServiceAccount (если пусто — используется SA оператора) | `""` |
+
+### Ingress
+
+| Параметр | Описание | По умолчанию |
+|----------|----------|--------------|
+| `gui.ingress.enabled` | Включить Ingress для GUI | `false` |
+| `gui.ingress.className` | Имя класса Ingress | `""` |
+| `gui.ingress.annotations` | Аннотации Ingress | `{}` |
+| `gui.ingress.hosts` | Конфигурация хоста и путей | `[{ host: dataflow-gui.local, paths: [{ path: /, pathType: Prefix }] }]` |
+| `gui.ingress.tls` | Конфигурация TLS | `[]` |
+
+### Проксирование метрик
+
+GUI проксирует метрики Prometheus с оператора, когда задан `OPERATOR_METRICS_URL`. В Helm это настраивается автоматически на сервис оператора в том же release. Если оператор работает в другом namespace, переопределите через `gui.extraEnv`:
+
+```yaml
+gui:
+  extraEnv:
+    - name: OPERATOR_METRICS_URL
+      value: "http://dataflow-operator.dataflow-system:9090/metrics"
+```
+
+## Развёртывание
+
+### В кластере (Helm)
+
+Включите GUI при установке или обновлении оператора:
+
+```bash
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
+  --set gui.enabled=true
+```
+
+С Ingress (например, nginx):
+
+```yaml
+# custom-values.yaml
+gui:
+  enabled: true
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: dataflow.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+```
+
+```bash
+helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator -f custom-values.yaml
+```
+
+Доступ к GUI — через Service (port-forward) или URL Ingress.
+
+### Port-forward (быстрый доступ)
+
+Без Ingress используйте port-forward:
+
+```bash
+kubectl port-forward svc/dataflow-operator-gui 8080:8080 -n <namespace>
+```
+
+Откройте http://localhost:8080 в браузере.
+
+### Локальная разработка
+
+Запустите backend и frontend отдельно из каталога `dataflow-web`:
+
+- **Backend**: `go run ./cmd/server --bind-address=:8080` (при необходимости задать `KUBECONFIG`).
+- **Frontend**: в `dataflow-web/web` выполнить `npm install && npm run dev`; приложение откроется на http://localhost:5173, запросы к API проксируются на backend (порт 8080).
+
+Подробнее о сборке и структуре фронтенда см. [dataflow-web/README.md](../../../dataflow-web/README.md).
+
 ## API backend
 
 Все эндпоинты отдаются в JSON (кроме логов — текст или SSE, и метрик — Prometheus text format при настроенном URL оператора).
@@ -71,15 +155,6 @@ GUI состоит из двух частей:
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Удалить DataFlow |
 | GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false` | Логи пода процессора (текст или SSE при `follow=true`) |
 | GET | `/api/status?namespace=&name=` | Статус DataFlow (phase, message, processedCount, errorCount, lastProcessedTime) |
-| GET | `/api/metrics?namespace=&name=` | Prometheus-метрики по DataFlow (проксируются с оператора при заданном `OPERATOR_METRICS_URL`; иначе — пустая заглушка) |
+| GET | `/api/metrics?namespace=&name=` | Prometheus-метрики (проксируются с оператора при заданном `OPERATOR_METRICS_URL`) |
 
-Для CORS заданы заголовки `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, чтобы к API можно было обращаться с другого порта при локальной разработке.
-
-## Запуск
-
-- **В кластере**: развернуть `dataflow-web` (например, через Helm или манифесты). Сервер использует in-cluster конфиг и слушает на указанном `bind-address` (по умолчанию `:8080`).
-- **Локально**: из корня репозитория запустить backend и фронтенд отдельно:
-  - Backend: `go run ./cmd/server --bind-address=:8080` (при необходимости задать `KUBECONFIG`).
-  - Frontend: в `dataflow-web/web` выполнить `npm install && npm run dev`; приложение откроется на http://localhost:5173, запросы к API проксируются на backend (например, 8080).
-
-Подробнее о сборке и структуре фронтенда см. [dataflow-web/web/README.md](../../../dataflow-web/web/README.md).
+Для CORS заданы заголовки, чтобы к API можно было обращаться с другого порта при локальной разработке.
