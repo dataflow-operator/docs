@@ -118,6 +118,16 @@ npx @modelcontextprotocol/inspector /путь/к/dataflow-mcp/target/release/dat
 
 Ответ содержит YAML-манифест DataFlow и заметки о перенесённых и неподдерживаемых опциях.
 
+### Генерация манифеста Kafka → ClickHouse
+
+Используйте **generate_dataflow_manifest** с параметрами:
+
+- `source_type`: `"kafka"`
+- `sink_type`: `"clickhouse"`
+- `source_config`: `"{\"brokers\":[\"localhost:9092\"],\"topic\":\"input-topic\",\"consumerGroup\":\"dataflow-group\"}"`
+- `sink_config`: `"{\"connectionString\":\"clickhouse://default@localhost:9000/default?dial_timeout=10s\",\"table\":\"output_table\"}"`
+- `name`: `"kafka-to-clickhouse"` (опционально)
+
 ### Валидация манифеста
 
 Вставьте YAML-манифест в **validate_dataflow_manifest** (параметр `config`). Ответ покажет, корректен ли конфиг или перечислит ошибки.

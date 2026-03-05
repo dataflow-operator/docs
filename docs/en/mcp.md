@@ -118,6 +118,16 @@ Use **migrate_kafka_connect_to_dataflow** with the connector config as JSON:
 
 The response includes a DataFlow YAML manifest and notes on migrated and unsupported options.
 
+### Generating a Kafka → ClickHouse manifest
+
+Use **generate_dataflow_manifest** with:
+
+- `source_type`: `"kafka"`
+- `sink_type`: `"clickhouse"`
+- `source_config`: `"{\"brokers\":[\"localhost:9092\"],\"topic\":\"input-topic\",\"consumerGroup\":\"dataflow-group\"}"`
+- `sink_config`: `"{\"connectionString\":\"clickhouse://default@localhost:9000/default?dial_timeout=10s\",\"table\":\"output_table\"}"`
+- `name`: `"kafka-to-clickhouse"` (optional)
+
 ### Validating a manifest
 
 Paste the YAML manifest into **validate_dataflow_manifest** (parameter `config`). The response indicates whether the config is valid or lists errors.

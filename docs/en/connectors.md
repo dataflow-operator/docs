@@ -408,7 +408,7 @@ source:
 - **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
 - **Read Batch Size**: Limits rows per poll to reduce database load when many new records appear
 - **Change Tracking**: By default tracks changes via `updated_at` column (or `changeTrackingColumn`), captures both INSERTs and UPDATEs
-- **Auto-create Table**: Creates the table with CDC-friendly schema (id, created_at, updated_at) if it doesn't exist
+- **Auto-create Table**: When `autoCreateTable: true`, creates the table with CDC-friendly schema (`id SERIAL PRIMARY KEY`, `created_at`, `updated_at`) if it doesn't exist. Creation happens at Connect time.
 - **Schema notation**: Table name supports `schema.table` format (e.g. `public.products`)
 - **In-memory state**: Read position (lastReadChangeTime) is stored only in memory. On pod/connector restart, the table is fully re-read. For pg→pg flows, enable `upsertMode: true` in sink to update duplicates instead of inserting them again.
 
@@ -447,7 +447,9 @@ sink:
 ### Sink Features
 
 - **Batch Inserts**: Groups messages for efficient writing. Flush when `batchSize` reached or on timer. Use `batchFlushIntervalSeconds: 0` for size-only flush; `batchSize: 0` for timer-only flush.
-- **Auto-create Tables**: When `rawMode: true` — creates table with `value` JSONB, `_metadata` JSONB, created_at, updated_at, deleted_at and GIN index. When `rawMode: false` — infers table structure from the first message (replicates source schema).
+- **Auto-create Tables** (when `autoCreateTable: true`):
+  - **rawMode: true** — table is created at Connect time. Schema: `id SERIAL PRIMARY KEY`, `value` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN index on `value`
+  - **rawMode: false** — table is created at first write from the first message structure (replicates source schema). Column types are inferred automatically (TEXT, BIGINT, NUMERIC, JSONB, etc.)
 - **Raw Mode**: When true, expects `{"value": <data>, "_metadata": {...}}` and creates table with value/_metadata columns. When false, uses columnar format from message.
 - **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`)
 - **Soft Delete**: When `softDeleteColumn` is set and message has `metadata.operation=delete`, performs `UPDATE ... SET deleted_at = NOW()` instead of physical DELETE
@@ -482,12 +484,12 @@ source:
     rawMode: true
 ```
 
-### Features
+### Source Features
 
-- **Polling**: Periodically polls the table for new data
-- **Incremental Reads**: Uses `id` or `created_at` columns when available to avoid duplicates
-- **Custom Queries**: Support for custom SQL queries
-- **Metadata**: Each message contains metadata: `table`, `id` (if present)
+- **Polling**: Periodically polls the table for new data (interval set by `pollInterval`)
+- **Incremental Reads**: When `query` is not specified, uses `id` or `created_at` columns to filter already-read rows (`WHERE id > lastReadID` or `WHERE created_at > lastReadTime`), avoiding duplicates on restart
+- **Custom Queries**: When `query` is specified, only that query is used; incremental logic is not applied
+- **Metadata**: Each message contains `table` and `id` (if column exists)
 - **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
 
 ### Sink
@@ -504,15 +506,21 @@ sink:
     # Flush interval in seconds (optional, default: 10). 0 = disable timer
     batchFlushIntervalSeconds: 10
 
-    # Auto-create MergeTree table with data + created_at columns (optional)
+    # Auto-create table (optional)
     autoCreateTable: true
+
+    # rawMode: false (default) — creates table from first message structure (columnar, replicates source schema)
+    # rawMode: true — creates MergeTree table with data String, created_at columns (JSON storage)
+    rawMode: false
 ```
 
-### Features
+### Sink Features
 
 - **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
-- **Auto-create Tables**: Creates MergeTree table with `data` (String) and `created_at` (DateTime) columns
-- **JSON Storage**: Messages are stored as JSON strings in the `data` column
+- **Auto-create Tables** (when `autoCreateTable: true`):
+  - **rawMode: true** — table is created at Connect time. Schema: `data String`, `created_at DateTime DEFAULT now()`, MergeTree engine, ORDER BY created_at. Messages are stored as JSON string in `data` column
+  - **rawMode: false** — table is created at first write from the first message structure. Column types are inferred automatically (String, Int32/Int64, Float64, Decimal, DateTime, etc.). Supports `{"value": {...}, "_metadata": {...}}` format — uses fields from `value`
+- **Raw Mode**: When true, expects/stores JSON in `data` column. When false, uses columnar format from message (INSERT with named columns)
 
 ### Example: Kafka to ClickHouse
 
@@ -534,6 +542,31 @@ spec:
     clickhouse:
       connectionString: "clickhouse://default@clickhouse:9000/default"
       table: output_table
+      batchSize: 100
+      autoCreateTable: true
+```
+
+### Example: ClickHouse to ClickHouse (schema replication)
+
+With `autoCreateTable: true` and `rawMode: false`, the target table is created automatically from the source structure:
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: clickhouse-to-clickhouse
+spec:
+  source:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s"
+      table: products
+      pollInterval: 5
+  sink:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s"
+      table: products_clone
       batchSize: 100
       autoCreateTable: true
 ```

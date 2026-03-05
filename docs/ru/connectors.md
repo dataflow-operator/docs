@@ -256,7 +256,7 @@ source:
 - **Режим rawMode**: При включении каждая строка оборачивается в JSON с полями `value` (данные строки) и `_metadata` (table, id)
 - **Размер батча чтения**: Ограничивает количество строк за один опрос для снижения нагрузки на БД
 - **Отслеживание обновлений**: По умолчанию отслеживает изменения по колонке `updated_at` (или `changeTrackingColumn`), захватывает INSERT и UPDATE
-- **Автосоздание таблицы**: Создаёт таблицу с CDC-совместимой схемой (id, created_at, updated_at), если не существует
+- **Автосоздание таблицы**: При `autoCreateTable: true` создаёт таблицу с CDC-совместимой схемой (`id SERIAL PRIMARY KEY`, `created_at`, `updated_at`), если не существует. Создание выполняется при подключении (Connect).
 - **Схема таблицы**: Имя таблицы поддерживает формат `schema.table` (напр. `public.products`)
 - **Состояние в памяти**: Позиция чтения (lastReadChangeTime) хранится только в памяти. При перезапуске пода/коннектора происходит полное перечитывание таблицы. Для pg→pg включите `upsertMode: true` в sink, чтобы дубликаты обновлялись, а не вставлялись повторно.
 
@@ -316,7 +316,9 @@ sink:
 #### Особенности PostgreSQL приемника
 
 - **Батч-вставки**: Группирует сообщения для эффективной записи. Сброс при достижении `batchSize` или по таймеру. Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
-- **Автосоздание таблиц**: При `rawMode: true` — создаёт таблицу с колонками `value` JSONB, `_metadata` JSONB, created_at, updated_at, deleted_at и GIN индексом. При `rawMode: false` — выводит структуру таблицы из первого сообщения (реплицирует схему источника)
+- **Автосоздание таблиц** (при `autoCreateTable: true`):
+  - **rawMode: true** — таблица создаётся при подключении (Connect). Схема: `id SERIAL PRIMARY KEY`, `value` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN индекс по `value`
+  - **rawMode: false** — таблица создаётся при первой записи из структуры первого сообщения (реплицирует схему источника). Типы колонок выводятся автоматически (TEXT, BIGINT, NUMERIC, JSONB и т.д.)
 - **Режим rawMode**: При true ожидает `{"value": <данные>, "_metadata": {...}}` и создаёт таблицу с колонками value/_metadata. При false использует колоночный формат из сообщения
 - **UPSERT режим**: Обновляет существующие записи при конфликте по PRIMARY KEY или указанному `conflictKey`
 - **Soft delete**: При заданном `softDeleteColumn` и `metadata.operation=delete` выполняет `UPDATE ... SET deleted_at = NOW()` вместо физического DELETE
@@ -401,10 +403,11 @@ source:
 
 #### Особенности ClickHouse источника
 
-- **Опрос**: Периодически опрашивает таблицу на наличие новых данных
-- **Инкрементальное чтение**: Использует колонки `id` или `created_at` при наличии для избежания дубликатов
-- **Кастомные запросы**: Поддержка кастомных SQL запросов
-- **Режим сырой записи (rawMode)**: При включении каждая строка оборачивается в JSON с полями `value` (данные строки) и `_metadata` (table, id)
+- **Опрос**: Периодически опрашивает таблицу на наличие новых данных (интервал задаётся `pollInterval`)
+- **Инкрементальное чтение**: При отсутствии `query` использует колонки `id` или `created_at` для фильтрации уже прочитанных строк (`WHERE id > lastReadID` или `WHERE created_at > lastReadTime`), что избегает дубликатов при перезапуске
+- **Кастомные запросы**: При указании `query` используется только он; инкрементальная логика не применяется
+- **Метаданные**: Каждое сообщение содержит `table` и `id` (если колонка есть)
+- **Режим rawMode**: При включении каждая строка оборачивается в JSON с полями `value` (данные строки) и `_metadata` (table, id)
 
 ### Приемник (Sink)
 
@@ -421,15 +424,21 @@ sink:
     # Интервал сброса батча в секундах (опционально, по умолчанию: 10). 0 — отключить сброс по таймеру
     batchFlushIntervalSeconds: 10
 
-    # Автосоздание MergeTree таблицы с колонками data + created_at (опционально)
+    # Автосоздание таблицы (опционально)
     autoCreateTable: true
+
+    # rawMode: false (по умолчанию) — создаёт таблицу по структуре первого сообщения (колоночный формат, репликация схемы источника)
+    # rawMode: true — создаёт MergeTree таблицу с колонками data String, created_at (JSON-хранилище)
+    rawMode: false
 ```
 
 #### Особенности ClickHouse приемника
 
 - **Батч-вставки**: Группирует сообщения; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
-- **Автосоздание таблиц**: Создаёт MergeTree таблицу с колонками `data` (String) и `created_at` (DateTime)
-- **JSON**: Сообщения хранятся как JSON строки в колонке `data`
+- **Автосоздание таблиц** (при `autoCreateTable: true`):
+  - **rawMode: true** — таблица создаётся при подключении (Connect). Схема: `data String`, `created_at DateTime DEFAULT now()`, движок MergeTree, ORDER BY created_at. Сообщения сохраняются как JSON-строка в колонке `data`
+  - **rawMode: false** — таблица создаётся при первой записи из структуры первого сообщения. Типы колонок выводятся автоматически (String, Int32/Int64, Float64, Decimal, DateTime и т.д.). Поддерживается формат `{"value": {...}, "_metadata": {...}}` — используются поля из `value`
+- **Режим rawMode**: При true ожидает/хранит JSON в колонке `data`. При false использует колоночный формат из сообщения (INSERT с именованными колонками)
 
 #### Пример: Kafka → ClickHouse
 
@@ -451,6 +460,31 @@ spec:
     clickhouse:
       connectionString: "clickhouse://default@clickhouse:9000/default"
       table: output_table
+      batchSize: 100
+      autoCreateTable: true
+```
+
+#### Пример: ClickHouse → ClickHouse (репликация схемы)
+
+При `autoCreateTable: true` и `rawMode: false` целевая таблица создаётся автоматически по структуре источника:
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: clickhouse-to-clickhouse
+spec:
+  source:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s"
+      table: products
+      pollInterval: 5
+  sink:
+    type: clickhouse
+    clickhouse:
+      connectionString: "clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s"
+      table: products_clone
       batchSize: 100
       autoCreateTable: true
 ```
