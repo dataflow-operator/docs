@@ -56,3 +56,24 @@ kubectl get events -n <namespace> --field-selector involvedObject.name=<имя-d
 
 - **Статус**: Поля `.status.phase` и `.status.message` DataFlow обновляются при успехе и при ошибках; события дают журнал того, что произошло и когда.
 - **Метрики**: Для мониторинга см. [Метрики](metrics.md). События дополняют метрики дискретными, читаемыми причинами сбоев и ключевых изменений жизненного цикла.
+
+## Отладка
+
+Если события не отображаются в `kubectl describe dataflow` или `kubectl get events`:
+
+1. **Проверка RBAC**: убедитесь, что ServiceAccount оператора имеет права на создание событий:
+
+   ```bash
+   # Подставьте namespace оператора, имя ServiceAccount и namespace DataFlow
+   kubectl auth can-i create events --as=system:serviceaccount:<namespace-оператора>:<service-account> -n <namespace-dataflow>
+   ```
+
+   Ожидаемый результат: `yes`. При деплое через Helm проверьте, что `rbac.create: true` и `serviceAccount.create: true` в values.
+
+2. **Логи оператора**: при `LOG_LEVEL=debug` контроллер логирует каждую эмиссию события (`Emitted Kubernetes event`). Проверьте логи пода оператора на наличие ошибок при создании событий:
+
+   ```bash
+   kubectl logs -n <namespace> deployment/<dataflow-operator> -c manager
+   ```
+
+3. **Leader election**: при нескольких репликах оператора reconcile выполняет только лидер. Убедитесь, что лидер успешно создаёт ресурсы (ConfigMap, Deployment) — при этом должны генерироваться события.

@@ -56,3 +56,24 @@ Events are namespaced and tied to the DataFlow `involvedObject`, so they appear 
 
 - **Status**: The DataFlow `.status.phase` and `.status.message` are updated on success and failure; events provide an audit trail of what happened and when.
 - **Metrics**: For observability, see [Metrics](metrics.md). Events complement metrics by giving discrete, human-readable reasons for failures and key lifecycle changes.
+
+## Debugging
+
+If events do not appear in `kubectl describe dataflow` or `kubectl get events`:
+
+1. **RBAC check**: ensure the operator's ServiceAccount has permission to create events:
+
+   ```bash
+   # Replace operator namespace, ServiceAccount name, and DataFlow namespace
+   kubectl auth can-i create events --as=system:serviceaccount:<operator-namespace>:<service-account> -n <dataflow-namespace>
+   ```
+
+   Expected result: `yes`. When deploying via Helm, verify `rbac.create: true` and `serviceAccount.create: true` in values.
+
+2. **Operator logs**: with `LOG_LEVEL=debug`, the controller logs each event emission (`Emitted Kubernetes event`). Check operator pod logs for errors when creating events:
+
+   ```bash
+   kubectl logs -n <namespace> deployment/<dataflow-operator> -c manager
+   ```
+
+3. **Leader election**: with multiple operator replicas, only the leader runs reconcile. Ensure the leader successfully creates resources (ConfigMap, Deployment) — events are emitted when this happens.
