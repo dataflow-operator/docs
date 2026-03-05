@@ -2,6 +2,41 @@
 
 DataFlow Operator экспортирует метрики Prometheus для мониторинга работы оператора и обработки данных.
 
+## Как работает сбор метрик
+
+Prometheus scrape только Service оператора (порт 9090). Оператор агрегирует метрики всех processor pods.
+
+При каждом запросе `/metrics`:
+
+1. Оператор отдаёт свои метрики (controller-runtime, `dataflow_status`)
+2. Находит DataFlow и processor pods по labels `app=dataflow-processor`, `dataflow.dataflow.io/name`
+3. Запрашивает `http://<podIP>:9090/metrics` у каждого processor pod
+4. Оставляет только метрики `dataflow_*` (исключает `go_*`, `process_*`)
+5. Объединяет метрики оператора и processor pods и возвращает результат
+
+```mermaid
+flowchart TB
+    subgraph PrometheusStack [Prometheus Stack]
+        Prometheus[Prometheus]
+    end
+
+    subgraph DataFlowOperator [DataFlow Operator]
+        Operator[Operator Pod]
+        OperatorMetrics[Operator Metrics]
+    end
+
+    subgraph ProcessorPods [Processor Pods]
+        Proc1[Processor Pod 1]
+        Proc2[Processor Pod 2]
+    end
+
+    Prometheus -->|"GET /metrics :9090"| Operator
+    Operator -->|"1. Serve operator metrics"| OperatorMetrics
+    Operator -->|"2. Scrape podIP:9090/metrics"| Proc1
+    Operator -->|"2. Scrape podIP:9090/metrics"| Proc2
+    Operator -->|"3. Merge dataflow_* only"| Prometheus
+```
+
 ## Доступные метрики
 
 ### Метрики DataFlow манифестов
@@ -151,7 +186,7 @@ serviceMonitor:
 
 ### Grafana Dashboard
 
-Импортируйте дашборд из файла `grafana-dashboard.json` в Grafana для визуализации метрик.
+Импортируйте дашборд из файла [grafana-dashboard.json](https://github.com/dataflow-operator/monitoring/blob/main/dashboards/grafana-dashboard.json) в Grafana для визуализации метрик.
 
 Дашборд включает:
 - Графики количества полученных/отправленных сообщений
@@ -228,96 +263,54 @@ histogram_quantile(0.99, sum(rate(dataflow_transformer_duration_seconds_bucket[5
 
 ## Алерты
 
-Рекомендуется настроить следующие алерты:
+### Готовые манифесты
 
-### Высокий процент ошибок
+Готовый манифест PrometheusRule с настроенными алертами доступен в репозитории:
+
+- **Файл:** [monitoring/alerts/prometheusrule.yaml](https://github.com/dataflow-operator/monitoring/blob/main/alerts/prometheusrule.yaml)
+
+**Применить манифест:**
+
+```bash
+kubectl apply -f monitoring/alerts/prometheusrule.yaml
+```
+
+**Требования:** Prometheus Operator (например, kube-prometheus-stack). Метка `release: kube-prometheus-stack` должна совпадать с ruleSelector вашего Prometheus. Измените метку, если используете другой Prometheus.
+
+| Алерт | Описание |
+|-------|----------|
+| DataFlowInError | DataFlow в состоянии Error |
+| DataFlowConnectorDisconnected | Коннектор отключён |
+| DataFlowHighErrorRate | Процент ошибок (коннектор + трансформер) > 1% |
+| DataFlowSlowProcessing | p95 время обработки сообщений > 1 с |
+| DataFlowLowTaskSuccessRate | Процент успешных задач < 95% |
+| DataFlowHighQueueSize | Размер очереди > 1000 сообщений |
+| DataFlowHighE2ELatency | p99 end-to-end латентность > 5 с |
+
+### Дополнительные запросы
+
+Используйте эти PromQL-выражения для кастомных дашбордов или разовых алертов:
+
+**Высокий процент ошибок**
 
 ```promql
 (
   sum(rate(dataflow_connector_errors_total[5m])) by (namespace, name)
-  +
-  sum(rate(dataflow_transformer_errors_total[5m])) by (namespace, name)
+  + sum(rate(dataflow_transformer_errors_total[5m])) by (namespace, name)
 )
 /
-(
-  sum(rate(dataflow_messages_received_total[5m])) by (namespace, name)
-)
+sum(rate(dataflow_messages_received_total[5m])) by (namespace, name)
 > 0.01
 ```
 
-### Медленная обработка сообщений
-
-```promql
-histogram_quantile(0.95, sum(rate(dataflow_processing_duration_seconds_bucket[5m])) by (namespace, name, le)) > 1
-```
-
-### Отключенные коннекторы
+**Отключённые коннекторы**
 
 ```promql
 dataflow_connector_connection_status == 0
 ```
 
-### Остановленные манифесты
+**DataFlow в Error или Stopped**
 
 ```promql
-dataflow_status == 0
-```
-
-### Пропускная способность задач
-
-```promql
-dataflow_task_throughput_messages_per_second
-```
-
-### Процент успешных задач
-
-```promql
-dataflow_task_success_rate * 100
-```
-
-### p95 время выполнения этапа чтения
-
-```promql
-histogram_quantile(0.95, sum(rate(dataflow_task_stage_duration_seconds_bucket{stage="read"}[5m])) by (namespace, name, le))
-```
-
-### Средний размер сообщений на входе
-
-```promql
-avg(dataflow_task_message_size_bytes{stage="input"}) by (namespace, name)
-```
-
-### p99 end-to-end latency
-
-```promql
-histogram_quantile(0.99, sum(rate(dataflow_task_end_to_end_latency_seconds_bucket[5m])) by (namespace, name, le))
-```
-
-### Количество активных сообщений в обработке
-
-```promql
-dataflow_task_active_messages
-```
-
-### Размер очереди сообщений
-
-```promql
-dataflow_task_queue_size
-```
-
-### Среднее время ожидания в очереди
-
-```promql
-avg(rate(dataflow_task_queue_wait_time_seconds_sum[5m])) by (namespace, name, queue_type)
-/
-avg(rate(dataflow_task_queue_wait_time_seconds_count[5m])) by (namespace, name, queue_type)
-```
-
-### Процент ошибок по этапам
-
-```promql
-sum(rate(dataflow_task_stage_errors_total[5m])) by (namespace, name, stage)
-/
-sum(rate(dataflow_task_operations_total[5m])) by (namespace, name)
-* 100
+dataflow_status{phase=~"Error|Stopped"} == 1
 ```

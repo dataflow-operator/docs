@@ -1,98 +1,133 @@
-# Метрики DataFlow Operator
+# DataFlow Operator Metrics
 
-DataFlow Operator экспортирует метрики Prometheus для мониторинга работы оператора и обработки данных.
+DataFlow Operator exports Prometheus metrics for monitoring the operator and data processing.
 
-## Доступные метрики
+## How metrics collection works
 
-### Метрики DataFlow манифестов
+Prometheus scrapes only the operator Service (port 9090). The operator aggregates metrics from all processor pods.
 
-- `dataflow_messages_received_total` - общее количество полученных сообщений по манифесту
-  - Метки: `namespace`, `name`, `source_type`
+On each `/metrics` request:
 
-- `dataflow_messages_sent_total` - общее количество отправленных сообщений по манифесту
-  - Метки: `namespace`, `name`, `sink_type`, `route`
+1. The operator returns its own metrics (controller-runtime, `dataflow_status`)
+2. It discovers DataFlows and processor pods by labels `app=dataflow-processor`, `dataflow.dataflow.io/name`
+3. It fetches `http://<podIP>:9090/metrics` from each processor pod
+4. It keeps only `dataflow_*` metrics (drops `go_*`, `process_*`)
+5. It merges operator and processor metrics and returns the combined output
 
-- `dataflow_processing_duration_seconds` - время обработки сообщений (гистограмма)
-  - Метки: `namespace`, `name`
+```mermaid
+flowchart TB
+    subgraph PrometheusStack [Prometheus Stack]
+        Prometheus[Prometheus]
+    end
 
-- `dataflow_status` - статус DataFlow манифеста (1 = Running, 0 = Stopped/Error)
-  - Метки: `namespace`, `name`, `phase`
+    subgraph DataFlowOperator [DataFlow Operator]
+        Operator[Operator Pod]
+        OperatorMetrics[Operator Metrics]
+    end
 
-### Метрики коннекторов
+    subgraph ProcessorPods [Processor Pods]
+        Proc1[Processor Pod 1]
+        Proc2[Processor Pod 2]
+    end
 
-- `dataflow_connector_messages_read_total` - количество прочитанных сообщений из source коннектора
-  - Метки: `namespace`, `name`, `connector_type`, `connector_name`
+    Prometheus -->|"GET /metrics :9090"| Operator
+    Operator -->|"1. Serve operator metrics"| OperatorMetrics
+    Operator -->|"2. Scrape podIP:9090/metrics"| Proc1
+    Operator -->|"2. Scrape podIP:9090/metrics"| Proc2
+    Operator -->|"3. Merge dataflow_* only"| Prometheus
+```
 
-- `dataflow_connector_messages_written_total` - количество записанных сообщений в sink коннектор
-  - Метки: `namespace`, `name`, `connector_type`, `connector_name`, `route`
+## Available metrics
 
-- `dataflow_connector_errors_total` - количество ошибок в коннекторах
-  - Метки: `namespace`, `name`, `connector_type`, `connector_name`, `operation`, `error_type`
-  - Возможные значения `error_type`: см. [Error types](errors.md#error-types)
+### DataFlow manifest metrics
 
-- `dataflow_connector_connection_status` - статус подключения коннектора (1 = connected, 0 = disconnected)
-  - Метки: `namespace`, `name`, `connector_type`, `connector_name`
+- `dataflow_messages_received_total` — total number of messages received per manifest
+  - Labels: `namespace`, `name`, `source_type`
 
-### Метрики трансформеров
+- `dataflow_messages_sent_total` — total number of messages sent per manifest
+  - Labels: `namespace`, `name`, `sink_type`, `route`
 
-- `dataflow_transformer_executions_total` - количество выполнений трансформера
-  - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`
+- `dataflow_processing_duration_seconds` — message processing time (histogram)
+  - Labels: `namespace`, `name`
 
-- `dataflow_transformer_errors_total` - количество ошибок в трансформерах
-  - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`, `error_type`
-  - Возможные значения `error_type`: см. [Error types](errors.md#error-types)
+- `dataflow_status` — DataFlow manifest status (1 = Running, 0 = Stopped/Error)
+  - Labels: `namespace`, `name`, `phase`
 
-- `dataflow_transformer_duration_seconds` - время выполнения трансформера (гистограмма)
-  - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`
+### Connector metrics
 
-- `dataflow_transformer_messages_in_total` - количество входящих сообщений в трансформер
-  - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`
+- `dataflow_connector_messages_read_total` — number of messages read from source connector
+  - Labels: `namespace`, `name`, `connector_type`, `connector_name`
 
-- `dataflow_transformer_messages_out_total` - количество исходящих сообщений из трансформера
-  - Метки: `namespace`, `name`, `transformer_type`, `transformer_index`
+- `dataflow_connector_messages_written_total` — number of messages written to sink connector
+  - Labels: `namespace`, `name`, `connector_type`, `connector_name`, `route`
 
-### Детальные метрики выполнения задач
+- `dataflow_connector_errors_total` — number of connector errors
+  - Labels: `namespace`, `name`, `connector_type`, `connector_name`, `operation`, `error_type`
+  - Possible `error_type` values: see [Error types](errors.md#error-types)
 
-- `dataflow_task_stage_duration_seconds` - время выполнения отдельных этапов задачи (гистограмма)
-  - Метки: `namespace`, `name`, `stage`
-  - Этапы: `read`, `transformation`, `write`, `sink_write`, `error_sink_write`, `transformer_0`, `transformer_1`, и т.д.
+- `dataflow_connector_connection_status` — connector connection status (1 = connected, 0 = disconnected)
+  - Labels: `namespace`, `name`, `connector_type`, `connector_name`
 
-- `dataflow_task_message_size_bytes` - размер сообщений на разных этапах обработки (гистограмма)
-  - Метки: `namespace`, `name`, `stage`
-  - Этапы: `input`, `output`, `transformer_0_input`, `transformer_0_output`, и т.д.
+### Transformer metrics
 
-- `dataflow_task_stage_latency_seconds` - задержка между этапами обработки (гистограмма)
-  - Метки: `namespace`, `name`, `from_stage`, `to_stage`
+- `dataflow_transformer_executions_total` — number of transformer executions
+  - Labels: `namespace`, `name`, `transformer_type`, `transformer_index`
 
-- `dataflow_task_throughput_messages_per_second` - текущая пропускная способность (сообщений в секунду)
-  - Метки: `namespace`, `name`
+- `dataflow_transformer_errors_total` — number of transformer errors
+  - Labels: `namespace`, `name`, `transformer_type`, `transformer_index`, `error_type`
+  - Possible `error_type` values: see [Error types](errors.md#error-types)
 
-- `dataflow_task_success_rate` - процент успешных задач (0.0 до 1.0)
-  - Метки: `namespace`, `name`
+- `dataflow_transformer_duration_seconds` — transformer execution time (histogram)
+  - Labels: `namespace`, `name`, `transformer_type`, `transformer_index`
 
-- `dataflow_task_end_to_end_latency_seconds` - полное время жизни сообщения от получения до отправки (гистограмма)
-  - Метки: `namespace`, `name`
+- `dataflow_transformer_messages_in_total` — number of messages input to transformer
+  - Labels: `namespace`, `name`, `transformer_type`, `transformer_index`
 
-- `dataflow_task_active_messages` - количество активных сообщений в обработке
-  - Метки: `namespace`, `name`
+- `dataflow_transformer_messages_out_total` — number of messages output from transformer
+  - Labels: `namespace`, `name`, `transformer_type`, `transformer_index`
 
-- `dataflow_task_queue_size` - текущий размер очереди сообщений
-  - Метки: `namespace`, `name`, `queue_type`
-  - Типы очередей: `routing`, `output`, `default`, и маршруты роутера
+### Task execution metrics
 
-- `dataflow_task_queue_wait_time_seconds` - время ожидания сообщений в очереди (гистограмма)
-  - Метки: `namespace`, `name`, `queue_type`
+- `dataflow_task_stage_duration_seconds` — individual task stage execution time (histogram)
+  - Labels: `namespace`, `name`, `stage`
+  - Stages: `read`, `transformation`, `write`, `sink_write`, `error_sink_write`, `transformer_0`, `transformer_1`, etc.
 
-- `dataflow_task_operations_total` - общее количество операций по типу
-  - Метки: `namespace`, `name`, `operation`, `status`
-  - Операции: `transform`, `write`, `sink_write`, `error_sink_write`
-  - Статусы: `success`, `error`, `cancelled`
+- `dataflow_task_message_size_bytes` — message size at different processing stages (histogram)
+  - Labels: `namespace`, `name`, `stage`
+  - Stages: `input`, `output`, `transformer_0_input`, `transformer_0_output`, etc.
 
-- `dataflow_task_stage_errors_total` - количество ошибок на каждом этапе
-  - Метки: `namespace`, `name`, `stage`, `error_type`
-  - Возможные значения `error_type`: см. [Error types](errors.md#error-types)
+- `dataflow_task_stage_latency_seconds` — latency between processing stages (histogram)
+  - Labels: `namespace`, `name`, `from_stage`, `to_stage`
 
-### 6.2 Labels
+- `dataflow_task_throughput_messages_per_second` — current throughput (messages per second)
+  - Labels: `namespace`, `name`
+
+- `dataflow_task_success_rate` — task success rate (0.0 to 1.0)
+  - Labels: `namespace`, `name`
+
+- `dataflow_task_end_to_end_latency_seconds` — full message lifetime from receipt to delivery (histogram)
+  - Labels: `namespace`, `name`
+
+- `dataflow_task_active_messages` — number of messages currently being processed
+  - Labels: `namespace`, `name`
+
+- `dataflow_task_queue_size` — current message queue size
+  - Labels: `namespace`, `name`, `queue_type`
+  - Queue types: `routing`, `output`, `default`, and router routes
+
+- `dataflow_task_queue_wait_time_seconds` — time messages spend waiting in queue (histogram)
+  - Labels: `namespace`, `name`, `queue_type`
+
+- `dataflow_task_operations_total` — total operations by type
+  - Labels: `namespace`, `name`, `operation`, `status`
+  - Operations: `transform`, `write`, `sink_write`, `error_sink_write`
+  - Statuses: `success`, `error`, `cancelled`
+
+- `dataflow_task_stage_errors_total` — number of errors per stage
+  - Labels: `namespace`, `name`, `stage`, `error_type`
+  - Possible `error_type` values: see [Error types](errors.md#error-types)
+
+### Labels
 
 Metrics use `namespace` and `name` labels to bind to DataFlow, which is convenient for filtering and aggregation in Prometheus/Grafana. All metrics include at least these two labels; additional labels (`source_type`, `sink_type`, `connector_type`, `stage`, etc.) allow for more detailed queries.
 
@@ -100,7 +135,7 @@ Examples:
 - Filter by specific DataFlow: `dataflow_messages_received_total{namespace="default", name="my-dataflow"}`
 - Aggregate by namespace: `sum(rate(dataflow_messages_received_total[5m])) by (namespace, name)`
 
-### 6.3 Histograms
+### Histograms
 
 Histograms use exponential buckets suitable for latency and message sizes:
 
@@ -117,11 +152,11 @@ Histograms use exponential buckets suitable for latency and message sizes:
 - **Latency** (time in seconds): start from 0.1 ms or 1 ms, multiplier 2.
 - **Message sizes** (bytes): start from 64 bytes, multiplier 2.
 
-## Настройка мониторинга
+## Monitoring setup
 
 ### Prometheus ServiceMonitor
 
-Для автоматического обнаружения метрик Prometheus создайте ServiceMonitor:
+For automatic Prometheus discovery, create a ServiceMonitor:
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -140,7 +175,7 @@ spec:
       interval: 30s
 ```
 
-Или включите ServiceMonitor в Helm chart:
+Or enable ServiceMonitor in the Helm chart:
 
 ```yaml
 serviceMonitor:
@@ -151,25 +186,25 @@ serviceMonitor:
 
 ### Grafana Dashboard
 
-Импортируйте дашборд из файла `grafana-dashboard.json` в Grafana для визуализации метрик.
+Import the dashboard from [grafana-dashboard.json](https://github.com/dataflow-operator/dataflow-operator/blob/main/monitoring/dashboards/grafana-dashboard.json) into Grafana to visualize metrics.
 
-Дашборд включает:
-- Графики количества полученных/отправленных сообщений
-- Графики ошибок в коннекторах и трансформерах
-- Время обработки сообщений
-- Статус подключения коннекторов
-- Статус DataFlow манифестов
-- Статистику по трансформерам
+The dashboard includes:
+- Message received/sent rate charts
+- Connector and transformer error charts
+- Message processing time
+- Connector connection status
+- DataFlow manifest status
+- Transformer statistics
 
-## Примеры запросов Prometheus
+## Prometheus query examples
 
-### Количество сообщений в секунду по манифесту
+### Messages per second per manifest
 
 ```promql
 sum(rate(dataflow_messages_received_total[5m])) by (namespace, name)
 ```
 
-### Процент ошибок в трансформерах
+### Transformer error rate
 
 ```promql
 sum(rate(dataflow_transformer_errors_total[5m])) by (namespace, name, transformer_type)
@@ -178,37 +213,37 @@ sum(rate(dataflow_transformer_executions_total[5m])) by (namespace, name, transf
 * 100
 ```
 
-### p95 время обработки сообщений
+### p95 message processing time
 
 ```promql
 histogram_quantile(0.95, sum(rate(dataflow_processing_duration_seconds_bucket[5m])) by (namespace, name, le))
 ```
 
-### Количество активных DataFlow манифестов
+### Active DataFlow manifests count
 
 ```promql
 sum(dataflow_status) by (namespace, name)
 ```
 
-### Пропускная способность задач
+### Task throughput
 
 ```promql
 dataflow_task_throughput_messages_per_second
 ```
 
-### Процент успешных задач
+### Task success rate
 
 ```promql
 dataflow_task_success_rate * 100
 ```
 
-### p95 время выполнения этапа чтения
+### p95 read stage duration
 
 ```promql
 histogram_quantile(0.95, sum(rate(dataflow_task_stage_duration_seconds_bucket{stage="read"}[5m])) by (namespace, name, le))
 ```
 
-### Средний размер сообщений на входе
+### Average input message size
 
 ```promql
 avg(dataflow_task_message_size_bytes{stage="input"}) by (namespace, name)
@@ -220,19 +255,19 @@ avg(dataflow_task_message_size_bytes{stage="input"}) by (namespace, name)
 histogram_quantile(0.99, sum(rate(dataflow_task_end_to_end_latency_seconds_bucket[5m])) by (namespace, name, le))
 ```
 
-### Количество активных сообщений в обработке
+### Active messages in processing
 
 ```promql
 dataflow_task_active_messages
 ```
 
-### Размер очереди сообщений
+### Message queue size
 
 ```promql
 dataflow_task_queue_size
 ```
 
-### Среднее время ожидания в очереди
+### Average queue wait time
 
 ```promql
 avg(rate(dataflow_task_queue_wait_time_seconds_sum[5m])) by (namespace, name, queue_type)
@@ -240,11 +275,65 @@ avg(rate(dataflow_task_queue_wait_time_seconds_sum[5m])) by (namespace, name, qu
 avg(rate(dataflow_task_queue_wait_time_seconds_count[5m])) by (namespace, name, queue_type)
 ```
 
-### Процент ошибок по этапам
+### Error rate by stage
 
 ```promql
 sum(rate(dataflow_task_stage_errors_total[5m])) by (namespace, name, stage)
 /
 sum(rate(dataflow_task_operations_total[5m])) by (namespace, name)
 * 100
+```
+
+## Alerts
+
+### Ready-to-use manifests
+
+A PrometheusRule manifest with pre-configured alerts is available in the repository:
+
+- **File:** [monitoring/alerts/prometheusrule.yaml](https://github.com/dataflow-operator/dataflow-operator/blob/main/monitoring/alerts/prometheusrule.yaml)
+
+**Apply the manifest:**
+
+```bash
+kubectl apply -f monitoring/alerts/prometheusrule.yaml
+```
+
+**Requirements:** Prometheus Operator (e.g. kube-prometheus-stack). The `release: kube-prometheus-stack` label must match your Prometheus instance's ruleSelector. Adjust the label if you use a different Prometheus deployment.
+
+| Alert | Description |
+|-------|-------------|
+| DataFlowInError | DataFlow is in Error state |
+| DataFlowConnectorDisconnected | Connector is disconnected |
+| DataFlowHighErrorRate | Error rate (connector + transformer) > 1% |
+| DataFlowSlowProcessing | p95 message processing duration > 1s |
+| DataFlowLowTaskSuccessRate | Task success rate < 95% |
+| DataFlowHighQueueSize | Queue size > 1000 messages |
+| DataFlowHighE2ELatency | p99 end-to-end latency > 5s |
+
+### Additional queries
+
+Use these PromQL expressions for custom dashboards or ad-hoc alerts:
+
+**High error rate**
+
+```promql
+(
+  sum(rate(dataflow_connector_errors_total[5m])) by (namespace, name)
+  + sum(rate(dataflow_transformer_errors_total[5m])) by (namespace, name)
+)
+/
+sum(rate(dataflow_messages_received_total[5m])) by (namespace, name)
+> 0.01
+```
+
+**Disconnected connectors**
+
+```promql
+dataflow_connector_connection_status == 0
+```
+
+**DataFlow in Error or Stopped**
+
+```promql
+dataflow_status{phase=~"Error|Stopped"} == 1
 ```
