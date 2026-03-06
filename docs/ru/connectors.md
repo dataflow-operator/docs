@@ -8,6 +8,7 @@ DataFlow Operator поддерживает различные коннектор
 |-----------|----------|----------|-------------|
 | Kafka | ✅ | ✅ | Consumer groups, TLS, SASL, Avro, Schema Registry |
 | PostgreSQL | ✅ | ✅ | SQL запросы, батч-вставки, автосоздание таблиц, UPSERT режим |
+| postgresFull | ✅ | ✅ | Полная синхронизация БД: схема (таблицы, view, индексы, функции) + данные |
 | Trino | ✅ | ✅ | SQL запросы, аутентификация Keycloak OAuth2, батч-вставки |
 | ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
 | Nessie | ✅ | ✅ | Таблицы Iceberg через каталог Nessie, ветки, Basic/Bearer auth, опрос, батч-дозапись |
@@ -371,6 +372,66 @@ sink:
 - Это особенно полезно для синхронизации данных, когда источник периодически отправляет обновленные записи
 
 **Важно:** Для работы UPSERT таблица должна иметь PRIMARY KEY или UNIQUE constraint на указанном `conflictKey`.
+
+## postgresFull
+
+Коннектор postgresFull выполняет **полную синхронизацию базы данных** из PostgreSQL-источника в PostgreSQL-приёмник. Реплицирует схему (таблицы, представления, материализованные представления, индексы, последовательности, триггеры, функции) и опционально данные.
+
+### Особенности
+
+- **Синхронизация схемы**: схемы, таблицы, views, materialized views, индексы, последовательности, триггеры, функции
+- **Синхронизация данных**: опционально (schema_only или schema_and_data)
+- **ExcludeObjects**: исключение типов объектов (view, matview, function, trigger, index, sequence)
+- **Фильтр databases**: синхронизация конкретных объектов в формате `schema.object`
+- **ConnectionStringSecretRef**: использование Kubernetes secrets для учётных данных
+
+### Пример
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: postgres-full-sync
+spec:
+  source:
+    type: postgresFull
+    postgresFull:
+      connectionString: "postgres://user:pass@source-pg:5432/db?sslmode=disable"
+      syncMode: full
+      dataMode: schema_and_data   # или schema_only
+      # databases: ["public.users", "analytics.mv_report"]  # опциональный фильтр
+      # excludeObjects: ["view", "function"]                 # опциональное исключение
+  sink:
+    type: postgresFull
+    postgresFull:
+      connectionString: "postgres://user:pass@target-pg:5432/db?sslmode=disable"
+```
+
+### Опции источника
+
+| Опция | Описание |
+|-------|----------|
+| connectionString | Строка подключения PostgreSQL (обязательно, или connectionStringSecretRef) |
+| syncMode | `full` (по умолчанию) или `incremental` |
+| dataMode | `schema_only` или `schema_and_data` (по умолчанию) |
+| databases | Список `schema.object` для синхронизации; пусто = все |
+| excludeObjects | Исключить типы: view, matview, function, trigger, index, sequence |
+| syncUsers | Синхронизировать роли (CREATE ROLE, без паролей) |
+| syncGrants | Синхронизировать права (GRANT на объекты) |
+
+### Опции приёмника
+
+| Опция | Описание |
+|-------|----------|
+| connectionString | Строка подключения к целевой PostgreSQL |
+| dropTarget | Удалить объекты на target перед применением (осторожно) |
+
+### Требования
+
+- PostgreSQL 12+ на source и target
+- Source: SELECT на pg_catalog, USAGE на схемах, SELECT на таблицах
+- Target: CREATE, INSERT и права на DDL
+- Для синхронизации данных с FK: используется `session_replication_role = replica` при вставке
 
 ## ClickHouse
 

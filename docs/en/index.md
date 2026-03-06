@@ -132,6 +132,7 @@ See [Metrics](metrics.md) for more details.
 - [Transformations](transformations.md) — message transformations
 - [Examples](examples.md) — practical examples
 - [Errors](errors.md) — error handling and error sink
+- [Fault Tolerance](fault-tolerance.md) — at-least-once semantics, idempotent sinks, data consistency
 - [Metrics](metrics.md) — Prometheus metrics
 - [Development](development.md) — developer guide
 

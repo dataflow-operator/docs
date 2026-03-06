@@ -38,6 +38,7 @@ nav:
   - Transformations: en/transformations.md
   - Examples: en/examples.md
   - Errors: en/errors.md
+  - Fault Tolerance: en/fault-tolerance.md
   - Metrics: en/metrics.md
   - Web GUI: en/gui.md
   - Kubernetes Events: en/kubernetes-events.md
@@ -53,6 +54,7 @@ nav:
     - "Трансформации": ru/transformations.md
     - "Примеры": ru/examples.md
     - "Обработка ошибок": ru/errors.md
+    - "Отказоустойчивость": ru/fault-tolerance.md
     - "Метрики": ru/metrics.md
     - "Web GUI": ru/gui.md
     - "События Kubernetes": ru/kubernetes-events.md
