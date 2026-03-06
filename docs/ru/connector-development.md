@@ -221,22 +221,15 @@ func (c *MyDBSinkConnector) Close() error {
 }
 ```
 
-### Шаг 5. Поддержка rawMode (опционально)
+### Шаг 5. Поддержка rawMode (опционально, только для sink-коннекторов)
 
-Для source-коннекторов можно добавить режим сырой записи — обёртку данных в `{"value": ..., "_metadata": {...}}`:
+Для sink-коннекторов можно добавить режим сырой записи — сохранение сообщений в формате `{"value": ..., "_metadata": {...}}`:
 
-1. Добавьте в spec поле `RawMode *bool` с тегом `json:"rawMode,omitempty"`
-2. При формировании сообщения проверяйте `config.RawMode != nil && *config.RawMode`
-3. Используйте `buildRawModeJSON(value, metadata)` из пакета `connectors` для формирования JSON
+1. Добавьте в sink spec поле `RawMode *bool` с тегом `json:"rawMode,omitempty"`
+2. При записи сообщений проверяйте `config.RawMode != nil && *config.RawMode`
+3. При rawMode=true оборачивайте входящие plain-данные, используя `msg.Metadata` для `_metadata` (см. реализации PostgreSQL/ClickHouse/Trino sink)
 
-Пример (PostgreSQL, ClickHouse, Trino, Nessie):
-```go
-if p.config.RawMode != nil && *p.config.RawMode {
-    metadata := map[string]interface{}{"table": p.config.Table}
-    if idIndex >= 0 { metadata["id"] = values[idIndex] }
-    jsonData, err = buildRawModeJSON(rowMap, metadata)
-}
-```
+Примечание: rawMode поддерживается только в sink-коннекторах. Источники всегда отдают plain колоночный формат.
 
 ### Шаг 6. Регистрация в фабрике
 

@@ -34,7 +34,7 @@ kubectl apply -f config/samples/kafka-to-postgres.yaml
 
 ## Kafka with Raw Mode (rawMode)
 
-Example of preserving full Kafka message context: value + metadata (offset, partition, timestamp, key, topic).
+Example of preserving full Kafka message context: value + metadata (offset, partition, timestamp, key, topic). Use `rawMode: true` in the sink to store messages as JSON with `value` and `_metadata` columns.
 
 ```yaml
 apiVersion: dataflow.dataflow.io/v1
@@ -49,16 +49,16 @@ spec:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
-      rawMode: true  # Wraps each message as {"value": ..., "_metadata": {...}}
   sink:
     type: clickhouse
     clickhouse:
       connectionString: "clickhouse://default@clickhouse:9000/default"
       table: raw_events
       autoCreateTable: true
+      rawMode: true  # Stores each message as {"value": ..., "_metadata": {...}}
 ```
 
-**Output message format with rawMode:**
+**Output message format with rawMode (sink wraps using msg.Metadata):**
 ```json
 {
   "value": {"id": 1, "event": "user_login"},

@@ -221,22 +221,15 @@ func (c *MyDBSinkConnector) Close() error {
 }
 ```
 
-### Step 5. Raw Mode Support (optional)
+### Step 5. Raw Mode Support (optional, sink connectors only)
 
-For source connectors, you can add raw mode — wrapping data as `{"value": ..., "_metadata": {...}}`:
+For sink connectors, you can add raw mode — storing messages as `{"value": ..., "_metadata": {...}}`:
 
-1. Add `RawMode *bool` field with tag `json:"rawMode,omitempty"` to the spec
-2. When building messages, check `config.RawMode != nil && *config.RawMode`
-3. Use `buildRawModeJSON(value, metadata)` from the `connectors` package to build JSON
+1. Add `RawMode *bool` field with tag `json:"rawMode,omitempty"` to the sink spec
+2. When writing messages, check `config.RawMode != nil && *config.RawMode`
+3. When rawMode is true, wrap plain incoming data using `msg.Metadata` for `_metadata` (see PostgreSQL/ClickHouse/Trino sink implementations)
 
-Example (PostgreSQL, ClickHouse, Trino, Nessie):
-```go
-if p.config.RawMode != nil && *p.config.RawMode {
-    metadata := map[string]interface{}{"table": p.config.Table}
-    if idIndex >= 0 { metadata["id"] = values[idIndex] }
-    jsonData, err = buildRawModeJSON(rowMap, metadata)
-}
-```
+Note: rawMode is supported only in sink connectors. Sources always emit plain columnar format.
 
 ### Step 6. Register in Factory
 

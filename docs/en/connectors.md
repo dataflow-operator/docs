@@ -309,10 +309,6 @@ source:
     # Supported formats: "json", "avro"
     format: json
 
-    # Raw mode (optional, default: false)
-    # When true, wraps each message as JSON: {"value": <message value>, "_metadata": {offset, partition, timestamp, key, topic}}
-    rawMode: true
-
     # Avro configuration (required if format: "avro")
     # Option 1: Use Confluent Schema Registry (recommended)
     schemaRegistry:
@@ -352,7 +348,6 @@ source:
   - `partition` - partition number
   - `offset` - message offset
   - `key` - message key (if present)
-- **Raw Mode**: When enabled, wraps each message as JSON with `value` (message data) and `_metadata` (offset, partition, timestamp in ms, key, topic). Useful for preserving full Kafka message context
 
 ### Sink
 
@@ -386,10 +381,6 @@ source:
     # Poll interval in seconds (optional, default: 5)
     pollInterval: 60
 
-    # Raw mode (optional, default: false)
-    # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {table, id}}
-    rawMode: true
-
     # CDC-style options (optional)
     readBatchSize: 1000           # Limit rows per poll to reduce DB load (0 = no limit)
     changeTrackingColumn: updated_at  # Column to track changes (default: updated_at). Not used when query is specified
@@ -409,7 +400,6 @@ source:
 - **Periodic Polling**: Regularly polls the table for new data
 - **Custom Queries**: Support for complex SQL with JOIN, WHERE, etc.
 - **Metadata**: Each message contains `table` metadata and `operation` (insert/update)
-- **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
 - **Read Batch Size**: Limits rows per poll to reduce database load when many new records appear
 - **Change Tracking**: By default tracks changes via `updated_at` column (or `changeTrackingColumn`), captures both INSERTs and UPDATEs
 - **Auto-create Table**: When `autoCreateTable: true`, creates the table with CDC-friendly schema (`id SERIAL PRIMARY KEY`, `created_at`, `updated_at`) if it doesn't exist. Creation happens at Connect time.
@@ -542,10 +532,6 @@ source:
 
     # Poll interval in seconds (optional, default: 5)
     pollInterval: 60
-
-    # Raw mode (optional, default: false)
-    # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {table, id}}
-    rawMode: true
 ```
 
 ### Source Features
@@ -554,7 +540,6 @@ source:
 - **Incremental Reads**: When `query` is not specified, uses `id` or `created_at` columns to filter already-read rows (`WHERE id > lastReadID` or `WHERE created_at > lastReadTime`), avoiding duplicates on restart
 - **Custom Queries**: When `query` is specified, only that query is used; incremental logic is not applied
 - **Metadata**: Each message contains `table` and `id` (if column exists)
-- **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (table, id)
 
 ### Sink
 
@@ -673,10 +658,6 @@ source:
     # Used for periodic reading of new data
     pollInterval: 60
 
-    # Raw mode (optional, default: false)
-    # When true, wraps each row as JSON: {"value": <row data>, "_metadata": {catalog, schema, table, id}}
-    rawMode: true
-
     # Keycloak authentication (optional)
     keycloak:
       # Option 1: Use long-lived token directly (recommended for long-lived tokens)
@@ -704,7 +685,6 @@ source:
   - `catalog` - catalog name
   - `schema` - schema name
   - `table` - table name
-- **Raw Mode**: When enabled, wraps each row as JSON with `value` (row data) and `_metadata` (catalog, schema, table, id)
 
 #### Obtaining a Token from Keycloak
 
@@ -848,9 +828,6 @@ source:
     # Poll interval in seconds (optional, default: 10)
     pollInterval: 10
 
-    # Raw mode (optional): wrap each row as {"value": <row>, "_metadata": {namespace, table}}
-    rawMode: false
-
     # Authentication (optional)
     bearerToken: "your-token"
     # Or Basic auth:
@@ -864,7 +841,6 @@ source:
 - **Branch context**: Reads from the specified Nessie branch; table metadata is resolved from the catalog.
 - **Polling**: Periodically scans the Iceberg table for new data.
 - **Authentication**: Bearer token (OAuth2) or Basic auth for Nessie/Iceberg REST.
-- **Raw mode**: When enabled, wraps each row as JSON with `value` and `_metadata` (namespace, table).
 
 ### Sink
 
