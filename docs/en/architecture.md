@@ -25,6 +25,7 @@ High-level flow:
   - **Errors**: optional sink for messages that fail to be written to the main sink.
   - **Resources**: optional CPU/memory for the processor pod.
   - **Scheduling**: optional `nodeSelector`, `affinity`, `tolerations`.
+  - **CheckpointPersistence**: optional; defaults to `true`. When enabled, polling sources (PostgreSQL, ClickHouse, Trino) persist read position to a ConfigMap, reducing duplicates on restart. Set to `false` to disable.
 
 Secrets can be referenced via `SecretRef` in the spec; the operator resolves them before writing the spec into the ConfigMap.
 
@@ -46,7 +47,9 @@ For each DataFlow `<name>` in a namespace:
 | Resource | Name | Purpose |
 |----------|------|---------|
 | ConfigMap | `dataflow-<name>-spec` | Holds `spec.json` (resolved spec with secrets inlined). |
+| ConfigMap | `dataflow-<name>-checkpoint` | Stores read position for polling sources (default). Omitted when `checkpointPersistence: false`. |
 | Deployment | `dataflow-<name>` | One replica; pod runs the **processor** container. |
+| ServiceAccount, Role, RoleBinding | `dataflow-<name>-processor` | RBAC for processor to read/write checkpoint ConfigMap (default). Omitted when `checkpointPersistence: false`. |
 
 The processor container:
 
@@ -65,8 +68,9 @@ The operator uses a **ClusterRole** (and **ClusterRoleBinding** to its ServiceAc
 - Create/patch **events**.
 - Read **secrets** (for resolution).
 - Create/update/delete **ConfigMaps** and **Deployments** in the same namespaces as DataFlow resources.
+- When checkpoint persistence is enabled: create **ServiceAccounts**, **Roles**, and **RoleBindings** for processor pods to access the checkpoint ConfigMap.
 
-See the Helm templates (e.g. `clusterrole.yaml`, `clusterrolebinding.yaml`) and the manifest under `config/rbac/` for the exact rules.
+See the Helm templates (e.g. `clusterrole.yaml`, `clusterrolebinding.yaml`) for the exact rules.
 
 ### Optional: GUI
 
@@ -92,7 +96,8 @@ flowchart LR
   API["API Server"]
   CRD["DataFlow CRD"]
   Operator["Operator Pod"]
-  CM["ConfigMap"]
+  CMSpec["ConfigMap spec"]
+  CMCheckpoint["ConfigMap checkpoint"]
   Dep["Deployment"]
   Proc["Processor Pod"]
   Ext["Kafka / PostgreSQL / Trino / Nessie"]
@@ -100,10 +105,12 @@ flowchart LR
   User -->|"apply DataFlow"| API
   API --> CRD
   Operator -->|watch| CRD
-  Operator -->|create/update| CM
+  Operator -->|create/update| CMSpec
+  Operator -->|create/update| CMCheckpoint
   Operator -->|create/update| Dep
   Dep --> Proc
-  Proc -->|mount spec| CM
+  Proc -->|mount spec| CMSpec
+  Proc -->|read/write checkpoint| CMCheckpoint
   Proc -->|connect| Ext
 ```
 
@@ -114,7 +121,7 @@ flowchart LR
 For each DataFlow, the controller runs the following steps (on create, update, or when owned resources change):
 
 1. **Get DataFlow**  
-   If not found, return. If **DeletionTimestamp** is set: delete the Deployment and ConfigMap (cleanup), update status to `Stopped`, then return.
+   If not found, return. If **DeletionTimestamp** is set: delete the Deployment, ConfigMaps (spec and checkpoint), and processor RBAC (cleanup), update status to `Stopped`, then return.
 
 2. **Resolve secrets**  
    Use **SecretResolver** to substitute all `SecretRef` fields in the spec with values from Kubernetes Secrets. Result: **resolved spec**.
@@ -122,13 +129,16 @@ For each DataFlow, the controller runs the following steps (on create, update, o
 3. **ConfigMap**  
    Create or update the ConfigMap `dataflow-<name>-spec` with key `spec.json` = JSON of the resolved spec. Set controller reference to the DataFlow.
 
-4. **Deployment**  
-   Create or update the Deployment `dataflow-<name>`: processor image, volume from that ConfigMap, args and env as above. Use resources/affinity from DataFlow spec if set. Set controller reference to the DataFlow.
+4. **Checkpoint ConfigMap and RBAC** (when `checkpointPersistence` is not `false`, default: enabled)  
+   Create ConfigMap `dataflow-<name>-checkpoint` and RBAC (ServiceAccount, Role, RoleBinding) so the processor pod can read/write the checkpoint. The processor persists source read position (lastReadID, lastReadChangeTime) there, reducing duplicates on restart.
 
-5. **Deployment status**  
+5. **Deployment**  
+   Create or update the Deployment `dataflow-<name>`: processor image, volume from the spec ConfigMap, args and env as above. When checkpoint persistence is enabled, set `serviceAccountName` so the pod uses the dedicated ServiceAccount. Use resources/affinity from DataFlow spec if set. Set controller reference to the DataFlow.
+
+6. **Deployment status**  
    Read the Deployment; set DataFlow status **Phase** and **Message** from it (e.g. `Running` when `ReadyReplicas > 0`, `Pending` when replicas are starting, `Error` when no replicas).
 
-6. **Update DataFlow status**  
+7. **Update DataFlow status**  
    Write Phase, Message, and other status fields back to the DataFlow resource (with retry on conflict).
 
 ### Reconcile Loop Diagram
@@ -136,11 +146,14 @@ For each DataFlow, the controller runs the following steps (on create, update, o
 ```mermaid
 flowchart TD
   A[Get DataFlow] --> B{Deleted?}
-  B -->|Yes| C[Cleanup Deployment and ConfigMap]
+  B -->|Yes| C[Cleanup Deployment, ConfigMaps, RBAC]
   C --> D[Update Status Stopped]
   B -->|No| E[Resolve Secrets]
   E --> F[Create or Update ConfigMap]
-  F --> G[Create or Update Deployment]
+  F --> F2{CheckpointPersistence?}
+  F2 -->|Yes| F3[Create Checkpoint ConfigMap and RBAC]
+  F2 -->|No| G
+  F3 --> G[Create or Update Deployment]
   G --> H[Read Deployment Status]
   H --> I[Update DataFlow Status]
 ```
@@ -164,7 +177,7 @@ It reads the spec from the file, builds a **Processor** from it, and runs `Proce
 
 The **Processor** (in `internal/processor/processor.go`) is built from the spec and contains:
 
-- **Source**: a **SourceConnector** (Kafka, PostgreSQL, Trino, or Nessie) — `Connect`, `Read`, `Close`.
+- **Source**: a **SourceConnector** (Kafka, PostgreSQL, Trino, or Nessie) — `Connect`, `Read`, `Close`. By default, polling sources load initial checkpoint from ConfigMap and save it after each successful sink write (debounced). Disable with `checkpointPersistence: false`.
 - **Sink**: a **SinkConnector** for the main destination — `Connect`, `Write`, `Close`.
 - **Error sink** (optional): another SinkConnector for failed writes.
 - **Transformations**: an ordered list of **Transformer** implementations (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase).
@@ -220,6 +233,6 @@ flowchart LR
 
 ## Summary
 
-- **Kubernetes**: You declare a **DataFlow** CR; the **operator** reconciles it into a **ConfigMap** (spec) and a **Deployment** (processor pod). RBAC and optional GUI complete the picture.
+- **Kubernetes**: You declare a **DataFlow** CR; the **operator** reconciles it into a **ConfigMap** (spec) and a **Deployment** (processor pod). By default, a second ConfigMap and RBAC are created for checkpoint storage (set `checkpointPersistence: false` to disable). RBAC and optional GUI complete the picture.
 - **Reconciliation**: Get DataFlow → resolve secrets → update ConfigMap → update Deployment → reflect Deployment status in DataFlow status.
 - **Runtime**: Each **processor** pod runs a single pipeline: source → read channel → transformations → write to main (and optionally error and router) sinks, using pluggable connectors and a fixed set of transformations.

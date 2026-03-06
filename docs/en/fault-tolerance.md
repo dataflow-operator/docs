@@ -12,9 +12,9 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 | Source | State storage | On restart |
 |--------|---------------|------------|
 | **Kafka** | Consumer group (Kafka) | Resumes from last committed offset. No duplicates if offset was committed after sink write. |
-| **PostgreSQL** | In-memory (lastReadChangeTime) | State lost. Re-reads from beginning. Duplicates or gaps possible. |
-| **ClickHouse** | In-memory (lastReadID, lastReadTime) | State lost. Re-reads from beginning. Duplicates possible. |
-| **Trino** | In-memory (lastReadID) | State lost. Re-reads from beginning. Duplicates possible. |
+| **PostgreSQL** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
+| **ClickHouse** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
+| **Trino** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 
 ### Kafka Source
 
@@ -26,11 +26,13 @@ The Kafka consumer commits offset **only after** the message is successfully wri
 
 ### Polling Sources (PostgreSQL, ClickHouse, Trino)
 
-Read position (lastReadID, lastReadChangeTime) is stored **only in memory**. On pod crash:
+By default, read position (lastReadID, lastReadChangeTime) is stored **only in memory**. On pod crash:
 
 - State is lost.
 - On restart, the source re-reads from the beginning (or from a wrong position).
 - **Duplicates** or **gaps** are possible depending on when the crash occurred.
+
+**Checkpoint persistence** is enabled by default. The read position is persisted to a ConfigMap. On restart, the source resumes from the last committed position, reducing duplicates. Set `checkpointPersistence: false` in spec to disable.
 
 !!! warning "Idempotent sink required"
     For polling sources, always configure an **idempotent sink** (UPSERT, ReplacingMergeTree) to handle duplicates safely.
@@ -107,9 +109,28 @@ On SIGTERM (e.g., pod eviction, node drain):
 
 Ensure `terminationGracePeriodSeconds` is sufficient for large batches to flush (default: 600 seconds).
 
-## Checkpoint Persistence (Future)
+## Checkpoint Persistence
 
-Persisting source checkpoint (lastReadID, lastReadChangeTime) to external storage (ConfigMap or sink table) would allow polling sources to resume from the last committed position after a processor restart, reducing duplicates. This is planned for a future release. Until then, use idempotent sinks to handle duplicates safely.
+!!! note "Enabled by default"
+    The `checkpointPersistence` field in the DataFlow spec defaults to `true`. You do not need to set it explicitly — checkpoint persistence is enabled for all DataFlows with polling sources.
+
+Checkpoint persistence is **enabled by default**. The read position (lastReadID, lastReadChangeTime) is persisted to ConfigMap `dataflow-<name>-checkpoint`. On processor restart, polling sources (PostgreSQL, ClickHouse, Trino) resume from the last committed position, reducing duplicates.
+
+To disable, set `checkpointPersistence: false`:
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: my-dataflow
+spec:
+  checkpointPersistence: false  # Disable (default: true)
+  source:
+    type: postgresql
+    # ...
+```
+
+The controller creates the ConfigMap and RBAC (ServiceAccount, Role, RoleBinding) for the processor. Checkpoint is saved with debounce (every 30 seconds) and on graceful shutdown.
 
 ## Summary Checklist
 
@@ -118,5 +139,5 @@ Persisting source checkpoint (lastReadID, lastReadChangeTime) to external storag
 | PostgreSQL sink | Enable `upsertMode: true` with PRIMARY KEY or `conflictKey` |
 | ClickHouse sink | Use `ReplacingMergeTree` with `ORDER BY` on deduplication key |
 | Kafka source | Consumer group persists offset; idempotent sink recommended |
-| Polling sources | **Always** use idempotent sink; state is lost on crash |
+| Polling sources | **Always** use idempotent sink; checkpoint persistence enabled by default |
 | batchSize | Consider smaller values to reduce duplicate window |

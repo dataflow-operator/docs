@@ -105,7 +105,6 @@ make manifests
 
 This command generates:
 - CRD manifests in `config/crd/bases/`
-- RBAC manifests in `config/rbac/`
 
 ### Generate DeepCopy Methods
 

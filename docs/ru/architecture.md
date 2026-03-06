@@ -25,6 +25,7 @@ DataFlow Operator обеспечивает **декларативное упра
   - **Errors**: опциональный приёмник для сообщений, которые не удалось записать в основной.
   - **Resources**: опциональные CPU/память для пода процессора.
   - **Scheduling**: опционально `nodeSelector`, `affinity`, `tolerations`.
+  - **CheckpointPersistence**: опционально; по умолчанию `true`. При включении polling-источники (PostgreSQL, ClickHouse, Trino) сохраняют позицию чтения в ConfigMap, уменьшая дубликаты при перезапуске. Задайте `false` для отключения.
 
 Секреты задаются через `SecretRef` в spec; оператор подставляет их перед записью spec в ConfigMap.
 
@@ -46,7 +47,9 @@ DataFlow Operator обеспечивает **декларативное упра
 | Ресурс | Имя | Назначение |
 |--------|-----|------------|
 | ConfigMap | `dataflow-<name>-spec` | Хранит `spec.json` (spec с подставленными секретами). |
+| ConfigMap | `dataflow-<name>-checkpoint` | Хранит позицию чтения для polling-источников (по умолчанию). Не создаётся при `checkpointPersistence: false`. |
 | Deployment | `dataflow-<name>` | Одна реплика; под запускает контейнер **processor**. |
+| ServiceAccount, Role, RoleBinding | `dataflow-<name>-processor` | RBAC для доступа процессора к checkpoint ConfigMap (по умолчанию). Не создаётся при `checkpointPersistence: false`. |
 
 Контейнер процессора:
 
@@ -65,8 +68,9 @@ DataFlow Operator обеспечивает **декларативное упра
 - Создание/обновление **events**.
 - Чтение **secrets** (для подстановки).
 - Создание/обновление/удаление **ConfigMap** и **Deployment** в тех же namespace, где находятся DataFlow.
+- При включённой персистенции checkpoint: создание **ServiceAccount**, **Role** и **RoleBinding** для доступа подов процессора к checkpoint ConfigMap.
 
-Точные правила заданы в Helm-шаблонах (например `clusterrole.yaml`, `clusterrolebinding.yaml`) и манифестах в `config/rbac/`.
+Точные правила заданы в Helm-шаблонах (например `clusterrole.yaml`, `clusterrolebinding.yaml`).
 
 ### Опционально: GUI
 
@@ -92,7 +96,8 @@ flowchart LR
   API["API Server"]
   CRD["DataFlow CRD"]
   Operator["Operator Pod"]
-  CM["ConfigMap"]
+  CMSpec["ConfigMap spec"]
+  CMCheckpoint["ConfigMap checkpoint"]
   Dep["Deployment"]
   Proc["Processor Pod"]
   Ext["Kafka / PostgreSQL / Trino / Nessie"]
@@ -100,10 +105,12 @@ flowchart LR
   User -->|"apply DataFlow"| API
   API --> CRD
   Operator -->|watch| CRD
-  Operator -->|create/update| CM
+  Operator -->|create/update| CMSpec
+  Operator -->|create/update| CMCheckpoint
   Operator -->|create/update| Dep
   Dep --> Proc
-  Proc -->|mount spec| CM
+  Proc -->|mount spec| CMSpec
+  Proc -->|read/write checkpoint| CMCheckpoint
   Proc -->|connect| Ext
 ```
 
@@ -114,7 +121,7 @@ flowchart LR
 Для каждого DataFlow контроллер выполняет следующие шаги (при создании, обновлении или изменении принадлежащих ресурсов):
 
 1. **Получить DataFlow**  
-   Если ресурс не найден — выйти. Если задан **DeletionTimestamp**: удалить Deployment и ConfigMap (очистка), обновить статус на `Stopped` и выйти.
+   Если ресурс не найден — выйти. Если задан **DeletionTimestamp**: удалить Deployment, ConfigMap (spec и checkpoint) и RBAC процессора (очистка), обновить статус на `Stopped` и выйти.
 
 2. **Подставить секреты**  
    **SecretResolver** подставляет все поля с `SecretRef` в spec значениями из Kubernetes Secrets. Результат: **resolved spec**.
@@ -122,13 +129,16 @@ flowchart LR
 3. **ConfigMap**  
    Создать или обновить ConfigMap `dataflow-<name>-spec` с ключом `spec.json` = JSON resolved spec. Установить controller reference на DataFlow.
 
-4. **Deployment**  
-   Создать или обновить Deployment `dataflow-<name>`: образ процессора, том из этого ConfigMap, аргументы и переменные окружения как выше. Ресурсы и affinity из spec DataFlow, если заданы. Установить controller reference на DataFlow.
+4. **Checkpoint ConfigMap и RBAC** (когда `checkpointPersistence` не `false`, по умолчанию включено)  
+   Создать ConfigMap `dataflow-<name>-checkpoint` и RBAC (ServiceAccount, Role, RoleBinding), чтобы под процессора мог читать и записывать checkpoint. Процессор сохраняет позицию чтения источника (lastReadID, lastReadChangeTime), уменьшая дубликаты при перезапуске.
 
-5. **Статус Deployment**  
+5. **Deployment**  
+   Создать или обновить Deployment `dataflow-<name>`: образ процессора, том из spec ConfigMap, аргументы и переменные окружения как выше. При включённой персистенции checkpoint задать `serviceAccountName` для использования выделенного ServiceAccount. Ресурсы и affinity из spec DataFlow, если заданы. Установить controller reference на DataFlow.
+
+6. **Статус Deployment**  
    Прочитать Deployment; выставить в статусе DataFlow **Phase** и **Message** по нему (например `Running` при `ReadyReplicas > 0`, `Pending` при запуске реплик, `Error` при отсутствии реплик).
 
-6. **Обновить статус DataFlow**  
+7. **Обновить статус DataFlow**  
    Записать Phase, Message и остальные поля статуса в ресурс DataFlow (с повторными попытками при конфликте).
 
 ### Схема цикла реконсиляции
@@ -136,11 +146,14 @@ flowchart LR
 ```mermaid
 flowchart TD
   A[Get DataFlow] --> B{Deleted?}
-  B -->|Yes| C[Cleanup Deployment and ConfigMap]
+  B -->|Yes| C[Cleanup Deployment, ConfigMaps, RBAC]
   C --> D[Update Status Stopped]
   B -->|No| E[Resolve Secrets]
   E --> F[Create or Update ConfigMap]
-  F --> G[Create or Update Deployment]
+  F --> F2{CheckpointPersistence?}
+  F2 -->|Yes| F3[Create Checkpoint ConfigMap and RBAC]
+  F2 -->|No| G
+  F3 --> G[Create or Update Deployment]
   G --> H[Read Deployment Status]
   H --> I[Update DataFlow Status]
 ```
@@ -164,7 +177,7 @@ flowchart TD
 
 **Processor** (в `internal/processor/processor.go`) строится из spec и содержит:
 
-- **Source**: **SourceConnector** (Kafka, PostgreSQL, Trino или Nessie) — `Connect`, `Read`, `Close`.
+- **Source**: **SourceConnector** (Kafka, PostgreSQL, Trino или Nessie) — `Connect`, `Read`, `Close`. По умолчанию polling-источники загружают начальный checkpoint из ConfigMap и сохраняют его после каждой успешной записи в sink (с debounce). Отключить: `checkpointPersistence: false`.
 - **Sink**: **SinkConnector** основного приёмника — `Connect`, `Write`, `Close`.
 - **Error sink** (опционально): ещё один SinkConnector для неудачных записей.
 - **Transformations**: упорядоченный список реализаций **Transformer** (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase).
@@ -220,6 +233,6 @@ flowchart LR
 
 ## Кратко
 
-- **Kubernetes**: вы объявляете ресурс **DataFlow**; **оператор** приводит его к **ConfigMap** (spec) и **Deployment** (под процессора). RBAC и опциональный GUI дополняют картину.
+- **Kubernetes**: вы объявляете ресурс **DataFlow**; **оператор** приводит его к **ConfigMap** (spec) и **Deployment** (под процессора). По умолчанию создаётся второй ConfigMap и RBAC для хранения checkpoint (задайте `checkpointPersistence: false` для отключения). RBAC и опциональный GUI дополняют картину.
 - **Реконсиляция**: получить DataFlow → подставить секреты → обновить ConfigMap → обновить Deployment → отразить статус Deployment в статусе DataFlow.
 - **Рантайм**: каждый **под процессора** выполняет один конвейер: источник → канал чтения → трансформации → запись в основной (и при необходимости в приёмник ошибок и маршруты router), с подключаемыми коннекторами и фиксированным набором трансформаций.

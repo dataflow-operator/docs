@@ -414,7 +414,7 @@ source:
 - **Change Tracking**: By default tracks changes via `updated_at` column (or `changeTrackingColumn`), captures both INSERTs and UPDATEs
 - **Auto-create Table**: When `autoCreateTable: true`, creates the table with CDC-friendly schema (`id SERIAL PRIMARY KEY`, `created_at`, `updated_at`) if it doesn't exist. Creation happens at Connect time.
 - **Schema notation**: Table name supports `schema.table` format (e.g. `public.products`)
-- **In-memory state**: Read position (lastReadChangeTime) is stored only in memory. On pod/connector restart, the table is fully re-read. For pg→pg flows, enable `upsertMode: true` in sink to update duplicates instead of inserting them again.
+- **Checkpoint persistence**: By default, read position (lastReadChangeTime) is persisted to ConfigMap; on restart, reading resumes from the last position. Set `checkpointPersistence: false` in spec to store only in memory. For pg→pg flows, enable `upsertMode: true` in sink to update duplicates instead of inserting them again.
 
 ### Sink
 

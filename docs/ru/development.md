@@ -139,7 +139,6 @@ make manifests
 
 Эта команда генерирует:
 - CRD манифесты в `config/crd/bases/`
-- RBAC манифесты в `config/rbac/`
 
 ### Генерация DeepCopy методов
 
