@@ -496,10 +496,18 @@ sink:
 #### Особенности ClickHouse приемника
 
 - **Батч-вставки**: Группирует сообщения; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
+- **Retry при транзиентных ошибках**: Batch-запись автоматически повторяется при connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503 и подобных ошибках (до 5 попыток с экспоненциальным backoff)
 - **Автосоздание таблиц** (при `autoCreateTable: true`):
   - **rawMode: true** — таблица создаётся при подключении (Connect). Схема: `data String`, `created_at DateTime DEFAULT now()`, движок MergeTree, ORDER BY created_at. Сообщения сохраняются как JSON-строка в колонке `data`
   - **rawMode: false** — таблица создаётся при первой записи из структуры первого сообщения. Типы колонок выводятся автоматически (String, Int32/Int64, Float64, Decimal, DateTime и т.д.). Поддерживается формат `{"value": {...}, "_metadata": {...}}` — используются поля из `value`
 - **Режим rawMode**: При true ожидает/хранит JSON в колонке `data`. При false использует колоночный формат из сообщения (INSERT с именованными колонками)
+
+#### Отказоустойчивость ClickHouse
+
+- **Error sink**: Используйте `spec.errors` с ClickHouse (или Kafka) для сохранения неудачных сообщений. См. [Обработка ошибок](errors.md).
+- **Connection string**: Рекомендуемые параметры: `dial_timeout=10s`, `max_execution_time=60` (например, `clickhouse://host:9000/default?dial_timeout=10s&max_execution_time=60`).
+- **Настройка batch**: Для пропускной способности и устойчивости используйте `batchSize` 100–1000 и `batchFlushIntervalSeconds` 5–10. Большие батчи снижают частоту вставок и помогают избежать TOO_MANY_PARTS.
+- **TOO_MANY_PARTS**: При этой ошибке увеличьте `batchSize`, уменьшите частоту flush или настройте merge в ClickHouse (`background_pool_size`, `parts_to_throw_insert`). Рассмотрите `ReplacingMergeTree` для дедупликации. См. [Отказоустойчивость](fault-tolerance.md).
 
 #### Пример: Kafka → ClickHouse
 

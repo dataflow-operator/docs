@@ -581,6 +581,14 @@ sink:
 ### Sink Features
 
 - **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
+- **Retry on Transient Errors**: Batch writes automatically retry on connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503, and similar transient errors (up to 5 attempts with exponential backoff)
+
+### Resilience and Fault Tolerance
+
+- **Error sink**: Use `spec.errors` with ClickHouse (or Kafka) to capture failed messages for replay or analysis. See [Error Handling](errors.md).
+- **Connection string**: Recommended parameters: `dial_timeout=10s`, `max_execution_time=60` (e.g. `clickhouse://host:9000/default?dial_timeout=10s&max_execution_time=60`).
+- **Batch tuning**: For throughput and resilience, use `batchSize` 100–1000 and `batchFlushIntervalSeconds` 5–10. Larger batches reduce insert frequency and can help avoid TOO_MANY_PARTS.
+- **TOO_MANY_PARTS**: If you see this error, increase `batchSize`, decrease flush frequency, or tune ClickHouse merge settings (`background_pool_size`, `parts_to_throw_insert`). Consider `ReplacingMergeTree` for deduplication. See [Fault Tolerance](fault-tolerance.md).
 - **Auto-create Tables** (when `autoCreateTable: true`):
   - **rawMode: true** — table is created at Connect time. Schema: `data String`, `created_at DateTime DEFAULT now()`, MergeTree engine, ORDER BY created_at. Messages are stored as JSON string in `data` column
   - **rawMode: false** — table is created at first write from the first message structure. Column types are inferred automatically (String, Int32/Int64, Float64, Decimal, DateTime, etc.). Supports `{"value": {...}, "_metadata": {...}}` format — uses fields from `value`
