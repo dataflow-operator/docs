@@ -761,6 +761,11 @@ sink:
     # If true, creates table with VARCHAR column for JSON data
     autoCreateTable: true
 
+    # Raw mode (optional, default: false)
+    # When true, creates table with data VARCHAR column; messages stored as JSON string
+    # When false, uses columnar format matching message keys to table columns
+    rawMode: true
+
     # Keycloak authentication (optional)
     keycloak:
       serverURL: "https://keycloak.example.com"
@@ -775,6 +780,7 @@ sink:
 
 - **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
 - **Auto-create Tables**: Automatically creates tables if they don't exist
+- **Raw Mode**: When `rawMode: true`, creates table with `data VARCHAR` column; messages stored as JSON string. When `false` (default), uses columnar format matching message keys to table columns
 - **Keycloak Authentication**: OAuth2/OIDC authentication via Keycloak
 - **Automatic Token Refresh**: Tokens are automatically refreshed
 
