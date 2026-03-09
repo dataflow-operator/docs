@@ -2,6 +2,15 @@
 
 DataFlow Operator - это Kubernetes оператор для потоковой передачи данных между различными источниками данных с поддержкой трансформаций сообщений.
 
+## Текущие версии
+
+| Компонент | Версия |
+|-----------|--------|
+| DataFlow Operator | <span data-version-repo="dataflow-operator/dataflow">—</span> |
+| Helm Charts | <span data-version-repo="dataflow-operator/helm-charts">—</span> |
+| DataFlow MCP | <span data-version-repo="dataflow-operator/dataflow-mcp">—</span> |
+| DataFlow Web | <span data-version-repo="dataflow-operator/dataflow-web">—</span> |
+
 ## Обзор
 
 DataFlow Operator позволяет декларативно определять потоки данных между различными источниками и приемниками через Kubernetes Custom Resource Definitions (CRD). Оператор автоматически управляет жизненным циклом потоков данных, обрабатывает сообщения и применяет необходимые трансформации.

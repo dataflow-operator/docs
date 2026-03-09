@@ -188,6 +188,8 @@ serviceMonitor:
 
 Import the dashboard from [grafana-dashboard.json](https://github.com/dataflow-operator/dataflow-operator/blob/main/monitoring/dashboards/grafana-dashboard.json) into Grafana to visualize metrics.
 
+**Via Helm chart (ConfigMap):** Enable `monitoring.dashboard.enabled` when installing. The dashboard is bundled in the chart (`dashboards/grafana-dashboard.json`). Grafana sidecar (kube-prometheus-stack) picks up ConfigMaps with label `grafana_dashboard: "1"`.
+
 The dashboard includes:
 - Message received/sent rate charts
 - Connector and transformer error charts
@@ -297,6 +299,8 @@ A PrometheusRule manifest with pre-configured alerts is available in the reposit
 ```bash
 kubectl apply -f monitoring/alerts/prometheusrule.yaml
 ```
+
+**Via Helm chart:** Enable `monitoring.prometheusRule.enabled` and set `monitoring.prometheusRule.additionalLabels` (e.g. `release: kube-prometheus-stack`) to match your Prometheus ruleSelector.
 
 **Requirements:** Prometheus Operator (e.g. kube-prometheus-stack). The `release: kube-prometheus-stack` label must match your Prometheus instance's ruleSelector. Adjust the label if you use a different Prometheus deployment.
 

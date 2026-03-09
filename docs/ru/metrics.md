@@ -188,6 +188,8 @@ serviceMonitor:
 
 Импортируйте дашборд из файла [grafana-dashboard.json](https://github.com/dataflow-operator/monitoring/blob/main/dashboards/grafana-dashboard.json) в Grafana для визуализации метрик.
 
+**Через Helm chart (ConfigMap):** Включите `monitoring.dashboard.enabled` при установке. Дашборд входит в chart (`dashboards/grafana-dashboard.json`). Grafana sidecar (kube-prometheus-stack) подхватывает ConfigMap с меткой `grafana_dashboard: "1"`.
+
 Дашборд включает:
 - Графики количества полученных/отправленных сообщений
 - Графики ошибок в коннекторах и трансформерах
@@ -274,6 +276,8 @@ histogram_quantile(0.99, sum(rate(dataflow_transformer_duration_seconds_bucket[5
 ```bash
 kubectl apply -f monitoring/alerts/prometheusrule.yaml
 ```
+
+**Через Helm chart:** Включите `monitoring.prometheusRule.enabled` и задайте `monitoring.prometheusRule.additionalLabels` (например, `release: kube-prometheus-stack`) в соответствии с ruleSelector вашего Prometheus.
 
 **Требования:** Prometheus Operator (например, kube-prometheus-stack). Метка `release: kube-prometheus-stack` должна совпадать с ruleSelector вашего Prometheus. Измените метку, если используете другой Prometheus.
 

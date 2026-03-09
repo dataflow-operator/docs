@@ -8,6 +8,9 @@ plugins:
   - search
   - mermaid2
 
+extra_javascript:
+  - javascripts/versions.js
+
 theme:
   name: material
   language: en
