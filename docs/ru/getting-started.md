@@ -18,7 +18,7 @@
 - Make (опционально, для использования Makefile команд)
 - Доступ к портам: 8080, 5050, 15672, 8081, 5432, 9092, 5672
 
-## Установка
+## Установка { #installation }
 
 ### Установка CRD
 
@@ -31,7 +31,7 @@ kubectl apply -f https://raw.githubusercontent.com/dataflow-operator/dataflow/re
 Или используйте локальный файл:
 
 ```bash
-kubectl apply -f config/crd/bases/dataflow.dataflow.io_dataflows.yaml
+kubectl apply -f dataflow/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
 ```
 
 ### Установка через Helm (рекомендуется)
@@ -207,7 +207,7 @@ spec:
 Примените ресурс:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 **Примечание**: Каждый ресурс DataFlow создает отдельный под (Deployment) для обработки данных. Вы можете настроить ресурсы, выбор нод, affinity и tolerations. Подробнее см. [Примеры](examples.md#настройка-ресурсов-и-размещения-подов).
@@ -217,7 +217,7 @@ kubectl apply -f config/samples/kafka-to-postgres.yaml
 Для безопасного хранения credentials используйте Kubernetes Secrets. См. пример:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 ```
 
 Этот пример демонстрирует использование `SecretRef` для конфигурации коннекторов. Подробнее см. раздел [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes) в документации по коннекторам.

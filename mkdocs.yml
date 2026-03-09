@@ -1,6 +1,7 @@
 site_name: DataFlow Operator Documentation
 site_description: Kubernetes operator for data flow between different sources
 site_author: DataFlow Team
+site_url: https://dataflow-operator.github.io/docs/
 
 docs_dir: docs
 
@@ -11,27 +12,56 @@ plugins:
 extra_javascript:
   - javascripts/versions.js
 
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dataflow-operator
+      name: GitHub
+    - icon: fontawesome/solid/code-branch
+      link: https://github.com/dataflow-operator/dataflow/issues
+      name: Issues
+    - icon: fontawesome/solid/tag
+      link: https://github.com/dataflow-operator/dataflow/releases
+      name: Releases
+  generator: false
+
+copyright: Copyright &copy; DataFlow Team. Apache License 2.0
+
 theme:
   name: material
   language: en
-  # logo: images/logo.png
+  logo: images/logo.svg
+  favicon: images/favicon.svg
+  font:
+    text: Inter
+    code: JetBrains Mono
   palette:
     - scheme: default
-      primary: blue
-      accent: blue
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: blue
-      accent: blue
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.top
+    - navigation.path
+    - navigation.footer
     - toc.integrate
+    - toc.follow
 
 nav:
   - Home: en/index.md
@@ -47,6 +77,7 @@ nav:
   - Kubernetes Events: en/kubernetes-events.md
   - MCP: en/mcp.md
   - Development: en/development.md
+  - Release Process: en/semver-release.md
   - Connector Development: en/connector-development.md
   - "---"
   - "Русский":
@@ -63,9 +94,11 @@ nav:
     - "События Kubernetes": ru/kubernetes-events.md
     - "MCP": ru/mcp.md
     - "Разработка": ru/development.md
+    - "Release Process": ru/semver-release.md
     - "Разработка коннекторов": ru/connector-development.md
 
 markdown_extensions:
+  - attr_list
   - pymdownx.highlight
   - pymdownx.superfences:
       custom_fences:

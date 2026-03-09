@@ -193,7 +193,7 @@ spec:
 Примените ресурс:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 ### Пример с Kubernetes Secrets
@@ -201,7 +201,7 @@ kubectl apply -f config/samples/kafka-to-postgres.yaml
 Для безопасного хранения credentials используйте Kubernetes Secrets. См. пример:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 ```
 
 Этот пример демонстрирует использование `SecretRef` для конфигурации коннекторов. Подробнее см. раздел [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes) в документации по коннекторам.

@@ -114,7 +114,7 @@ See [Metrics](metrics.md) for full details.
 A full example with an error sink is available in the repository:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-with-errors.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-errors.yaml
 ```
 
 See also the [Examples](examples.md#error-handling-with-error-sink) section for more context.

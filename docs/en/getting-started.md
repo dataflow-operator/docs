@@ -18,7 +18,7 @@ This guide will help you get started with DataFlow Operator. You'll learn how to
 - Make (optional, for using Makefile commands)
 - Access to ports: 8080, 5050, 15672, 8081, 5432, 9092, 5672
 
-## Installation
+## Installation { #installation }
 
 ### Installing CRD
 
@@ -31,7 +31,7 @@ kubectl apply -f https://raw.githubusercontent.com/dataflow-operator/dataflow/re
 Or use a local file:
 
 ```bash
-kubectl apply -f config/crd/bases/dataflow.dataflow.io_dataflows.yaml
+kubectl apply -f dataflow/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
 ```
 
 ### Installation via Helm (Recommended)
@@ -207,7 +207,7 @@ spec:
 Apply the resource:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 **Note**: Each DataFlow resource creates a separate pod (Deployment) for processing. You can configure resources, node selection, affinity, and tolerations. See [Examples](examples.md#configuring-pod-resources-and-placement) for details.
@@ -217,7 +217,7 @@ kubectl apply -f config/samples/kafka-to-postgres.yaml
 For secure credential storage, use Kubernetes Secrets. See example:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 ```
 
 This example demonstrates using `SecretRef` for connector configuration. For more details, see the [Using Kubernetes Secrets](connectors.md#using-kubernetes-secrets) section in the connectors documentation.

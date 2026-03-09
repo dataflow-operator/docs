@@ -13,43 +13,42 @@ DataFlow Operator is a Kubernetes operator for streaming data between different 
 
 ## Overview
 
-DataFlow Operator allows you to declaratively define data flows between different sources and sinks through Kubernetes Custom Resource Definitions (CRD). The operator automatically manages the lifecycle of data flows, processes messages, and applies necessary transformations.
+!!! abstract ""
+    DataFlow Operator allows you to declaratively define data flows between different sources and sinks through Kubernetes Custom Resource Definitions (CRD). The operator automatically manages the lifecycle of data flows, processes messages, and applies necessary transformations.
 
 ## Key Features
 
-### Multiple Data Source Support
+!!! note "Multiple Data Source Support"
+    - **Kafka** — read and write messages from/to Kafka topics (TLS, SASL, Avro, Schema Registry)
+    - **PostgreSQL** — read from tables and write with custom SQL, batch inserts, UPSERT mode
+    - **ClickHouse** — polling, batch inserts, auto-create MergeTree tables
+    - **Trino** — SQL queries, Keycloak OAuth2, batch inserts
+    - **Nessie** — Apache Iceberg tables via Nessie catalog (branches, Basic/Bearer auth, polling, batch appends)
 
-- **Kafka** — read and write messages from/to Kafka topics (TLS, SASL, Avro, Schema Registry)
-- **PostgreSQL** — read from tables and write with custom SQL, batch inserts, UPSERT mode
-- **ClickHouse** — polling, batch inserts, auto-create MergeTree tables
-- **Trino** — SQL queries, Keycloak OAuth2, batch inserts
-- **Nessie** — Apache Iceberg tables via Nessie catalog (branches, Basic/Bearer auth, polling, batch appends)
+!!! note "Rich Transformation Set"
+    - **Timestamp** - add timestamp to each message
+    - **Flatten** - expand arrays into separate messages while preserving parent fields
+    - **Filter** - filter messages based on JSONPath conditions
+    - **Mask** - mask sensitive data with or without preserving length
+    - **Router** - route messages to different sinks based on conditions
+    - **Select** - select specific fields from messages
+    - **Remove** - remove specified fields from messages
+    - **SnakeCase** - convert field names to snake_case
+    - **CamelCase** - convert field names to CamelCase
 
-### Rich Transformation Set
+!!! tip "Flexible Routing"
+    The operator supports conditional routing of messages to different sinks based on JSONPath expressions, enabling complex data processing scenarios.
 
-- **Timestamp** - add timestamp to each message
-- **Flatten** - expand arrays into separate messages while preserving parent fields
-- **Filter** - filter messages based on JSONPath conditions
-- **Mask** - mask sensitive data with or without preserving length
-- **Router** - route messages to different sinks based on conditions
-- **Select** - select specific fields from messages
-- **Remove** - remove specified fields from messages
-- **SnakeCase** - convert field names to snake_case
-- **CamelCase** - convert field names to CamelCase
+!!! tip "Simple Management"
+    Declarative configuration through Kubernetes CRD allows easy management of data flows, versioning configurations, and integration with CI/CD systems.
 
-### Flexible Routing
-
-The operator supports conditional routing of messages to different sinks based on JSONPath expressions, enabling complex data processing scenarios.
-
-### Simple Management
-
-Declarative configuration through Kubernetes CRD allows easy management of data flows, versioning configurations, and integration with CI/CD systems.
-
-### Secure Configuration
-
-Support for configuring connectors from Kubernetes Secrets through `SecretRef` allows secure storage of credentials, tokens, and connection strings without explicitly specifying them in the DataFlow specification.
+!!! tip "Secure Configuration"
+    Support for configuring connectors from Kubernetes Secrets through `SecretRef` allows secure storage of credentials, tokens, and connection strings without explicitly specifying them in the DataFlow specification.
 
 ## Quick Start
+
+!!! tip "Install in minutes"
+    Install the operator via Helm and create your first data flow in under 5 minutes.
 
 ### Installing the Operator
 
@@ -69,7 +68,7 @@ kubectl get crd dataflows.dataflow.dataflow.io
 Create a simple data flow from Kafka to PostgreSQL:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 Check status:
@@ -136,6 +135,7 @@ See [Metrics](metrics.md) for more details.
 ## Documentation
 
 - [Getting Started](getting-started.md) — installation and first data flow
+- [Installation & Helm Configuration](getting-started.md#installation) — Helm charts, values, installation options
 - [Web GUI](gui.md) — web interface: how it works and capabilities
 - [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino, Nessie (sources and sinks)
 - [Transformations](transformations.md) — message transformations

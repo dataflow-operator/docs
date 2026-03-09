@@ -2,8 +2,6 @@
 
 Guide for developers who want to contribute to DataFlow Operator or set up a local development environment.
 
-> **Note**: This is a simplified English version. For complete documentation, see the [Russian version](../ru/development.md).
-
 ## Prerequisites
 
 - Go 1.21 or higher
@@ -72,6 +70,21 @@ Or use the script:
 ./scripts/run-local.sh
 ```
 
+### Setting up kind cluster
+
+For full testing, use kind:
+
+```bash
+# Create kind cluster
+./scripts/setup-kind.sh
+
+# Install CRD
+make install
+
+# Run operator locally
+make run
+```
+
 ## Project Structure
 
 ```
@@ -81,18 +94,39 @@ dataflow/
 │   └── groupversion_info.go    # API version
 ├── internal/
 │   ├── connectors/            # Connectors for sources/sinks
+│   │   ├── interface.go       # Connector interfaces
+│   │   ├── factory.go         # Connector factory
+│   │   ├── kafka.go           # Kafka connector
+│   │   ├── postgresql.go      # PostgreSQL connector
 │   ├── transformers/          # Message transformations
+│   │   ├── interface.go       # Transformation interface
+│   │   ├── factory.go         # Transformation factory
+│   │   ├── timestamp.go       # Timestamp transformation
+│   │   ├── flatten.go         # Flatten transformation
+│   │   ├── filter.go          # Filter transformation
+│   │   ├── mask.go            # Mask transformation
+│   │   ├── router.go          # Router transformation
+│   │   ├── select.go          # Select transformation
+│   │   └── remove.go          # Remove transformation
 │   ├── processor/             # Message processor
+│   │   └── processor.go       # Processing orchestration
 │   ├── controller/            # Kubernetes controller
+│   │   └── dataflow_controller.go
 │   └── types/                 # Internal types
+│       └── message.go         # Message type
 ├── config/                    # Kubernetes configuration
 │   ├── crd/                   # CRD manifests
 │   ├── rbac/                  # RBAC manifests
-│   └── samples/              # DataFlow resource examples
+│   └── samples/               # DataFlow resource examples
 ├── helm/                      # Helm Chart
+│   └── dataflow-operator/
 ├── docs/                      # MkDocs documentation
 ├── test/                      # Tests
-└── scripts/                   # Helper scripts
+│   └── fixtures/              # Test data
+├── scripts/                   # Helper scripts
+├── main.go                    # Entry point
+├── Makefile                   # Build commands
+└── go.mod                     # Go dependencies
 ```
 
 ## Code Generation
@@ -104,7 +138,7 @@ make manifests
 ```
 
 This command generates:
-- CRD manifests in `config/crd/bases/`
+- CRD manifests in `dataflow/config/crd/bases/`
 
 ### Generate DeepCopy Methods
 
@@ -113,6 +147,19 @@ make generate
 ```
 
 Generates `DeepCopy` methods for all types in `api/v1/`.
+
+### Updating controller-gen
+
+If you encounter issues with code generation:
+
+```bash
+# Update controller-gen
+go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+
+# Then
+make generate
+make manifests
+```
 
 ## Logging
 
@@ -223,6 +270,10 @@ make test
 
 # Run tests for specific package
 go test ./internal/connectors/... -v
+
+# Run tests with coverage for specific package
+go test ./internal/transformers/... -coverprofile=coverage.out
+go tool cover -html=coverage.out
 ```
 
 ### Integration Tests
@@ -233,6 +284,16 @@ go test ./internal/connectors/... -v
 
 # Run integration tests
 make test-integration
+```
+
+### Running tests manually
+
+```bash
+# Unit tests without envtest
+go test ./... -v
+
+# Tests with envtest (requires kubebuilder)
+KUBEBUILDER_ASSETS="$(make envtest use 1.28.0 -p path)" go test ./... -coverprofile cover.out
 ```
 
 ## Building
@@ -257,22 +318,194 @@ make docker-build IMG=your-registry/dataflow-operator:v1.0.0
 make docker-push IMG=your-registry/dataflow-operator:v1.0.0
 ```
 
+Or manually. If the repository is a monorepo (with `dataflow` and `dataflow-web` folders), build from the **repository root**:
+
+```bash
+docker build -f dataflow/Dockerfile -t your-registry/dataflow-operator:v1.0.0 .
+docker push your-registry/dataflow-operator:v1.0.0
+```
+
+If you are in the `dataflow` directory and the build context is only that (without `dataflow-web`), use the previous variant: `docker build -t ... .`
+
 ## Adding a New Connector
 
 > **Detailed guide:** see [Connector Development with baseConnector](connector-development.md) for a step-by-step guide with examples using `baseConnector` and `baseConnectorRWMutex`.
 
-1. Define types in API (`api/v1/dataflow_types.go`)
-2. Implement connector (`internal/connectors/newconnector.go`) — embed `baseConnector` for Connect/Close synchronization
-3. Register in factory (`internal/connectors/factory.go`)
-4. Generate code (`make generate && make manifests`)
-5. Write tests
+### 1. Define types in API
+
+Add the spec to `api/v1/dataflow_types.go`:
+
+```go
+// NewConnectorSourceSpec defines new connector source configuration
+type NewConnectorSourceSpec struct {
+    // Configuration fields
+    Endpoint string `json:"endpoint"`
+    // ...
+}
+
+// Add to SourceSpec
+type SourceSpec struct {
+    // ...
+    NewConnector *NewConnectorSourceSpec `json:"newConnector,omitempty"`
+}
+```
+
+### 2. Implement connector
+
+Create file `internal/connectors/newconnector.go`. **Recommended** to embed `baseConnector` for Connect/Close synchronization:
+
+```go
+package connectors
+
+import (
+    "context"
+    "fmt"
+    v1 "github.com/dataflow-operator/dataflow/api/v1"
+    "github.com/dataflow-operator/dataflow/internal/types"
+    "github.com/go-logr/logr"
+)
+
+type NewConnectorSourceConnector struct {
+    baseConnector
+    config *v1.NewConnectorSourceSpec
+    conn   *Connection
+    logger logr.Logger
+}
+
+func NewNewConnectorSourceConnector(config *v1.NewConnectorSourceSpec) *NewConnectorSourceConnector {
+    return &NewConnectorSourceConnector{config: config, logger: logr.Discard()}
+}
+
+func (n *NewConnectorSourceConnector) Connect(ctx context.Context) error {
+    if !n.guardConnect() {
+        return fmt.Errorf("connector is closed")
+    }
+    defer n.Unlock()
+    // ... connection logic
+    return nil
+}
+
+func (n *NewConnectorSourceConnector) Read(ctx context.Context) (<-chan *types.Message, error) {
+    // Implement read logic
+    return nil, nil
+}
+
+func (n *NewConnectorSourceConnector) Close() error {
+    if n.guardClose() {
+        return nil
+    }
+    defer n.Unlock()
+    // ... close logic
+    return nil
+}
+```
+
+### 3. Register in factory
+
+Add to `internal/connectors/factory.go`:
+
+```go
+func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
+    switch source.Type {
+    // ...
+    case "newconnector":
+        if source.NewConnector == nil {
+            return nil, fmt.Errorf("newconnector source configuration is required")
+        }
+        return NewNewConnectorSourceConnector(source.NewConnector), nil
+    // ...
+    }
+}
+```
+
+### 4. Generate code
+
+```bash
+make generate
+make manifests
+```
+
+### 5. Testing
+
+Create tests in `internal/connectors/newconnector_test.go`:
+
+```go
+func TestNewConnectorSourceConnector(t *testing.T) {
+    // Test implementation
+}
+```
 
 ## Adding a New Transformation
 
-1. Define types in API (`api/v1/dataflow_types.go`)
-2. Implement transformation (`internal/transformers/newtransformation.go`)
-3. Register in factory (`internal/transformers/factory.go`)
-4. Generate and test (`make generate && make test`)
+### 1. Define types in API
+
+Add to `api/v1/dataflow_types.go`:
+
+```go
+// NewTransformation defines new transformation configuration
+type NewTransformation struct {
+    Field string `json:"field"`
+    // ...
+}
+
+// Add to TransformationSpec
+type TransformationSpec struct {
+    // ...
+    NewTransformation *NewTransformation `json:"newTransformation,omitempty"`
+}
+```
+
+### 2. Implement transformation
+
+Create file `internal/transformers/newtransformation.go`:
+
+```go
+package transformers
+
+import (
+    "context"
+    v1 "github.com/dataflow-operator/dataflow/api/v1"
+    "github.com/dataflow-operator/dataflow/internal/types"
+)
+
+type NewTransformer struct {
+    config *v1.NewTransformation
+}
+
+func NewNewTransformer(config *v1.NewTransformation) *NewTransformer {
+    return &NewTransformer{config: config}
+}
+
+func (n *NewTransformer) Transform(ctx context.Context, message *types.Message) ([]*types.Message, error) {
+    // Implement transformation logic
+    return []*types.Message{message}, nil
+}
+```
+
+### 3. Register in factory
+
+Add to `internal/transformers/factory.go`:
+
+```go
+func CreateTransformer(transformation *v1.TransformationSpec) (Transformer, error) {
+    switch transformation.Type {
+    // ...
+    case "newtransformation":
+        if transformation.NewTransformation == nil {
+            return nil, fmt.Errorf("newtransformation configuration is required")
+        }
+        return NewNewTransformer(transformation.NewTransformation), nil
+    // ...
+    }
+}
+```
+
+### 4. Generate and test
+
+```bash
+make generate
+make test
+```
 
 ## Debugging
 
@@ -285,6 +518,7 @@ import "github.com/go-logr/logr"
 
 logger.Info("Processing message", "messageId", msg.ID)
 logger.Error(err, "Failed to process", "messageId", msg.ID)
+logger.V(1).Info("Debug information", "messageId", msg.ID)
 ```
 
 ### Debugging Controller
@@ -292,6 +526,17 @@ logger.Error(err, "Failed to process", "messageId", msg.ID)
 ```bash
 # Run with detailed logging
 go run ./main.go --zap-log-level=debug
+```
+
+### Debugging connectors
+
+Add logging to connector methods:
+
+```go
+func (k *KafkaSourceConnector) Read(ctx context.Context) (<-chan *types.Message, error) {
+    logger.Info("Starting to read from Kafka", "topic", k.config.Topic)
+    // ...
+}
 ```
 
 ## Code Formatting and Linting
@@ -302,10 +547,61 @@ go run ./main.go --zap-log-level=debug
 make fmt
 ```
 
+Or manually:
+
+```bash
+go fmt ./...
+```
+
 ### Check Code
 
 ```bash
 make vet
+```
+
+Or manually:
+
+```bash
+go vet ./...
+```
+
+### Linting (optional)
+
+Install golangci-lint:
+
+```bash
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+```
+
+Run:
+
+```bash
+golangci-lint run
+```
+
+## CI/CD
+
+### GitHub Actions
+
+Example workflow for CI:
+
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - run: go mod download
+      - run: make test-unit
+      - run: make vet
+      - run: make fmt
 ```
 
 ## Building the documentation
@@ -352,5 +648,45 @@ Then open `http://127.0.0.1:8000` when using `mkdocs serve`.
 - Write tests for new functionality
 - Update documentation as needed
 
-For complete development guide, see the [Russian version](../ru/development.md).
+### Commits
+
+Use clear commit messages:
+
+```
+feat: add new connector for Redis
+fix: handle connection errors in Kafka connector
+docs: update getting started guide
+test: add tests for filter transformation
+```
+
+## Useful commands
+
+```bash
+# View all available commands
+make help
+
+# Clean generated files
+make clean
+
+# Update dependencies
+go mod tidy
+
+# List dependencies
+go list -m all
+
+# Check for outdated dependencies
+go list -u -m all
+```
+
+## Resources
+
+- [Kubebuilder Book](https://book.kubebuilder.io/) — guide for building Kubernetes operators
+- [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime) — controller library
+- [Go Documentation](https://golang.org/doc/) — Go documentation
+
+## Getting help
+
+- Create an issue in the repository
+- Check existing issues and PRs
+- Review examples in `dataflow/config/samples/`
 

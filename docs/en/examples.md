@@ -2,6 +2,8 @@
 
 Practical examples of using DataFlow Operator for various data processing scenarios.
 
+The data flow in each pipeline follows the pattern **Source → Transformations → Sink**. See [Architecture — Data Flow Pipeline](architecture.md#data-flow-pipeline-conceptual) for a conceptual diagram.
+
 ## Simple Kafka → PostgreSQL Flow
 
 Basic example of transferring data from a Kafka topic to a PostgreSQL table.
@@ -29,7 +31,7 @@ spec:
 
 **Apply:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 ## Kafka with Raw Mode (rawMode)
@@ -113,7 +115,7 @@ spec:
 
 **Apply:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-with-errors.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-errors.yaml
 ```
 
 For error message structure and configuration details, see [Error Handling](errors.md).
@@ -233,7 +235,7 @@ spec:
 
 **Apply:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 ```
 
 For supported fields, TLS certificates, and troubleshooting, see [Using Kubernetes Secrets](connectors.md#using-kubernetes-secrets).
@@ -317,7 +319,7 @@ spec:
 
 **Apply:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-with-resources.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-resources.yaml
 ```
 
 ### Resource Configuration
@@ -367,5 +369,5 @@ kubectl describe pod dataflow-<name>-<hash>
 kubectl top pod dataflow-<name>-<hash>
 ```
 
-Additional examples are available in `config/samples/` directory.
+Additional examples are available in `dataflow/config/samples/` directory.
 

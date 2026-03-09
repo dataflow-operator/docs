@@ -12,6 +12,35 @@ High-level flow:
 2. The **operator** watches DataFlow resources and, for each one, creates or updates a **ConfigMap** (with the resolved spec) and a **Deployment** (one pod running the processor binary).
 3. Each **processor pod** reads the spec from the mounted ConfigMap, connects to the configured source and sink(s), and runs the pipeline: read → transform → write.
 
+### Data Flow Pipeline (Conceptual)
+
+The data flow in each processor follows a linear pipeline: **Source** → **Transformations** → **Sink**. Optionally, failed writes go to an **Error Sink**.
+
+```mermaid
+flowchart LR
+  subgraph Input[" "]
+    Source["Source\n(Kafka / PostgreSQL / Trino / ClickHouse / Nessie)"]
+  end
+
+  subgraph Transform[" "]
+    T1["Transform 1"]
+    T2["Transform 2"]
+    TN["Transform N"]
+    T1 --> T2 --> TN
+  end
+
+  subgraph Output[" "]
+    MainSink["Main Sink"]
+    ErrSink["Error Sink\n(optional)"]
+  end
+
+  Source -->|"read"| T1
+  TN -->|"write"| MainSink
+  TN -.->|"on failure"| ErrSink
+```
+
+Transformations are applied in order: `timestamp`, `flatten`, `filter`, `mask`, `router`, `select`, `remove`, `snakeCase`, `camelCase`. Each message passes through the chain before being written to the sink.
+
 ## Kubernetes Architecture
 
 ### Custom Resource Definition (CRD)
@@ -28,6 +57,42 @@ High-level flow:
   - **CheckpointPersistence**: optional; defaults to `true`. When enabled, polling sources (PostgreSQL, ClickHouse, Trino) persist read position to a ConfigMap, reducing duplicates on restart. Set to `false` to disable.
 
 Secrets can be referenced via `SecretRef` in the spec; the operator resolves them before writing the spec into the ConfigMap.
+
+### DataFlow CRD Structure
+
+The following diagram shows the main fields of the DataFlow spec for quick reference:
+
+```mermaid
+flowchart TB
+  subgraph DataFlow["DataFlow"]
+    Spec["spec"]
+    Status["status"]
+  end
+
+  subgraph SpecFields["spec fields"]
+    Source["source (required)"]
+    Sink["sink (required)"]
+    Trans["transformations (optional)"]
+    Errors["errors (optional)"]
+    Resources["resources (optional)"]
+    Scheduling["scheduling (optional)"]
+    Checkpoint["checkpointPersistence (optional)"]
+    Image["processorImage / processorVersion (optional)"]
+  end
+
+  Source --> SourceTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
+  Sink --> SinkTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
+  Trans --> TransTypes["timestamp | flatten | filter | mask | router | select | remove | snakeCase | camelCase"]
+
+  Spec --> Source
+  Spec --> Sink
+  Spec --> Trans
+  Spec --> Errors
+  Spec --> Resources
+  Spec --> Scheduling
+  Spec --> Checkpoint
+  Spec --> Image
+```
 
 ### Operator Deployment
 

@@ -12,6 +12,35 @@ DataFlow Operator обеспечивает **декларативное упра
 2. **Оператор** следит за ресурсами DataFlow и для каждого создаёт или обновляет **ConfigMap** (с подставленным spec) и **Deployment** (один под с бинарником процессора).
 3. **Под процессора** читает spec из смонтированного ConfigMap, подключается к источнику и приёмнику(ам) и выполняет конвейер: чтение → трансформация → запись.
 
+### Поток данных (концептуально)
+
+Поток данных в каждом процессоре следует линейному конвейеру: **Источник** → **Трансформации** → **Приёмник**. Опционально неудачные записи направляются в **Приёмник ошибок**.
+
+```mermaid
+flowchart LR
+  subgraph Input[" "]
+    Source["Источник\n(Kafka / PostgreSQL / Trino / ClickHouse / Nessie)"]
+  end
+
+  subgraph Transform[" "]
+    T1["Трансформация 1"]
+    T2["Трансформация 2"]
+    TN["Трансформация N"]
+    T1 --> T2 --> TN
+  end
+
+  subgraph Output[" "]
+    MainSink["Основной приёмник"]
+    ErrSink["Приёмник ошибок\n(опционально)"]
+  end
+
+  Source -->|"чтение"| T1
+  TN -->|"запись"| MainSink
+  TN -.->|"при ошибке"| ErrSink
+```
+
+Трансформации применяются по порядку: `timestamp`, `flatten`, `filter`, `mask`, `router`, `select`, `remove`, `snakeCase`, `camelCase`. Каждое сообщение проходит цепочку перед записью в приёмник.
+
 ## Архитектура в Kubernetes
 
 ### Custom Resource Definition (CRD)
@@ -28,6 +57,42 @@ DataFlow Operator обеспечивает **декларативное упра
   - **CheckpointPersistence**: опционально; по умолчанию `true`. При включении polling-источники (PostgreSQL, ClickHouse, Trino) сохраняют позицию чтения в ConfigMap, уменьшая дубликаты при перезапуске. Задайте `false` для отключения.
 
 Секреты задаются через `SecretRef` в spec; оператор подставляет их перед записью spec в ConfigMap.
+
+### Структура DataFlow CRD
+
+Схема основных полей spec DataFlow для быстрого понимания:
+
+```mermaid
+flowchart TB
+  subgraph DataFlow["DataFlow"]
+    Spec["spec"]
+    Status["status"]
+  end
+
+  subgraph SpecFields["поля spec"]
+    Source["source (обязательно)"]
+    Sink["sink (обязательно)"]
+    Trans["transformations (опционально)"]
+    Errors["errors (опционально)"]
+    Resources["resources (опционально)"]
+    Scheduling["scheduling (опционально)"]
+    Checkpoint["checkpointPersistence (опционально)"]
+    Image["processorImage / processorVersion (опционально)"]
+  end
+
+  Source --> SourceTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
+  Sink --> SinkTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
+  Trans --> TransTypes["timestamp | flatten | filter | mask | router | select | remove | snakeCase | camelCase"]
+
+  Spec --> Source
+  Spec --> Sink
+  Spec --> Trans
+  Spec --> Errors
+  Spec --> Resources
+  Spec --> Scheduling
+  Spec --> Checkpoint
+  Spec --> Image
+```
 
 ### Deployment оператора
 

@@ -26,7 +26,7 @@ kubectl get crd dataflows.dataflow.dataflow.io
 Create a simple data flow from Kafka to PostgreSQL:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 Check status:

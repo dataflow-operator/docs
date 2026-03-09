@@ -2,6 +2,8 @@
 
 Практические примеры использования DataFlow Operator для различных сценариев обработки данных.
 
+Поток данных в каждом конвейере следует схеме **Источник → Трансформации → Приёмник**. См. [Архитектура — Поток данных](architecture.md#поток-данных-концептуально) для концептуальной диаграммы.
+
 ## Простой Kafka → PostgreSQL поток
 
 Базовый пример передачи данных из Kafka топика в PostgreSQL таблицу.
@@ -29,7 +31,7 @@ spec:
 
 **Применение:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
 ## Kafka с режимом сырой записи (rawMode)
@@ -181,7 +183,7 @@ spec:
 
 **Применение:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-with-errors.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-errors.yaml
 ```
 
 Структура сообщений об ошибках и детали конфигурации — в разделе [Обработка ошибок](errors.md).
@@ -580,7 +582,7 @@ spec:
 
 **Применение:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-secrets.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 ```
 
 Поддерживаемые поля, TLS сертификаты и устранение неполадок — в разделе [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes).
@@ -721,7 +723,7 @@ spec:
 
 **Применение:**
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-with-resources.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-resources.yaml
 ```
 
 ### Настройка ресурсов
@@ -773,7 +775,7 @@ kubectl top pod dataflow-<name>-<hash>
 
 ## Дополнительные примеры
 
-Больше примеров можно найти в директории `config/samples/`:
+Больше примеров можно найти в директории `dataflow/config/samples/`:
 
 - `kafka-to-postgres.yaml` - базовый Kafka → PostgreSQL
 - `kafka-to-postgres-with-resources.yaml` - пример с настройкой ресурсов и размещения

@@ -114,7 +114,7 @@ spec:
 Полный пример с приёмником ошибок есть в репозитории:
 
 ```bash
-kubectl apply -f config/samples/kafka-to-postgres-with-errors.yaml
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-errors.yaml
 ```
 
 Дополнительный контекст — в разделе [Примеры](examples.md#обработка-ошибок-с-error-sink).

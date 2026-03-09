@@ -138,7 +138,7 @@ make manifests
 ```
 
 Эта команда генерирует:
-- CRD манифесты в `config/crd/bases/`
+- CRD манифесты в `dataflow/config/crd/bases/`
 
 ### Генерация DeepCopy методов
 
@@ -550,5 +550,5 @@ go list -u -m all
 
 - Создайте issue в репозитории
 - Проверьте существующие issues и PR
-- Изучите примеры в `config/samples/`
+- Изучите примеры в `dataflow/config/samples/`
 
