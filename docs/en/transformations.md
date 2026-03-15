@@ -25,7 +25,7 @@ Adds a timestamp field to each message. Useful for tracking message processing t
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       # Field name for timestamp (optional, default: created_at)
       fieldName: created_at
       # Timestamp format (optional, default: RFC3339)
@@ -43,7 +43,7 @@ The `format` value is a [Go time layout](https://pkg.go.dev/time#pkg-constants) 
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: processed_at
 ```
 
@@ -69,7 +69,7 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: timestamp
       format: "2006-01-02 15:04:05"
 ```
@@ -87,7 +87,7 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: unix_time
       format: Unix
 ```
@@ -109,7 +109,7 @@ Expands an array into separate messages, preserving all other fields from the or
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       # JSONPath to the array to expand (required)
       field: items
 ```
@@ -121,7 +121,7 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       field: items
 ```
 
@@ -161,7 +161,7 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       field: orders.items
 ```
 
@@ -193,10 +193,10 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       field: rowsStock
   - type: timestamp
-    timestamp:
+    config:
       fieldName: created_at
 ```
 
@@ -211,7 +211,7 @@ Keeps only messages where the field at the given JSONPath exists and is *truthy*
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       # JSONPath to a field; message passes if field exists and is truthy (required)
       condition: "$.active"
 ```
@@ -227,7 +227,7 @@ Uses the `gjson` library: `$.field`, `$.nested.field`, `$.array[0]`, etc.
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.active"
 ```
 
@@ -243,7 +243,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.level"
 ```
 
@@ -260,7 +260,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.amount"
 ```
 
@@ -276,7 +276,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.user.status"
 ```
 
@@ -300,7 +300,7 @@ Masks sensitive data in specified fields. Supports preserving length or full cha
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       # List of JSONPath expressions to fields to mask (required)
       fields:
         - password
@@ -318,7 +318,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       fields:
         - password
         - email
@@ -350,7 +350,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       fields:
         - password
       keepLength: false
@@ -376,7 +376,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       fields:
         - user.password
         - payment.cardNumber
@@ -423,18 +423,18 @@ Conditions are evaluated in order; the first match wins.
 ```yaml
 transformations:
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level == 'error'"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: error-topic
         - condition: "$.level == 'warning'"
           sink:
             type: postgresql
-            postgresql:
+            config:
               connectionString: "postgres://..."
               table: warnings
 ```
@@ -451,12 +451,12 @@ transformations:
 ```yaml
 transformations:
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: error-logs
 ```
@@ -473,18 +473,18 @@ transformations:
 ```yaml
 transformations:
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.type"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: events-topic
         - condition: "$.priority"
           sink:
             type: postgresql
-            postgresql:
+            config:
               connectionString: "postgres://..."
               table: high_priority_events
 ```
@@ -501,15 +501,15 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: processed_at
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: errors
 ```
@@ -525,7 +525,7 @@ Keeps only the specified fields; all others are dropped. Each field is taken by 
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       # List of JSONPath expressions for fields to keep (required)
       fields:
         - id
@@ -540,7 +540,7 @@ transformations:
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       fields:
         - id
         - name
@@ -572,7 +572,7 @@ transformations:
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       fields:
         - user.id
         - user.name
@@ -612,7 +612,7 @@ Removes specified fields from a message. Useful for data cleanup before sending.
 ```yaml
 transformations:
   - type: remove
-    remove:
+    config:
       # List of JSONPath expressions to fields to remove (required)
       fields:
         - password
@@ -626,7 +626,7 @@ transformations:
 ```yaml
 transformations:
   - type: remove
-    remove:
+    config:
       fields:
         - password
         - creditCard
@@ -657,7 +657,7 @@ transformations:
 ```yaml
 transformations:
   - type: remove
-    remove:
+    config:
       fields:
         - user.password
         - metadata.internal
@@ -701,29 +701,29 @@ Transformations are applied sequentially in the order specified in the `transfor
 transformations:
   # 1. Expand array
   - type: flatten
-    flatten:
+    config:
       field: items
 
   # 2. Add timestamp
   - type: timestamp
-    timestamp:
+    config:
       fieldName: created_at
 
   # 3. Filter inactive
   - type: filter
-    filter:
+    config:
       condition: "$.active"
 
   # 4. Remove internal fields
   - type: remove
-    remove:
+    config:
       fields:
         - internal_id
         - debug_info
 
   # 5. Select only needed fields
   - type: select
-    select:
+    config:
       fields:
         - id
         - name
@@ -748,22 +748,22 @@ transformations:
 transformations:
   # Expand items into separate messages
   - type: flatten
-    flatten:
+    config:
       field: items
 
   # Add timestamp
   - type: timestamp
-    timestamp:
+    config:
       fieldName: processed_at
 
   # Filter paid orders only
   - type: filter
-    filter:
+    config:
       condition: "$.status"
 
   # Remove sensitive data
   - type: remove
-    remove:
+    config:
       fields:
         - customer.creditCard
         - customer.cvv
@@ -775,24 +775,24 @@ transformations:
 transformations:
   # Add timestamp
   - type: timestamp
-    timestamp:
+    config:
       fieldName: timestamp
 
   # Mask IP addresses
   - type: mask
-    mask:
+    config:
       fields:
         - ip_address
       keepLength: true
 
   # Route errors
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: error-logs
 ```
@@ -803,7 +803,7 @@ transformations:
 transformations:
   # Select needed fields
   - type: select
-    select:
+    config:
       fields:
         - firstName
         - lastName
@@ -812,7 +812,7 @@ transformations:
 
   # Convert to snake_case for PostgreSQL
   - type: snakeCase
-    snakeCase:
+    config:
       deep: true
 ```
 
@@ -868,7 +868,7 @@ Converts all JSON object keys to `snake_case` format. Useful for normalizing fie
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       # Recursively convert nested objects (optional, default: false)
       deep: true
 ```
@@ -880,7 +880,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       deep: false
 ```
 
@@ -911,7 +911,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       deep: true
 ```
 
@@ -956,7 +956,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       deep: false
 ```
 
@@ -996,7 +996,7 @@ Converts all JSON object keys to `CamelCase` (PascalCase) format. Useful for nor
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       # Recursively convert nested objects (optional, default: false)
       deep: true
 ```
@@ -1008,7 +1008,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       deep: false
 ```
 
@@ -1039,7 +1039,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       deep: true
 ```
 
@@ -1084,7 +1084,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       deep: false
 ```
 

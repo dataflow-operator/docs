@@ -52,13 +52,19 @@ type MyDBSourceSpec struct {
     Table            string `json:"table"`
     // ...
 }
-
-// В SourceSpec:
-type SourceSpec struct {
-    // ...
-    MyDB *MyDBSourceSpec `json:"myDB,omitempty"`
-}
 ```
+
+Пользователи указывают коннектор в манифесте DataFlow через единый формат `type` + `config`:
+
+```yaml
+source:
+  type: mydb
+  config:
+    connectionString: "mydb://localhost:3306/db"
+    table: my_table
+```
+
+Структуры `SourceSpec` и `SinkSpec` используют `Type string` + `Config json.RawMessage`. Фабрика парсит `Config` в вашу spec-структуру.
 
 ### Шаг 2. Выбор baseConnector или baseConnectorRWMutex
 
@@ -240,10 +246,11 @@ func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
     switch source.Type {
     // ...
     case "mydb":
-        if source.MyDB == nil {
-            return nil, fmt.Errorf("mydb source configuration is required")
+        var cfg MyDBSourceSpec
+        if err := json.Unmarshal(source.Config.Raw, &cfg); err != nil {
+            return nil, fmt.Errorf("invalid mydb source config: %w", err)
         }
-        return NewMyDBSourceConnector(source.MyDB), nil
+        return NewMyDBSourceConnector(&cfg), nil
     default:
         return nil, fmt.Errorf("unknown source type: %s", source.Type)
     }
@@ -253,10 +260,11 @@ func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
     switch sink.Type {
     // ...
     case "mydb":
-        if sink.MyDB == nil {
-            return nil, fmt.Errorf("mydb sink configuration is required")
+        var cfg MyDBSinkSpec
+        if err := json.Unmarshal(sink.Config.Raw, &cfg); err != nil {
+            return nil, fmt.Errorf("invalid mydb sink config: %w", err)
         }
-        return NewMyDBSinkConnector(sink.MyDB), nil
+        return NewMyDBSinkConnector(&cfg), nil
     default:
         return nil, fmt.Errorf("unknown sink type: %s", sink.Type)
     }
@@ -266,9 +274,9 @@ func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
 ### Шаг 7. Генерация и тестирование
 
 ```bash
-make generate
-make manifests
-make test-unit
+task generate
+task manifests
+task test-unit
 ```
 
 ## Важные замечания

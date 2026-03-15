@@ -25,7 +25,7 @@ DataFlow Operator поддерживает различные трансформ
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       # Имя поля для временной метки (опционально, по умолчанию: created_at)
       fieldName: created_at
 
@@ -50,7 +50,7 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: processed_at
 ```
 
@@ -76,7 +76,7 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: timestamp
       format: "2006-01-02 15:04:05"
 ```
@@ -94,7 +94,7 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: unix_time
       format: Unix
 ```
@@ -116,7 +116,7 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       # JSONPath к массиву для развертывания (обязательно)
       field: rowsStock
 ```
@@ -128,7 +128,7 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       field: items
 ```
 
@@ -168,7 +168,7 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       field: orders.items
 ```
 
@@ -200,10 +200,10 @@ transformations:
 ```yaml
 transformations:
   - type: flatten
-    flatten:
+    config:
       field: rowsStock
   - type: timestamp
-    timestamp:
+    config:
       fieldName: created_at
 ```
 
@@ -218,7 +218,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       # JSONPath выражение, которое должно быть истинным (обязательно)
       condition: "$.type == 'stock'"
 ```
@@ -239,7 +239,7 @@ Filter использует библиотеку `gjson` для оценки у�
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.active"
 ```
 
@@ -255,7 +255,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.level"
 ```
 
@@ -272,7 +272,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.amount"
 ```
 
@@ -288,7 +288,7 @@ transformations:
 ```yaml
 transformations:
   - type: filter
-    filter:
+    config:
       condition: "$.user.status"
 ```
 
@@ -316,7 +316,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       # Список JSONPath выражений к полям для маскирования (обязательно)
       fields:
         - password
@@ -337,7 +337,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       fields:
         - password
         - email
@@ -369,7 +369,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       fields:
         - password
       keepLength: false
@@ -395,7 +395,7 @@ transformations:
 ```yaml
 transformations:
   - type: mask
-    mask:
+    config:
       fields:
         - user.password
         - payment.cardNumber
@@ -435,19 +435,19 @@ transformations:
 ```yaml
 transformations:
   - type: router
-    router:
+    config:
       routes:
         # Первое совпавшее условие определяет приемник
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: error-topic
         - condition: "$.priority"
           sink:
             type: postgresql
-            postgresql:
+            config:
               connectionString: "..."
               table: high_priority
 ```
@@ -466,12 +466,12 @@ transformations:
 ```yaml
 transformations:
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: error-logs
 ```
@@ -488,18 +488,18 @@ transformations:
 ```yaml
 transformations:
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.type"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: events-topic
         - condition: "$.priority"
           sink:
             type: postgresql
-            postgresql:
+            config:
               connectionString: "postgres://..."
               table: high_priority_events
 ```
@@ -516,15 +516,15 @@ transformations:
 ```yaml
 transformations:
   - type: timestamp
-    timestamp:
+    config:
       fieldName: processed_at
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: errors
 ```
@@ -540,7 +540,7 @@ transformations:
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       # Список JSONPath выражений к полям для выбора (обязательно)
       fields:
         - id
@@ -555,7 +555,7 @@ transformations:
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       fields:
         - id
         - name
@@ -587,7 +587,7 @@ transformations:
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       fields:
         - user.id
         - user.name
@@ -631,7 +631,7 @@ transformations:
 ```yaml
 transformations:
   - type: remove
-    remove:
+    config:
       # Список JSONPath выражений к полям для удаления (обязательно)
       fields:
         - password
@@ -646,7 +646,7 @@ transformations:
 ```yaml
 transformations:
   - type: remove
-    remove:
+    config:
       fields:
         - password
         - creditCard
@@ -677,7 +677,7 @@ transformations:
 ```yaml
 transformations:
   - type: remove
-    remove:
+    config:
       fields:
         - user.password
         - metadata.internal
@@ -721,29 +721,29 @@ transformations:
 transformations:
   # 1. Развернуть массив
   - type: flatten
-    flatten:
+    config:
       field: items
 
   # 2. Добавить временную метку
   - type: timestamp
-    timestamp:
+    config:
       fieldName: created_at
 
   # 3. Отфильтровать неактивные
   - type: filter
-    filter:
+    config:
       condition: "$.active"
 
   # 4. Удалить внутренние поля
   - type: remove
-    remove:
+    config:
       fields:
         - internal_id
         - debug_info
 
   # 5. Выбрать только нужные поля
   - type: select
-    select:
+    config:
       fields:
         - id
         - name
@@ -768,22 +768,22 @@ transformations:
 transformations:
   # Развернуть товары в отдельные сообщения
   - type: flatten
-    flatten:
+    config:
       field: items
 
   # Добавить временную метку
   - type: timestamp
-    timestamp:
+    config:
       fieldName: processed_at
 
   # Фильтровать только оплаченные заказы
   - type: filter
-    filter:
+    config:
       condition: "$.status"
 
   # Удалить чувствительные данные
   - type: remove
-    remove:
+    config:
       fields:
         - customer.creditCard
         - customer.cvv
@@ -795,24 +795,24 @@ transformations:
 transformations:
   # Добавить временную метку
   - type: timestamp
-    timestamp:
+    config:
       fieldName: timestamp
 
   # Маскировать IP адреса
   - type: mask
-    mask:
+    config:
       fields:
         - ip_address
       keepLength: true
 
   # Маршрутизировать ошибки
   - type: router
-    router:
+    config:
       routes:
         - condition: "$.level"
           sink:
             type: kafka
-            kafka:
+            config:
               brokers: ["localhost:9092"]
               topic: error-logs
 ```
@@ -823,7 +823,7 @@ transformations:
 transformations:
   # Выбрать нужные поля
   - type: select
-    select:
+    config:
       fields:
         - firstName
         - lastName
@@ -832,7 +832,7 @@ transformations:
 
   # Преобразовать в snake_case для PostgreSQL
   - type: snakeCase
-    snakeCase:
+    config:
       deep: true
 ```
 
@@ -888,7 +888,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       # Рекурсивно преобразовывать вложенные объекты (опционально, по умолчанию: false)
       deep: true
 ```
@@ -900,7 +900,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       deep: false
 ```
 
@@ -931,7 +931,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       deep: true
 ```
 
@@ -976,7 +976,7 @@ transformations:
 ```yaml
 transformations:
   - type: snakeCase
-    snakeCase:
+    config:
       deep: false
 ```
 
@@ -1016,7 +1016,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       # Рекурсивно преобразовывать вложенные объекты (опционально, по умолчанию: false)
       deep: true
 ```
@@ -1028,7 +1028,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       deep: false
 ```
 
@@ -1059,7 +1059,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       deep: true
 ```
 
@@ -1104,7 +1104,7 @@ transformations:
 ```yaml
 transformations:
   - type: camelCase
-    camelCase:
+    config:
       deep: false
 ```
 

@@ -63,7 +63,7 @@ PostgreSQL, ClickHouse и Trino sink пишут батчами. Последов
 ```yaml
 sink:
   type: postgresql
-  postgresql:
+  config:
     connectionString: "postgres://..."
     table: output_table
     upsertMode: true

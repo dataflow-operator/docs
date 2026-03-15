@@ -63,7 +63,7 @@ Enable UPSERT mode so that duplicate inserts update existing rows instead of fai
 ```yaml
 sink:
   type: postgresql
-  postgresql:
+  config:
     connectionString: "postgres://..."
     table: output_table
     upsertMode: true

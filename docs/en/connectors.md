@@ -106,7 +106,7 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokersSecretRef:
         name: kafka-credentials
         key: brokers
@@ -146,7 +146,7 @@ metadata:
 spec:
   source:
     type: postgresql
-    postgresql:
+    config:
       connectionStringSecretRef:
         name: postgres-credentials
         key: connectionString
@@ -213,7 +213,7 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - secure-kafka:9093
       topic: secure-topic
@@ -299,7 +299,7 @@ The Kafka connector supports reading and writing messages from/to Apache Kafka t
 ```yaml
 source:
   type: kafka
-  kafka:
+  config:
     brokers:
       - kafka1:9092
     topic: input-topic
@@ -354,7 +354,7 @@ source:
 ```yaml
 sink:
   type: kafka
-  kafka:
+  config:
     brokers:
       - kafka1:9092
     topic: output-topic
@@ -370,7 +370,7 @@ The PostgreSQL connector supports reading from and writing to PostgreSQL tables.
 ```yaml
 source:
   type: postgresql
-  postgresql:
+  config:
     # Connection string (required, or use connectionStringSecretRef)
     connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
     # Table to read from (required if query not specified). Supports schema.table (e.g. public.products)
@@ -411,7 +411,7 @@ source:
 ```yaml
 sink:
   type: postgresql
-  postgresql:
+  config:
     connectionString: "postgres://user:password@localhost:5432/dbname?sslmode=disable"
     # Table to write to. Supports schema.table (e.g. public.products_clone)
     table: target_table
@@ -470,7 +470,7 @@ metadata:
 spec:
   source:
     type: postgresFull
-    postgresFull:
+    config:
       connectionString: "postgres://user:pass@source-pg:5432/db?sslmode=disable"
       syncMode: full
       dataMode: schema_and_data   # or schema_only
@@ -478,7 +478,7 @@ spec:
       # excludeObjects: ["view", "function"]               # optional exclude
   sink:
     type: postgresFull
-    postgresFull:
+    config:
       connectionString: "postgres://user:pass@target-pg:5432/db?sslmode=disable"
 ```
 
@@ -517,7 +517,7 @@ The ClickHouse connector supports reading from and writing to ClickHouse tables.
 ```yaml
 source:
   type: clickhouse
-  clickhouse:
+  config:
     # Connection string (required)
     # Native: clickhouse://host:9000?username=default&password=xxx&database=default
     # HTTP: http://host:8123/default?username=default&password=xxx
@@ -546,7 +546,7 @@ source:
 ```yaml
 sink:
   type: clickhouse
-  clickhouse:
+  config:
     connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
     table: output_table
 
@@ -589,14 +589,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - kafka:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: clickhouse
-    clickhouse:
+    config:
       connectionString: "clickhouse://default@clickhouse:9000/default"
       table: output_table
       batchSize: 100
@@ -615,13 +615,13 @@ metadata:
 spec:
   source:
     type: clickhouse
-    clickhouse:
+    config:
       connectionString: "clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s"
       table: products
       pollInterval: 5
   sink:
     type: clickhouse
-    clickhouse:
+    config:
       connectionString: "clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s"
       table: products_clone
       batchSize: 100
@@ -637,7 +637,7 @@ The Trino connector supports reading from and writing to Trino (formerly PrestoS
 ```yaml
 source:
   type: trino
-  trino:
+  config:
     # Trino server URL (required)
     serverURL: "http://trino:8080"
 
@@ -719,7 +719,7 @@ The response will contain an `access_token` field. Use this token value in the `
 ```yaml
 sink:
   type: trino
-  trino:
+  config:
     # Trino server URL (required)
     serverURL: "http://trino:8080"
 
@@ -774,14 +774,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - kafka:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: trino
-    trino:
+    config:
       serverURL: "http://trino:8080"
       catalog: hive
       schema: default
@@ -809,7 +809,7 @@ The Nessie connector reads from and writes to Apache Iceberg tables via the [Nes
 ```yaml
 source:
   type: nessie
-  nessie:
+  config:
     # Nessie server base URL (required), e.g. https://nessie:19120
     baseURL: "http://nessie:19120"
 
@@ -847,7 +847,7 @@ source:
 ```yaml
 sink:
   type: nessie
-  nessie:
+  config:
     baseURL: "http://nessie:19120"
     branch: main
     warehouse: ""
@@ -883,14 +883,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - kafka:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: nessie
-    nessie:
+    config:
       baseURL: "http://nessie:19120"
       branch: main
       namespace: analytics

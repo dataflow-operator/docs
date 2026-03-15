@@ -8,7 +8,7 @@ Guide for developers who want to contribute to DataFlow Operator or set up a loc
 - Docker and Docker Compose
 - kubectl configured to work with the cluster
 - Helm 3.0+ (for testing installation)
-- Make (optional, for using Makefile)
+- Task (optional, for using Taskfile)
 
 ## Environment Setup
 
@@ -30,10 +30,10 @@ go mod tidy
 
 ```bash
 # Install controller-gen
-make controller-gen
+task controller-gen
 
 # Install envtest
-make envtest
+task envtest
 ```
 
 ## Local Development
@@ -54,14 +54,14 @@ This will start:
 
 ```bash
 # Generate code and manifests
-make generate
-make manifests
+task generate
+task manifests
 
 # Install CRD in cluster (if using kind/minikube)
-make install
+task install
 
 # Run operator
-make run
+task run
 ```
 
 Or use the script:
@@ -79,10 +79,10 @@ For full testing, use kind:
 ./scripts/setup-kind.sh
 
 # Install CRD
-make install
+task install
 
 # Run operator locally
-make run
+task run
 ```
 
 ## Project Structure
@@ -125,7 +125,7 @@ dataflow/
 │   └── fixtures/              # Test data
 ├── scripts/                   # Helper scripts
 ├── main.go                    # Entry point
-├── Makefile                   # Build commands
+├── Taskfile.yml               # Build commands
 └── go.mod                     # Go dependencies
 ```
 
@@ -134,7 +134,7 @@ dataflow/
 ### Generate CRD and RBAC
 
 ```bash
-make manifests
+task manifests
 ```
 
 This command generates:
@@ -143,7 +143,7 @@ This command generates:
 ### Generate DeepCopy Methods
 
 ```bash
-make generate
+task generate
 ```
 
 Generates `DeepCopy` methods for all types in `api/v1/`.
@@ -157,8 +157,8 @@ If you encounter issues with code generation:
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
 # Then
-make generate
-make manifests
+task generate
+task manifests
 ```
 
 ## Logging
@@ -250,7 +250,7 @@ After installing or upgrading the chart with these values, a ValidatingWebhookCo
 
 ### What the webhook validates
 
-- Required fields: `spec.source`, `spec.sink`, source/sink types from the allowed list (`kafka`, `postgresql`, `trino`), and the matching config block (e.g. `source.kafka` when `source.type: kafka`).
+- Required fields: `spec.source`, `spec.sink`, source/sink types from the allowed list (`kafka`, `postgresql`, `trino`), and the matching config block (e.g. `source.config` when `source.type: kafka`).
 - For each source/sink type, required fields or SecretRef (e.g. for Kafka: brokers or brokersSecretRef, topic or topicSecretRef).
 - Transformations: allowed types and config present for each type; for router, nested sinks are validated.
 - Optionally: `spec.errors` (if set, validated as SinkSpec), SecretRef (name and key), non-negative resources.
@@ -263,10 +263,10 @@ On validation failure, the API returns a response with field paths and messages 
 
 ```bash
 # Run all unit tests
-make test-unit
+task test-unit
 
 # Run tests with coverage
-make test
+task test
 
 # Run tests for specific package
 go test ./internal/connectors/... -v
@@ -283,7 +283,7 @@ go tool cover -html=coverage.out
 ./scripts/setup-kind.sh
 
 # Run integration tests
-make test-integration
+task test-integration
 ```
 
 ### Running tests manually
@@ -292,8 +292,8 @@ make test-integration
 # Unit tests without envtest
 go test ./... -v
 
-# Tests with envtest (requires kubebuilder)
-KUBEBUILDER_ASSETS="$(make envtest use 1.28.0 -p path)" go test ./... -coverprofile cover.out
+# Tests with envtest (requires kubebuilder; run `task envtest` first to install)
+KUBEBUILDER_ASSETS="$(./bin/setup-envtest use 1.28.0 -p path)" go test ./... -coverprofile cover.out
 ```
 
 ## Building
@@ -302,7 +302,7 @@ KUBEBUILDER_ASSETS="$(make envtest use 1.28.0 -p path)" go test ./... -coverprof
 
 ```bash
 # Build binary
-make build
+task build
 
 # Binary will be in bin/manager
 ./bin/manager
@@ -312,10 +312,10 @@ make build
 
 ```bash
 # Build image
-make docker-build IMG=your-registry/dataflow-operator:v1.0.0
+task docker-build IMG=your-registry/dataflow-operator:v1.0.0
 
 # Push image
-make docker-push IMG=your-registry/dataflow-operator:v1.0.0
+task docker-push IMG=your-registry/dataflow-operator:v1.0.0
 ```
 
 Or manually. If the repository is a monorepo (with `dataflow` and `dataflow-web` folders), build from the **repository root**:
@@ -421,8 +421,8 @@ func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
 ### 4. Generate code
 
 ```bash
-make generate
-make manifests
+task generate
+task manifests
 ```
 
 ### 5. Testing
@@ -503,8 +503,8 @@ func CreateTransformer(transformation *v1.TransformationSpec) (Transformer, erro
 ### 4. Generate and test
 
 ```bash
-make generate
-make test
+task generate
+task test
 ```
 
 ## Debugging
@@ -544,7 +544,7 @@ func (k *KafkaSourceConnector) Read(ctx context.Context) (<-chan *types.Message,
 ### Format Code
 
 ```bash
-make fmt
+task fmt
 ```
 
 Or manually:
@@ -556,7 +556,7 @@ go fmt ./...
 ### Check Code
 
 ```bash
-make vet
+task vet
 ```
 
 Or manually:
@@ -599,9 +599,9 @@ jobs:
         with:
           go-version: '1.21'
       - run: go mod download
-      - run: make test-unit
-      - run: make vet
-      - run: make fmt
+      - run: task test-unit
+      - run: task vet
+      - run: task fmt
 ```
 
 ## Building the documentation
@@ -637,8 +637,8 @@ Then open `http://127.0.0.1:8000` when using `mkdocs serve`.
 1. Create an issue to discuss changes
 2. Create a feature branch: `git checkout -b feature/new-feature`
 3. Make changes and add tests
-4. Ensure all tests pass: `make test`
-5. Format code: `make fmt`
+4. Ensure all tests pass: `task test`
+5. Format code: `task fmt`
 6. Create Pull Request
 
 ### Code Standards
@@ -663,10 +663,10 @@ test: add tests for filter transformation
 
 ```bash
 # View all available commands
-make help
+task --list
 
 # Clean generated files
-make clean
+task clean
 
 # Update dependencies
 go mod tidy

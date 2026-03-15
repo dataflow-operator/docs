@@ -16,14 +16,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: output_table
       autoCreateTable: true
@@ -46,14 +46,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: clickhouse
-    clickhouse:
+    config:
       connectionString: "clickhouse://default@clickhouse:9000/default"
       table: raw_events
       autoCreateTable: true
@@ -67,7 +67,7 @@ spec:
   "_metadata": {
     "offset": 100,
     "partition": 0,
-    "timestamp": 1709000000000,
+    "timestamp": "2024-02-27T10:13:20.000Z",
     "key": "user-123",
     "topic": "input-topic"
   }
@@ -77,8 +77,8 @@ spec:
 For sinks expecting only data without the wrapper, add a select transformation with the `value` field:
 ```yaml
 transformations:
-  - type: select
-    select:
+    - type: select
+    config:
       fields: ["value"]
 ```
 
@@ -94,20 +94,20 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: output_table
       autoCreateTable: true
   errors:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: error-topic
@@ -132,14 +132,14 @@ metadata:
 spec:
   source:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@source-postgres:5432/source_db?sslmode=disable"
       table: source_orders
       query: "SELECT * FROM source_orders WHERE updated_at > NOW() - INTERVAL '5 minutes'"
       pollInterval: 60
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@target-postgres:5432/target_db?sslmode=disable"
       table: target_orders
       autoCreateTable: true
@@ -148,7 +148,7 @@ spec:
   transformations:
     # Keep only required fields
     - type: select
-      select:
+      config:
         fields:
           - id
           - customer_id
@@ -157,7 +157,7 @@ spec:
           - updated_at
     # Add sync time
     - type: timestamp
-      timestamp:
+      config:
         fieldName: synced_at
 ```
 
@@ -203,7 +203,7 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokersSecretRef:
         name: kafka-credentials
         key: brokers
@@ -223,7 +223,7 @@ spec:
           key: password
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionStringSecretRef:
         name: postgres-credentials
         key: connectionString
@@ -254,14 +254,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: output_table
   # Configure resources for the processor pod

@@ -41,9 +41,9 @@ Used when the connector performs long-running read operations (e.g., SQL queries
 
 ## Step-by-Step Guide: Adding a New Connector
 
-### Step 1. Define Types in API
+### Step 1. Define Types
 
-Add the spec to `api/v1/dataflow_types.go`:
+Define your connector's config struct (it will be parsed from `Config json.RawMessage` at runtime):
 
 ```go
 // MyDBSourceSpec defines MyDB source configuration
@@ -52,13 +52,19 @@ type MyDBSourceSpec struct {
     Table            string `json:"table"`
     // ...
 }
-
-// In SourceSpec:
-type SourceSpec struct {
-    // ...
-    MyDB *MyDBSourceSpec `json:"myDB,omitempty"`
-}
 ```
+
+Users will specify the connector in a DataFlow manifest using the unified `type` + `config` format:
+
+```yaml
+source:
+  type: mydb
+  config:
+    connectionString: "mydb://localhost:3306/db"
+    table: my_table
+```
+
+The `SourceSpec` and `SinkSpec` structs use `Type string` + `Config json.RawMessage`. The factory parses `Config` into your spec struct.
 
 ### Step 2. Choose baseConnector or baseConnectorRWMutex
 
@@ -233,17 +239,18 @@ Note: rawMode is supported only in sink connectors. Sources always emit plain co
 
 ### Step 6. Register in Factory
 
-In `internal/connectors/factory.go`:
+In `internal/connectors/factory.go`, parse `Config` into your spec struct:
 
 ```go
 func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
     switch source.Type {
     // ...
     case "mydb":
-        if source.MyDB == nil {
-            return nil, fmt.Errorf("mydb source configuration is required")
+        var cfg MyDBSourceSpec
+        if err := json.Unmarshal(source.Config.Raw, &cfg); err != nil {
+            return nil, fmt.Errorf("invalid mydb source config: %w", err)
         }
-        return NewMyDBSourceConnector(source.MyDB), nil
+        return NewMyDBSourceConnector(&cfg), nil
     default:
         return nil, fmt.Errorf("unknown source type: %s", source.Type)
     }
@@ -253,10 +260,11 @@ func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
     switch sink.Type {
     // ...
     case "mydb":
-        if sink.MyDB == nil {
-            return nil, fmt.Errorf("mydb sink configuration is required")
+        var cfg MyDBSinkSpec
+        if err := json.Unmarshal(sink.Config.Raw, &cfg); err != nil {
+            return nil, fmt.Errorf("invalid mydb sink config: %w", err)
         }
-        return NewMyDBSinkConnector(sink.MyDB), nil
+        return NewMyDBSinkConnector(&cfg), nil
     default:
         return nil, fmt.Errorf("unknown sink type: %s", sink.Type)
     }
@@ -266,9 +274,9 @@ func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
 ### Step 7. Generate and Test
 
 ```bash
-make generate
-make manifests
-make test-unit
+task generate
+task manifests
+task test-unit
 ```
 
 ## Important Notes

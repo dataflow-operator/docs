@@ -19,19 +19,19 @@ Add an `errors` block to your DataFlow spec with `type` and the connector-specif
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://..."
       table: output_table
   errors:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: error-topic
@@ -44,7 +44,7 @@ You can use the same Kafka options as for the main sink (e.g. `brokersSecretRef`
 ```yaml
   errors:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://..."
       table: error_messages
       autoCreateTable: true

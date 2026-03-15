@@ -16,14 +16,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: output_table
       autoCreateTable: true
@@ -46,14 +46,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: clickhouse
-    clickhouse:
+    config:
       connectionString: "clickhouse://default@clickhouse:9000/default"
       table: raw_events
       autoCreateTable: true
@@ -67,7 +67,7 @@ spec:
   "_metadata": {
     "offset": 100,
     "partition": 0,
-    "timestamp": 1709000000000,
+    "timestamp": "2024-02-27T10:13:20.000Z",
     "key": "user-123",
     "topic": "input-topic"
   }
@@ -78,7 +78,7 @@ spec:
 ```yaml
 transformations:
   - type: select
-    select:
+    config:
       fields: ["value"]
 ```
 
@@ -94,14 +94,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: stock-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: stock_items
       autoCreateTable: true
@@ -109,11 +109,11 @@ spec:
   transformations:
     # Развернуть массив rowsStock в отдельные сообщения
     - type: flatten
-      flatten:
+      config:
         field: rowsStock
     # Добавить временную метку
     - type: timestamp
-      timestamp:
+      config:
         fieldName: created_at
 ```
 
@@ -162,20 +162,20 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: output_table
       autoCreateTable: true
   errors:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: error-topic
@@ -200,7 +200,7 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: events
@@ -208,19 +208,19 @@ spec:
   # Основной приемник для сообщений, не соответствующих условиям
   sink:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: default-events
   transformations:
     - type: router
-      router:
+      config:
         routes:
           # Ошибки → отдельный топик
           - condition: "$.level"
             sink:
               type: kafka
-              kafka:
+              config:
                 brokers:
                   - localhost:9092
                 topic: error-events
@@ -228,7 +228,7 @@ spec:
           - condition: "$.priority"
             sink:
               type: postgresql
-              postgresql:
+              config:
                 connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
                 table: warnings
                 autoCreateTable: true
@@ -253,26 +253,26 @@ metadata:
 spec:
   source:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: users
       query: "SELECT * FROM users WHERE updated_at > NOW() - INTERVAL '1 hour'"
       pollInterval: 300
   sink:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: public-users
   transformations:
     # Фильтровать только активных пользователей
     - type: filter
-      filter:
+      config:
         condition: "$.active"
 
     # Маскировать чувствительные данные
     - type: mask
-      mask:
+      config:
         fields:
           - password
           - email
@@ -280,7 +280,7 @@ spec:
 
     # Удалить внутренние поля
     - type: remove
-      remove:
+      config:
         fields:
           - internal_id
           - secret_token
@@ -288,7 +288,7 @@ spec:
 
     # Добавить временную метку экспорта
     - type: timestamp
-      timestamp:
+      config:
         fieldName: exported_at
 ```
 
@@ -329,20 +329,20 @@ metadata:
 spec:
   source:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: orders
       query: "SELECT * FROM orders WHERE created_at > NOW() - INTERVAL '1 day'"
       pollInterval: 60
   sink:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: order-events
   transformations:
     - type: select
-      select:
+      config:
         fields:
           - order_id
           - customer_id
@@ -350,7 +350,7 @@ spec:
           - status
           - created_at
     - type: timestamp
-      timestamp:
+      config:
         fieldName: processed_at
 ```
 
@@ -366,14 +366,14 @@ metadata:
 spec:
   source:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@source-postgres:5432/source_db?sslmode=disable"
       table: source_orders
       query: "SELECT * FROM source_orders WHERE updated_at > NOW() - INTERVAL '5 minutes'"
       pollInterval: 60
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@target-postgres:5432/target_db?sslmode=disable"
       table: target_orders
       autoCreateTable: true
@@ -382,7 +382,7 @@ spec:
   transformations:
     # Оставляем только нужные поля
     - type: select
-      select:
+      config:
         fields:
           - id
           - customer_id
@@ -391,7 +391,7 @@ spec:
           - updated_at
     # Добавляем время синхронизации
     - type: timestamp
-      timestamp:
+      config:
         fieldName: synced_at
 ```
 
@@ -415,7 +415,7 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - kafka1:9092
         - kafka2:9092
@@ -423,7 +423,7 @@ spec:
       consumerGroup: etl-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/analytics?sslmode=disable"
       table: processed_events
       autoCreateTable: true
@@ -431,23 +431,23 @@ spec:
   transformations:
     # 1. Развернуть вложенные массивы
     - type: flatten
-      flatten:
+      config:
         field: items
 
     # 2. Добавить временную метку обработки
     - type: timestamp
-      timestamp:
+      config:
         fieldName: processed_at
         format: RFC3339
 
     # 3. Фильтровать только валидные события
     - type: filter
-      filter:
+      config:
         condition: "$.valid"
 
     # 4. Маскировать PII данные
     - type: mask
-      mask:
+      config:
         fields:
           - user.email
           - user.phone
@@ -455,7 +455,7 @@ spec:
 
     # 5. Удалить отладочную информацию
     - type: remove
-      remove:
+      config:
         fields:
           - debug
           - internal_metadata
@@ -463,7 +463,7 @@ spec:
 
     # 6. Выбрать только нужные поля для финального результата
     - type: select
-      select:
+      config:
         fields:
           - event_id
           - user.id
@@ -484,32 +484,32 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: all-events
       consumerGroup: router-group
   sink:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: default-events
   transformations:
     - type: router
-      router:
+      config:
         routes:
           - condition: "$.type"
             sink:
               type: kafka
-              kafka:
+              config:
                 brokers:
                   - localhost:9092
                 topic: user-events
           - condition: "$.category"
             sink:
               type: kafka
-              kafka:
+              config:
                 brokers:
                   - localhost:9092
                 topic: product-events
@@ -550,7 +550,7 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokersSecretRef:
         name: kafka-credentials
         key: brokers
@@ -570,7 +570,7 @@ spec:
           key: password
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionStringSecretRef:
         name: postgres-credentials
         key: connectionString
@@ -658,14 +658,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - localhost:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
       table: output_table
   # Настройка ресурсов для пода процессора

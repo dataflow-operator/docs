@@ -15,7 +15,7 @@
 
 - Go 1.21+
 - Docker и Docker Compose
-- Make (опционально, для использования Makefile команд)
+- Task (опционально, для использования команд Taskfile)
 - Доступ к портам: 8080, 5050, 8081, 5432, 9092
 
 ## Установка
@@ -177,14 +177,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - kafka-broker:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://user:password@postgres-host:5432/dbname?sslmode=disable"
       table: output_table
       autoCreateTable: true
@@ -295,10 +295,10 @@ docker-compose up -d
 
 ```bash
 # Установите CRD в кластер (если используете kind или minikube)
-make install
+task install
 
 # Запустите оператор
-make run
+task run
 ```
 
 Или используйте скрипт:
@@ -316,10 +316,10 @@ make run
 ./scripts/setup-kind.sh
 
 # Установить CRD
-make install
+task install
 
 # Запустить оператор локально
-make run
+task run
 ```
 
 ### Отладка

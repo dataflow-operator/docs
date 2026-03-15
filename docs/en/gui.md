@@ -59,7 +59,7 @@ GUI is configured via Helm values when deploying with the dataflow-operator char
 |-----------|-------------|---------|
 | `gui.enabled` | Enable web GUI | `false` |
 | `gui.image.repository` | Image for the GUI server (separate from operator) | `ghcr.io/dataflow-operator/dataflow-web` |
-| `gui.image.tag` | Image tag | `v0.1.0` |
+| `gui.image.tag` | Image tag | `v0.2.3` |
 | `gui.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `gui.replicaCount` | Number of GUI server replicas | `1` |
 | `gui.port` | Bind port for the GUI server | `8080` |

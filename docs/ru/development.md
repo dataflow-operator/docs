@@ -8,7 +8,7 @@
 - Docker и Docker Compose
 - kubectl настроен для работы с кластером
 - Helm 3.0+ (для тестирования установки)
-- Make (опционально, для использования Makefile)
+- Task (опционально, для использования Taskfile)
 
 ## Настройка окружения
 
@@ -30,10 +30,10 @@ go mod tidy
 
 ```bash
 # Установка controller-gen
-make controller-gen
+task controller-gen
 
 # Установка envtest
-make envtest
+task envtest
 ```
 
 ## Локальная разработка
@@ -54,14 +54,14 @@ docker-compose up -d
 
 ```bash
 # Генерация кода и манифестов
-make generate
-make manifests
+task generate
+task manifests
 
 # Установка CRD в кластер (если используете kind/minikube)
-make install
+task install
 
 # Запуск оператора
-make run
+task run
 ```
 
 Или используйте скрипт:
@@ -79,10 +79,10 @@ make run
 ./scripts/setup-kind.sh
 
 # Установить CRD
-make install
+task install
 
 # Запустить оператор локально
-make run
+task run
 ```
 
 ## Структура проекта
@@ -125,7 +125,7 @@ dataflow/
 │   └── fixtures/             # Тестовые данные
 ├── scripts/                   # Вспомогательные скрипты
 ├── main.go                    # Точка входа
-├── Makefile                   # Команды сборки
+├── Taskfile                   # Команды сборки
 └── go.mod                     # Зависимости Go
 ```
 
@@ -134,7 +134,7 @@ dataflow/
 ### Генерация CRD и RBAC
 
 ```bash
-make manifests
+task manifests
 ```
 
 Эта команда генерирует:
@@ -143,7 +143,7 @@ make manifests
 ### Генерация DeepCopy методов
 
 ```bash
-make generate
+task generate
 ```
 
 Генерирует методы `DeepCopy` для всех типов в `api/v1/`.
@@ -157,8 +157,8 @@ make generate
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
 # Затем
-make generate
-make manifests
+task generate
+task manifests
 ```
 
 ## Логирование
@@ -250,7 +250,7 @@ webhook:
 
 ### Что проверяет webhook
 
-- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из списка (`kafka`, `postgresql`, `trino`), наличие соответствующей конфигурации (например `source.kafka` при `source.type: kafka`).
+- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из списка (`kafka`, `postgresql`, `trino`), наличие соответствующей конфигурации (например `source.config` при `source.type: kafka`).
 - Для каждого типа source/sink — обязательные поля или SecretRef (например для Kafka: brokers или brokersSecretRef, topic или topicSecretRef).
 - Список трансформаций: допустимые типы и наличие конфигурации для каждого типа; для router — валидация вложенных sink.
 - Опционально: `spec.errors` (если задан — как SinkSpec), SecretRef (name и key), неотрицательные ресурсы.
@@ -263,10 +263,10 @@ webhook:
 
 ```bash
 # Запустить все unit тесты
-make test-unit
+task test-unit
 
 # Запустить тесты с покрытием
-make test
+task test
 
 # Запустить тесты конкретного пакета
 go test ./internal/connectors/... -v
@@ -283,7 +283,7 @@ go tool cover -html=coverage.out
 ./scripts/setup-kind.sh
 
 # Запустить интеграционные тесты
-make test-integration
+task test-integration
 ```
 
 ### Запуск тестов вручную
@@ -293,7 +293,7 @@ make test-integration
 go test ./... -v
 
 # Тесты с envtest (требует kubebuilder)
-KUBEBUILDER_ASSETS="$(make envtest use 1.28.0 -p path)" go test ./... -coverprofile cover.out
+KUBEBUILDER_ASSETS="$(task envtest use 1.28.0 -p path)" go test ./... -coverprofile cover.out
 ```
 
 ## Сборка
@@ -302,7 +302,7 @@ KUBEBUILDER_ASSETS="$(make envtest use 1.28.0 -p path)" go test ./... -coverprof
 
 ```bash
 # Сборка бинарного файла
-make build
+task build
 
 # Бинарный файл будет в bin/manager
 ./bin/manager
@@ -312,10 +312,10 @@ make build
 
 ```bash
 # Сборка образа
-make docker-build IMG=your-registry/dataflow-operator:v1.0.0
+task docker-build IMG=your-registry/dataflow-operator:v1.0.0
 
 # Отправка образа
-make docker-push IMG=your-registry/dataflow-operator:v1.0.0
+task docker-push IMG=your-registry/dataflow-operator:v1.0.0
 ```
 
 Или вручную. Если репозиторий — монорепо (есть папки `dataflow` и `dataflow-web`), сборка из **корня репозитория**:
@@ -421,8 +421,8 @@ func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
 ### 4. Генерация кода
 
 ```bash
-make generate
-make manifests
+task generate
+task manifests
 ```
 
 ### 5. Тестирование
@@ -503,8 +503,8 @@ func CreateTransformer(transformation *v1.TransformationSpec) (Transformer, erro
 ### 4. Генерация и тестирование
 
 ```bash
-make generate
-make test
+task generate
+task test
 ```
 
 ## Отладка
@@ -544,7 +544,7 @@ func (k *KafkaSourceConnector) Read(ctx context.Context) (<-chan *types.Message,
 ### Форматирование кода
 
 ```bash
-make fmt
+task fmt
 ```
 
 Или вручную:
@@ -556,7 +556,7 @@ go fmt ./...
 ### Проверка кода
 
 ```bash
-make vet
+task vet
 ```
 
 Или вручную:
@@ -599,9 +599,9 @@ jobs:
         with:
           go-version: '1.21'
       - run: go mod download
-      - run: make test-unit
-      - run: make vet
-      - run: make fmt
+      - run: task test-unit
+      - run: task vet
+      - run: task fmt
 ```
 
 ## Сборка документации
@@ -637,8 +637,8 @@ cd docs && mkdocs serve
 1. Создайте issue для обсуждения изменений
 2. Создайте feature branch: `git checkout -b feature/new-feature`
 3. Внесите изменения и добавьте тесты
-4. Убедитесь, что все тесты проходят: `make test`
-5. Отформатируйте код: `make fmt`
+4. Убедитесь, что все тесты проходят: `task test`
+5. Отформатируйте код: `task fmt`
 6. Создайте Pull Request
 
 ### Стандарты кода
@@ -663,10 +663,10 @@ test: add tests for filter transformation
 
 ```bash
 # Просмотр всех доступных команд
-make help
+task help
 
 # Очистка сгенерированных файлов
-make clean
+task clean
 
 # Обновление зависимостей
 go mod tidy

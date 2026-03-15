@@ -15,23 +15,47 @@ This guide will help you get started with DataFlow Operator. You'll learn how to
 
 - Go 1.21+
 - Docker and Docker Compose
-- Make (optional, for using Makefile commands)
+- Task (optional, for using Taskfile commands)
 - Access to ports: 8080, 5050, 15672, 8081, 5432, 9092, 5672
 
 ## Installation { #installation }
 
-### Installing CRD
+### CRD Management { #crd }
 
-Before installing the operator, you need to install the Custom Resource Definition (CRD):
+The DataFlow CRD (Custom Resource Definition) defines the `DataFlow` resource type in Kubernetes.
+
+#### Automatic Installation (via Helm)
+
+When installing via Helm (recommended), the CRD is installed and updated automatically. No separate `kubectl apply` step is needed — the chart manages the CRD lifecycle with `crds.install: true` (default).
+
+#### Manual Installation
+
+If you manage CRDs separately (e.g. with ArgoCD, FluxCD, or `crds.install: false` in Helm values), install the CRD manually:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/dataflow-operator/dataflow/refs/heads/main/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
 ```
 
-Or use a local file:
+Or from a local file:
 
 ```bash
 kubectl apply -f dataflow/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
+```
+
+#### CRD Helm Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `crds.install` | `true` | Install and update CRD on `helm install` / `helm upgrade` |
+| `crds.keep` | `true` | Add `helm.sh/resource-policy: keep` annotation to prevent CRD deletion on `helm uninstall` |
+
+**Upgrade behavior**: The CRD is updated on every `helm upgrade`, so schema changes are applied automatically.
+
+**Uninstall behavior**: With `crds.keep: true` (default), the CRD remains in the cluster after `helm uninstall`. This protects against accidental deletion of all `DataFlow` resources. To disable CRD installation via Helm:
+
+```yaml
+crds:
+  install: false
 ```
 
 ### Installation via Helm (Recommended)
@@ -166,15 +190,23 @@ To uninstall the operator:
 helm uninstall dataflow-operator
 ```
 
-**Warning**: Uninstalling the operator does not delete created `DataFlow` resources, but they will stop being processed. If you want to delete all resources:
+**CRD behavior on uninstall**: With `crds.keep: true` (default), the CRD remains in the cluster after `helm uninstall`. Existing `DataFlow` resources are preserved but will stop being processed.
+
+To completely remove the CRD and **all** DataFlow resources in the cluster:
 
 ```bash
-# Delete all DataFlow resources
-kubectl delete dataflow --all
+# Delete all DataFlow resources first
+kubectl delete dataflow --all --all-namespaces
 
 # Then uninstall the operator
 helm uninstall dataflow-operator
+
+# Finally, remove the CRD (only if crds.keep was true)
+kubectl delete crd dataflows.dataflow.dataflow.io
 ```
+
+!!! warning
+    Deleting the CRD removes **all** `DataFlow` resources across all namespaces in the cluster. Make sure this is intended.
 
 ## First DataFlow
 
@@ -191,14 +223,14 @@ metadata:
 spec:
   source:
     type: kafka
-    kafka:
+    config:
       brokers:
         - kafka-broker:9092
       topic: input-topic
       consumerGroup: dataflow-group
   sink:
     type: postgresql
-    postgresql:
+    config:
       connectionString: "postgres://user:password@postgres-host:5432/dbname?sslmode=disable"
       table: output_table
       autoCreateTable: true
@@ -308,10 +340,10 @@ For development, run the operator locally:
 
 ```bash
 # Install CRD in cluster (if using kind or minikube)
-make install
+task install
 
 # Run the operator
-make run
+task run
 ```
 
 Or use the script:
@@ -329,10 +361,10 @@ For full testing, use kind (Kubernetes in Docker):
 ./scripts/setup-kind.sh
 
 # Install CRD
-make install
+task install
 
 # Run operator locally
-make run
+task run
 ```
 
 ### Debugging
