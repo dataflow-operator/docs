@@ -90,6 +90,13 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
+
+# Опционально: Sentry для мониторинга ошибок и трейсинга
+# sentry:
+#   enabled: true
+#   dsn: "https://xxx@o0.ingest.sentry.io/123"
+#   environment: production
+#   tracesSampleRate: 0.1
 ```
 
 Затем установите:

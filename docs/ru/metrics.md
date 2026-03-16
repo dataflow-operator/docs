@@ -198,6 +198,34 @@ serviceMonitor:
 - Статус DataFlow манифестов
 - Статистику по трансформерам
 
+### Sentry (мониторинг ошибок и трейсинг)
+
+DataFlow Operator поддерживает [Sentry](https://sentry.io/) для мониторинга ошибок и распределённого трейсинга. При включении оператор и поды процессоров отправляют ошибки и трейсы производительности в Sentry.
+
+**Включение через Helm chart:**
+
+```yaml
+sentry:
+  enabled: true
+  dsn: "https://xxx@o0.ingest.sentry.io/123"
+  environment: production   # или staging, development
+  tracesSampleRate: 0.1     # 0.0–1.0, доля трейсов для сэмплирования (по умолчанию 10%)
+  debug: false             # вывод отладки Sentry SDK
+  release: ""              # опционально: git commit или версия
+```
+
+**Переменные окружения** (передаются в поды оператора и процессоров при `sentry.enabled` и `sentry.dsn`):
+
+| Переменная | Описание |
+|------------|----------|
+| `SENTRY_DSN` | DSN проекта Sentry (обязательно) |
+| `SENTRY_ENVIRONMENT` | Имя окружения (production, staging и т.д.) |
+| `SENTRY_TRACES_SAMPLE_RATE` | Доля сэмплирования трейсов (0.0–1.0) |
+| `SENTRY_DEBUG` | Режим отладки (`true`/`false`) |
+| `SENTRY_RELEASE` | Версия релиза для группировки |
+
+Оператор передаёт переменные `SENTRY_*` в поды процессоров, поэтому они отправляют данные в тот же проект Sentry. Если `SENTRY_DSN` пустой, Sentry не инициализируется.
+
 ## Примеры запросов Prometheus
 
 ### Количество сообщений в секунду по манифесту

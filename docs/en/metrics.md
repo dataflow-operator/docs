@@ -198,6 +198,34 @@ The dashboard includes:
 - DataFlow manifest status
 - Transformer statistics
 
+### Sentry (Error Monitoring and Tracing)
+
+DataFlow Operator supports [Sentry](https://sentry.io/) for error monitoring and distributed tracing. When enabled, the operator and processor pods report errors and performance traces to Sentry.
+
+**Enable via Helm chart:**
+
+```yaml
+sentry:
+  enabled: true
+  dsn: "https://xxx@o0.ingest.sentry.io/123"
+  environment: production   # or staging, development
+  tracesSampleRate: 0.1    # 0.0–1.0, fraction of traces to sample (default 10%)
+  debug: false             # enable Sentry SDK debug output
+  release: ""              # optional: git commit or version tag
+```
+
+**Environment variables** (passed to operator and processor pods when `sentry.enabled` and `sentry.dsn` are set):
+
+| Variable | Description |
+|----------|-------------|
+| `SENTRY_DSN` | Sentry project DSN (required) |
+| `SENTRY_ENVIRONMENT` | Environment name (production, staging, etc.) |
+| `SENTRY_TRACES_SAMPLE_RATE` | Sampling rate for traces (0.0–1.0) |
+| `SENTRY_DEBUG` | Enable debug mode (`true`/`false`) |
+| `SENTRY_RELEASE` | Release version for grouping |
+
+The operator forwards `SENTRY_*` variables to processor pods, so they report to the same Sentry project. If `SENTRY_DSN` is empty, Sentry is not initialized.
+
 ## Prometheus query examples
 
 ### Messages per second per manifest
