@@ -8,7 +8,6 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 |-----------|--------|------|----------|
 | Kafka | ✅ | ✅ | Consumer groups, TLS, SASL, Avro, Schema Registry |
 | PostgreSQL | ✅ | ✅ | SQL queries, batch inserts, auto-create tables, UPSERT mode |
-| postgresFull | ✅ | ✅ | Full DB sync: schema (tables, views, indexes, functions) + data |
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
 | Nessie | ✅ | ✅ | Iceberg tables via Nessie catalog, branches, Basic/Bearer auth, polling, batch appends |
@@ -54,9 +53,6 @@ All connectors support secret references for the following fields:
 #### PostgreSQL
 - `connectionStringSecretRef` - connection string
 - `tableSecretRef` - table name
-
-#### postgresFull
-- `connectionStringSecretRef` - connection string (source and sink)
 
 #### ClickHouse
 - `connectionStringSecretRef` - connection string
@@ -447,66 +443,6 @@ sink:
 - **Raw Mode**: When true, expects `{"value": <data>, "_metadata": {...}}` and creates table with value/_metadata columns. When false, uses columnar format from message.
 - **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`)
 - **Soft Delete**: When `softDeleteColumn` is set and message has `metadata.operation=delete`, performs `UPDATE ... SET deleted_at = NOW()` instead of physical DELETE
-
-## postgresFull
-
-The postgresFull connector performs **full database synchronization** from a source PostgreSQL to a target PostgreSQL. It replicates schema (tables, views, materialized views, indexes, sequences, triggers, functions) and optionally data.
-
-### Features
-
-- **Schema sync**: Schemas, tables, views, materialized views, indexes, sequences, triggers, functions
-- **Data sync**: Optional data copy (schema_only or schema_and_data)
-- **ExcludeObjects**: Filter out object types (view, matview, function, trigger, index, sequence)
-- **Databases filter**: Sync specific objects in `schema.object` format
-- **ConnectionStringSecretRef**: Use Kubernetes secrets for credentials
-
-### Example
-
-```yaml
-apiVersion: dataflow.dataflow.io/v1
-kind: DataFlow
-metadata:
-  name: postgres-full-sync
-spec:
-  source:
-    type: postgresFull
-    config:
-      connectionString: "postgres://user:pass@source-pg:5432/db?sslmode=disable"
-      syncMode: full
-      dataMode: schema_and_data   # or schema_only
-      # databases: ["public.users", "analytics.mv_report"]  # optional filter
-      # excludeObjects: ["view", "function"]               # optional exclude
-  sink:
-    type: postgresFull
-    config:
-      connectionString: "postgres://user:pass@target-pg:5432/db?sslmode=disable"
-```
-
-### Source Options
-
-| Option | Description |
-|--------|-------------|
-| connectionString | PostgreSQL connection string (required, or use connectionStringSecretRef) |
-| syncMode | `full` (default) or `incremental` |
-| dataMode | `schema_only` or `schema_and_data` (default) |
-| databases | List of `schema.object` to sync; empty = all |
-| excludeObjects | Exclude types: view, matview, function, trigger, index, sequence |
-| syncUsers | Sync roles (CREATE ROLE, without passwords) |
-| syncGrants | Sync grants (GRANT on objects) |
-
-### Sink Options
-
-| Option | Description |
-|--------|-------------|
-| connectionString | Target PostgreSQL connection string |
-| dropTarget | Drop objects on target before applying (use with caution) |
-
-### Requirements
-
-- PostgreSQL 12+ on source and target
-- Source: SELECT on pg_catalog, USAGE on schemas, SELECT on tables
-- Target: CREATE, INSERT, and DDL privileges
-- For data sync with FK: uses `session_replication_role = replica` during insert
 
 ## ClickHouse
 
@@ -909,7 +845,9 @@ For configuration, error message structure, and error types, see [Error Handling
 
 ### Spec-level settings
 
-- **channelBufferSize** (default 100): Buffer size for message channels between source, processor, and sink. For high Kafka throughput (tens of thousands msg/s), increase to 500–1000 to reduce blocking when the sink is slower than the source.
+#### channelBufferSize
+
+Buffer size for message channels between source, processor, and sink (default 100). For high Kafka throughput (tens of thousands msg/s), increase to 500–1000 to reduce blocking when the sink is slower than the source.
 
 ### Kafka
 
