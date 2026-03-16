@@ -240,6 +240,28 @@ kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 
 For supported fields, TLS certificates, and troubleshooting, see [Using Kubernetes Secrets](connectors.md#using-kubernetes-secrets).
 
+## High-Throughput Kafka Pipeline
+
+For high Kafka message rates (tens of thousands msg/s), increase `channelBufferSize` and sink `batchSize`:
+
+```yaml
+spec:
+  channelBufferSize: 500   # default 100; reduces blocking when sink is slower than source
+  source:
+    type: kafka
+    config:
+      brokers: [localhost:9092]
+      topic: high-volume-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: postgresql
+    config:
+      connectionString: "..."
+      table: events
+      batchSize: 500
+      batchFlushIntervalSeconds: 2
+```
+
 ## Configuring Pod Resources and Placement
 
 Each DataFlow resource creates a separate pod (Deployment) for processing. You can configure resources, node selection, affinity, and tolerations for these pods.

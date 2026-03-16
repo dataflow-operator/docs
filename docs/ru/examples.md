@@ -644,6 +644,28 @@ status:
 - Настройте правильные consumer groups для Kafka
 - Мониторьте статус DataFlow ресурсов
 
+## Высоконагруженный Kafka-пайплайн
+
+При высокой скорости сообщений Kafka (десятки тысяч msg/s) увеличьте `channelBufferSize` и `batchSize` в sink:
+
+```yaml
+spec:
+  channelBufferSize: 500   # по умолчанию 100; снижает блокировки, когда sink медленнее source
+  source:
+    type: kafka
+    config:
+      brokers: [localhost:9092]
+      topic: high-volume-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: postgresql
+    config:
+      connectionString: "..."
+      table: events
+      batchSize: 500
+      batchFlushIntervalSeconds: 2
+```
+
 ## Настройка ресурсов и размещения подов
 
 Каждый ресурс DataFlow создает отдельный под (Deployment) для обработки данных. Вы можете настроить ресурсы, выбор нод, affinity и tolerations для этих подов.

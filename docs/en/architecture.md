@@ -55,6 +55,7 @@ Transformations are applied in order: `timestamp`, `flatten`, `filter`, `mask`, 
   - **Resources**: optional CPU/memory for the processor pod.
   - **Scheduling**: optional `nodeSelector`, `affinity`, `tolerations`.
   - **CheckpointPersistence**: optional; defaults to `true`. When enabled, polling sources (PostgreSQL, ClickHouse, Trino) persist read position to a ConfigMap, reducing duplicates on restart. Set to `false` to disable.
+  - **ChannelBufferSize**: optional; defaults to `100`. Buffer size for message channels between source, processor, and sink. Use 500–1000 for high Kafka throughput to reduce blocking when the sink is slower than the source.
 
 Secrets can be referenced via `SecretRef` in the spec; the operator resolves them before writing the spec into the ConfigMap.
 
@@ -77,6 +78,7 @@ flowchart TB
     Resources["resources (optional)"]
     Scheduling["scheduling (optional)"]
     Checkpoint["checkpointPersistence (optional)"]
+    ChannelBuffer["channelBufferSize (optional)"]
     Image["processorImage / processorVersion (optional)"]
   end
 
@@ -91,6 +93,7 @@ flowchart TB
   Spec --> Resources
   Spec --> Scheduling
   Spec --> Checkpoint
+  Spec --> ChannelBuffer
   Spec --> Image
 ```
 

@@ -55,6 +55,7 @@ flowchart LR
   - **Resources**: опциональные CPU/память для пода процессора.
   - **Scheduling**: опционально `nodeSelector`, `affinity`, `tolerations`.
   - **CheckpointPersistence**: опционально; по умолчанию `true`. При включении polling-источники (PostgreSQL, ClickHouse, Trino) сохраняют позицию чтения в ConfigMap, уменьшая дубликаты при перезапуске. Задайте `false` для отключения.
+  - **ChannelBufferSize**: опционально; по умолчанию `100`. Размер буфера каналов между source, processor и sink. Используйте 500–1000 при высокой нагрузке Kafka, чтобы снизить блокировки, когда sink медленнее source.
 
 Секреты задаются через `SecretRef` в spec; оператор подставляет их перед записью spec в ConfigMap.
 
@@ -77,6 +78,7 @@ flowchart TB
     Resources["resources (опционально)"]
     Scheduling["scheduling (опционально)"]
     Checkpoint["checkpointPersistence (опционально)"]
+    ChannelBuffer["channelBufferSize (опционально)"]
     Image["processorImage / processorVersion (опционально)"]
   end
 
@@ -91,6 +93,7 @@ flowchart TB
   Spec --> Resources
   Spec --> Scheduling
   Spec --> Checkpoint
+  Spec --> ChannelBuffer
   Spec --> Image
 ```
 

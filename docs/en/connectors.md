@@ -905,3 +905,38 @@ DataFlow Operator supports configuring a separate sink for messages that failed 
 
 For configuration, error message structure, and error types, see [Error Handling](errors.md).
 
+## Performance Recommendations
+
+### Spec-level settings
+
+- **channelBufferSize** (default 100): Buffer size for message channels between source, processor, and sink. For high Kafka throughput (tens of thousands msg/s), increase to 500–1000 to reduce blocking when the sink is slower than the source.
+
+### Kafka
+
+- Use multiple brokers for fault tolerance
+- Configure an appropriate consumer group size for parallel processing
+- Use batch writes for higher throughput
+
+### PostgreSQL
+
+- Increase `batchSize` for the sink (recommended 50–100)
+- Add indexes on frequently queried columns
+- Tune `pollInterval` based on data update frequency
+
+## Troubleshooting
+
+### Connection issues
+
+1. Verify data source accessibility from the cluster
+2. Ensure credentials are correct
+3. Check Kubernetes network policies
+4. For TLS, verify certificates
+
+### Performance issues
+
+1. Increase `channelBufferSize` (500–1000) for high Kafka load
+2. Increase batch sizes for sinks
+3. Tune `pollInterval` for sources
+4. Scale operator instances if needed
+5. Monitor message processing metrics
+
