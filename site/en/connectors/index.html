@@ -1,0 +1,3316 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Kubernetes operator for data flow between different sources">
+      
+      
+        <meta name="author" content="DataFlow Team">
+      
+      
+        <link rel="canonical" href="https://dataflow-operator.github.io/docs/en/connectors/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../transformations/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../images/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Connectors - DataFlow Operator Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#connectors" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DataFlow Operator Documentation" class="md-header__button md-logo" aria-label="DataFlow Operator Documentation" data-md-component="logo">
+      
+  <img src="../../images/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DataFlow Operator Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Connectors
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Connectors
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../transformations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Transformations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../examples/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Examples
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../errors/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Errors
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../fault-tolerance/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Fault Tolerance
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../metrics/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Metrics
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../gui/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Web GUI
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../kubernetes-events/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Kubernetes Events
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../mcp/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  MCP
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../semver-release/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Release Process
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../connector-development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Connector Development
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../connector-protocol/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Connector Protocol (stdin/stdout)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../---" class="md-tabs__link">
+        
+  
+  
+    
+  
+  None
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../ru/" class="md-tabs__link">
+          
+  
+  
+  Русский
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DataFlow Operator Documentation" class="md-nav__button md-logo" aria-label="DataFlow Operator Documentation" data-md-component="logo">
+      
+  <img src="../../images/logo.svg" alt="logo">
+
+    </a>
+    DataFlow Operator Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#connector-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connector Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-kubernetes-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Kubernetes Secrets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using Kubernetes Secrets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secretref-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SecretRef Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported Fields
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported Fields">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kafka" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kafka
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clickhouse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ClickHouse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nessie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-kafka-with-sasl-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Kafka with SASL Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-postgresql-with-connection-string-from-secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: PostgreSQL with Connection String from Secret
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#priority-of-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Priority of Values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secrets-in-different-namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secrets in Different Namespaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tls-certificates-from-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS Certificates from Secrets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#secret-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secret Not Found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-not-found-in-secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Not Found in Secret
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#secret-resolution-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Secret Resolution Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tls-certificate-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS Certificate Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kafka_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kafka
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Kafka">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postgresql_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PostgreSQL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clickhouse_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ClickHouse
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ClickHouse">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink-features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resilience-and-fault-tolerance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resilience and Fault Tolerance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-kafka-to-clickhouse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Kafka to ClickHouse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-clickhouse-to-clickhouse-schema-replication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: ClickHouse to ClickHouse (schema replication)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trino_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trino">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#obtaining-a-token-from-keycloak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Obtaining a Token from Keycloak
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-kafka-to-trino-with-keycloak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Kafka to Trino with Keycloak
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nessie_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Nessie">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#source_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sink_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sink
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-kafka-to-nessie-iceberg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Kafka to Nessie (Iceberg)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-sink" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Sink
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Recommendations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Recommendations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spec-level-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec-level settings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spec-level settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#channelbuffersize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        channelBufferSize
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kafka_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kafka
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transformations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transformations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fault-tolerance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fault Tolerance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kubernetes-events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kubernetes Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semver-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Protocol (stdin/stdout)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../---" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Русский
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Русский
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Начало работы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Архитектура
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Коннекторы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/transformations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Трансформации
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Примеры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обработка ошибок
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/fault-tolerance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Отказоустойчивость
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Метрики
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/kubernetes-events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    События Kubernetes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Разработка
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/semver-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/connector-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Разработка коннекторов
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ru/connector-protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Протокол коннекторов (stdin/stdout)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="connectors">Connectors</h1>
+<p>DataFlow Operator supports various connectors for data sources and sinks. Each connector implements a standard interface and can be used as a data source (source) or sink.</p>
+<h2 id="connector-overview">Connector Overview</h2>
+<table>
+<thead>
+<tr>
+<th>Connector</th>
+<th>Source</th>
+<th>Sink</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kafka</td>
+<td>✅</td>
+<td>✅</td>
+<td>Consumer groups, TLS, SASL, Avro, Schema Registry</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>✅</td>
+<td>✅</td>
+<td>SQL queries, batch inserts, auto-create tables, UPSERT mode</td>
+</tr>
+<tr>
+<td>Trino</td>
+<td>✅</td>
+<td>✅</td>
+<td>SQL queries, Keycloak OAuth2 authentication, batch inserts</td>
+</tr>
+<tr>
+<td>ClickHouse</td>
+<td>✅</td>
+<td>✅</td>
+<td>Polling, batch inserts, auto-create MergeTree tables</td>
+</tr>
+<tr>
+<td>Nessie</td>
+<td>✅</td>
+<td>✅</td>
+<td>Iceberg tables via Nessie catalog, branches, Basic/Bearer auth, polling, batch appends</td>
+</tr>
+</tbody>
+</table>
+<h2 id="using-kubernetes-secrets">Using Kubernetes Secrets</h2>
+<p>DataFlow Operator supports configuring connectors from Kubernetes Secrets. This allows secure storage of sensitive data (passwords, tokens, connection strings) without explicitly specifying them in the DataFlow specification.</p>
+<h3 id="overview">Overview</h3>
+<p>Instead of specifying values directly in the configuration, you can use references to Kubernetes Secrets through <code>*SecretRef</code> fields. The operator automatically reads values from secrets and substitutes them into connector configuration.</p>
+<h3 id="secretref-structure">SecretRef Structure</h3>
+<p>Each secret reference has the following structure:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">secretRef</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-secret</span><span class="w">          </span><span class="c1"># Secret name (required)</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-namespace</span><span class="w">  </span><span class="c1"># Secret namespace (optional, defaults to DataFlow namespace)</span>
+<span class="w">  </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-key</span><span class="w">              </span><span class="c1"># Key in secret (required)</span>
+</code></pre></div>
+<h3 id="supported-fields">Supported Fields</h3>
+<p>All connectors support secret references for the following fields:</p>
+<h4 id="kafka">Kafka</h4>
+<ul>
+<li><code>brokersSecretRef</code> - broker list (comma-separated)</li>
+<li><code>topicSecretRef</code> - topic name</li>
+<li><code>consumerGroupSecretRef</code> - consumer group</li>
+<li><code>sasl.usernameSecretRef</code> - SASL username</li>
+<li><code>sasl.passwordSecretRef</code> - SASL password</li>
+<li><code>tls.certSecretRef</code> - client certificate</li>
+<li><code>tls.keySecretRef</code> - private key</li>
+<li><code>tls.caSecretRef</code> - CA certificate</li>
+<li><code>schemaRegistry.urlSecretRef</code> - Schema Registry URL</li>
+<li><code>schemaRegistry.basicAuth.usernameSecretRef</code> - Schema Registry username</li>
+<li><code>schemaRegistry.basicAuth.passwordSecretRef</code> - Schema Registry password</li>
+<li><code>avroSchemaSecretRef</code> - Avro schema from secret (for static schema)</li>
+</ul>
+<h4 id="postgresql">PostgreSQL</h4>
+<ul>
+<li><code>connectionStringSecretRef</code> - connection string</li>
+<li><code>tableSecretRef</code> - table name</li>
+</ul>
+<h4 id="clickhouse">ClickHouse</h4>
+<ul>
+<li><code>connectionStringSecretRef</code> - connection string</li>
+<li><code>tableSecretRef</code> - table name</li>
+</ul>
+<h4 id="trino">Trino</h4>
+<ul>
+<li><code>serverURLSecretRef</code> - Trino server URL</li>
+<li><code>catalogSecretRef</code> - catalog name</li>
+<li><code>schemaSecretRef</code> - schema name</li>
+<li><code>tableSecretRef</code> - table name</li>
+<li><code>keycloak.serverURLSecretRef</code> - Keycloak server URL</li>
+<li><code>keycloak.realmSecretRef</code> - Keycloak realm name</li>
+<li><code>keycloak.clientIDSecretRef</code> - OAuth2 client ID</li>
+<li><code>keycloak.clientSecretSecretRef</code> - OAuth2 client secret</li>
+<li><code>keycloak.usernameSecretRef</code> - username for password grant</li>
+<li><code>keycloak.passwordSecretRef</code> - password for password grant</li>
+<li><code>keycloak.tokenSecretRef</code> - OAuth2 token (for long-lived tokens)</li>
+</ul>
+<h4 id="nessie">Nessie</h4>
+<ul>
+<li><code>baseURLSecretRef</code> - Nessie server base URL</li>
+<li><code>tokenSecretRef</code> - Bearer token for Nessie/Iceberg REST</li>
+<li><code>namespaceSecretRef</code> - namespace (schema) name</li>
+<li><code>tableSecretRef</code> - table name</li>
+</ul>
+<h3 id="usage-examples">Usage Examples</h3>
+<h4 id="example-1-kafka-with-sasl-authentication">Example 1: Kafka with SASL Authentication</h4>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-credentials</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">stringData</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">brokers</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;kafka1:9092,kafka2:9092,kafka3:9092&quot;</span>
+<span class="w">  </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;input-topic&quot;</span>
+<span class="w">  </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;dataflow-group&quot;</span>
+<span class="w">  </span><span class="nt">username</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;kafka-user&quot;</span>
+<span class="w">  </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;kafka-password&quot;</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-example</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">brokersSecretRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-credentials</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">brokers</span>
+<span class="w">      </span><span class="nt">topicSecretRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-credentials</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">topic</span>
+<span class="w">      </span><span class="nt">consumerGroupSecretRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-credentials</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">consumerGroup</span>
+<span class="w">      </span><span class="nt">sasl</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">mechanism</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;scram-sha-256&quot;</span>
+<span class="w">        </span><span class="nt">usernameSecretRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-credentials</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">username</span>
+<span class="w">        </span><span class="nt">passwordSecretRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-credentials</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">password</span>
+</code></pre></div>
+<h4 id="example-2-postgresql-with-connection-string-from-secret">Example 2: PostgreSQL with Connection String from Secret</h4>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres-credentials</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">stringData</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;postgres://user:password@postgres:5432/dbname?sslmode=disable&quot;</span>
+<span class="w">  </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;output_table&quot;</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres-example</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgresql</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">connectionStringSecretRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres-credentials</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">connectionString</span>
+<span class="w">      </span><span class="nt">tableSecretRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres-credentials</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">table</span>
+</code></pre></div>
+<h3 id="priority-of-values">Priority of Values</h3>
+<p>If both a direct value and <code>SecretRef</code> are specified, <code>SecretRef</code> takes priority. The value from the secret will be used instead of the direct value.</p>
+<h3 id="secrets-in-different-namespaces">Secrets in Different Namespaces</h3>
+<p>By default, the operator looks for secrets in the same namespace where the DataFlow resource is located. You can specify a different namespace:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">connectionStringSecretRef</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres-credentials</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">shared-secrets</span>
+<span class="w">  </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">connectionString</span>
+</code></pre></div>
+<h3 id="tls-certificates-from-secrets">TLS Certificates from Secrets</h3>
+<p>For TLS configuration, the operator automatically determines whether the value from the secret is a file path or certificate content.</p>
+<p><strong>How it works:</strong>
+- If the value starts with <code>-----BEGIN</code> (e.g., <code>-----BEGIN CERTIFICATE-----</code> or <code>-----BEGIN PRIVATE KEY-----</code>), the operator recognizes it as certificate content and creates a temporary file
+- If the value doesn't start with <code>-----BEGIN</code> and exists as a file, it's used as a file path
+- If the value doesn't start with <code>-----BEGIN</code> and the file doesn't exist, it's also treated as certificate content</p>
+<p><strong>Supported formats:</strong>
+1. <strong>Certificate content</strong> (PEM format) - stored in <code>stringData</code> or decoded from <code>data</code>
+2. <strong>Base64-encoded content</strong> - stored in secret's <code>data</code> field (Kubernetes automatically decodes it)
+3. <strong>File path</strong> - path to an existing certificate file</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-tls-certs</span>
+<span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Opaque</span>
+<span class="nt">stringData</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ca.crt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">-----BEGIN CERTIFICATE-----</span>
+<span class="w">    </span><span class="no">...</span>
+<span class="w">    </span><span class="no">-----END CERTIFICATE-----</span>
+<span class="w">  </span><span class="nt">client.crt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">-----BEGIN CERTIFICATE-----</span>
+<span class="w">    </span><span class="no">...</span>
+<span class="w">    </span><span class="no">-----END CERTIFICATE-----</span>
+<span class="w">  </span><span class="nt">client.key</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">-----BEGIN PRIVATE KEY-----</span>
+<span class="w">    </span><span class="no">...</span>
+<span class="w">    </span><span class="no">-----END PRIVATE KEY-----</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-tls-example</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secure-kafka:9093</span>
+<span class="w">      </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secure-topic</span>
+<span class="w">      </span><span class="nt">tls</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">caSecretRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-tls-certs</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ca.crt</span>
+<span class="w">        </span><span class="nt">certSecretRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-tls-certs</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">client.crt</span>
+<span class="w">        </span><span class="nt">keySecretRef</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-tls-certs</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">client.key</span>
+</code></pre></div>
+<p><strong>Important:</strong>
+- Temporary files are automatically created for certificate content and cleaned up after use
+- When using base64-encoded values in the <code>data</code> field, Kubernetes automatically decodes them when reading
+- Ensure certificates are in proper PEM format with <code>-----BEGIN</code> and <code>-----END</code> headers</p>
+<h3 id="security">Security</h3>
+<ul>
+<li><strong>RBAC</strong>: The operator requires permissions to read secrets (<code>get</code>, <code>list</code>, <code>watch</code>)</li>
+<li><strong>Isolation</strong>: Secrets should be in the same namespace or in a namespace the operator has access to</li>
+<li><strong>Temporary Files</strong>: For TLS certificates, the operator creates temporary files that are automatically deleted</li>
+</ul>
+<h3 id="troubleshooting">Troubleshooting</h3>
+<h4 id="secret-not-found">Secret Not Found</h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Check if secret exists</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>&lt;secret-name&gt;<span class="w"> </span>-n<span class="w"> </span>&lt;namespace&gt;
+
+<span class="c1"># Check operator permissions</span>
+kubectl<span class="w"> </span>auth<span class="w"> </span>can-i<span class="w"> </span>get<span class="w"> </span>secrets<span class="w"> </span>--as<span class="o">=</span>system:serviceaccount:default:dataflow-operator
+</code></pre></div>
+<h4 id="key-not-found-in-secret">Key Not Found in Secret</h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Check keys in secret</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>&lt;secret-name&gt;<span class="w"> </span>-n<span class="w"> </span>&lt;namespace&gt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;keys&#39;</span>
+</code></pre></div>
+<h4 id="secret-resolution-error">Secret Resolution Error</h4>
+<p>Check operator logs:</p>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>logs<span class="w"> </span>-l<span class="w"> </span>app.kubernetes.io/name<span class="o">=</span>dataflow-operator<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>secret
+</code></pre></div>
+<p>Ensure:
+1. Secret exists in the specified namespace
+2. The specified key exists in the secret
+3. The operator has permissions to read secrets</p>
+<h4 id="tls-certificate-issues">TLS Certificate Issues</h4>
+<p>If you encounter errors with TLS certificates:</p>
+<ol>
+<li><strong>"file name too long" error</strong>: Ensure the certificate is stored correctly in the secret:</li>
+<li>If using <code>stringData</code>, the certificate should be in PEM format with <code>-----BEGIN</code> and <code>-----END</code> headers</li>
+<li>If using <code>data</code> (base64), ensure the value is correctly encoded</li>
+<li>
+<p>The operator automatically detects certificate content by the <code>-----BEGIN</code> prefix</p>
+</li>
+<li>
+<p><strong>"failed to read CA file" error</strong>: Check the certificate format:
+   <div class="highlight"><pre><span></span><code><span class="c1"># Check secret content</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>&lt;secret-name&gt;<span class="w"> </span>-n<span class="w"> </span>&lt;namespace&gt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.ca\.crt}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d
+</code></pre></div>
+   Ensure the certificate starts with <code>-----BEGIN CERTIFICATE-----</code></p>
+</li>
+<li>
+<p><strong>Temporary file creation error</strong>: Check operator permissions to create files in the temporary directory</p>
+</li>
+</ol>
+<h2 id="kafka_1">Kafka</h2>
+<p>The Kafka connector supports reading and writing messages from/to Apache Kafka topics. It supports consumer groups for scaling, TLS and SASL authentication, as well as Avro format through Confluent Schema Registry or static schema.</p>
+<h3 id="source">Source</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka1:9092</span>
+<span class="w">    </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">input-topic</span>
+<span class="w">    </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-group</span>
+
+<span class="w">    </span><span class="c1"># Message format (optional, default: &quot;json&quot;)</span>
+<span class="w">    </span><span class="c1"># Supported formats: &quot;json&quot;, &quot;avro&quot;</span>
+<span class="w">    </span><span class="nt">format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">json</span>
+
+<span class="w">    </span><span class="c1"># Avro configuration (required if format: &quot;avro&quot;)</span>
+<span class="w">    </span><span class="c1"># Option 1: Use Confluent Schema Registry (recommended)</span>
+<span class="w">    </span><span class="nt">schemaRegistry</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://schema-registry:8081</span>
+<span class="w">      </span><span class="nt">basicAuth</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">username</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">schema-user</span>
+<span class="w">        </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">schema-password</span>
+<span class="w">      </span><span class="nt">tls</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">insecureSkipVerify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">        </span><span class="nt">caFile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/schema-registry-ca.crt</span>
+
+<span class="w">    </span><span class="c1"># Option 2: Static Avro schema (alternative to Schema Registry)</span>
+<span class="w">    </span><span class="c1"># avroSchema: |</span>
+<span class="w">    </span><span class="c1">#   {</span>
+<span class="w">    </span><span class="c1">#     &quot;type&quot;: &quot;record&quot;,</span>
+<span class="w">    </span><span class="c1">#     &quot;name&quot;: &quot;MyRecord&quot;,</span>
+<span class="w">    </span><span class="c1">#     &quot;fields&quot;: [</span>
+<span class="w">    </span><span class="c1">#       {&quot;name&quot;: &quot;id&quot;, &quot;type&quot;: &quot;long&quot;},</span>
+<span class="w">    </span><span class="c1">#       {&quot;name&quot;: &quot;name&quot;, &quot;type&quot;: &quot;string&quot;}</span>
+<span class="w">    </span><span class="c1">#     ]</span>
+<span class="w">    </span><span class="c1">#   }</span>
+<span class="w">    </span><span class="c1"># Or path to schema file:</span>
+<span class="w">    </span><span class="c1"># avroSchemaFile: /path/to/schema.avsc</span>
+</code></pre></div>
+<h3 id="features">Features</h3>
+<ul>
+<li><strong>Consumer Groups</strong>: Use different consumer groups for scaling processing</li>
+<li><strong>Initial Offset</strong>: Reads from oldest message by default (<code>OffsetOldest</code>)</li>
+<li><strong>Data Formats</strong>: Supports JSON (default) and Avro formats</li>
+<li><strong>Avro Support</strong>:</li>
+<li><strong>Confluent Schema Registry</strong>: Automatic schema retrieval by ID from messages (format: magic byte + schema ID + data)</li>
+<li><strong>Static Schema</strong>: Use predefined schema from configuration or file</li>
+<li><strong>Schema Caching</strong>: Schemas from Schema Registry are cached for performance</li>
+<li><strong>Metadata</strong>: Each message contains metadata:</li>
+<li><code>topic</code> - topic name</li>
+<li><code>partition</code> - partition number</li>
+<li><code>offset</code> - message offset</li>
+<li><code>key</code> - message key (if present)</li>
+</ul>
+<h3 id="sink">Sink</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">sink</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka1:9092</span>
+<span class="w">    </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">output-topic</span>
+<span class="w">    </span><span class="c1"># TLS and SASL configuration similar to source</span>
+</code></pre></div>
+<h2 id="postgresql_1">PostgreSQL</h2>
+<p>The PostgreSQL connector supports reading from and writing to PostgreSQL tables. It supports custom SQL queries, periodic polling, batch inserts, auto-create tables, UPSERT mode, CDC-style change tracking (inserts and updates), soft delete, and SecretRef for credentials.</p>
+<h3 id="source_1">Source</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgresql</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Connection string (required, or use connectionStringSecretRef)</span>
+<span class="w">    </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;postgres://user:password@localhost:5432/dbname?sslmode=disable&quot;</span>
+<span class="w">    </span><span class="c1"># Table to read from (required if query not specified). Supports schema.table (e.g. public.products)</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">source_table</span>
+
+<span class="w">    </span><span class="c1"># Custom SQL query (optional)</span>
+<span class="w">    </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;SELECT</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">FROM</span><span class="nv"> </span><span class="s">source_table</span><span class="nv"> </span><span class="s">WHERE</span><span class="nv"> </span><span class="s">updated_at</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">NOW()</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">INTERVAL</span><span class="nv"> </span><span class="s">&#39;1</span><span class="nv"> </span><span class="s">hour&#39;&quot;</span>
+<span class="w">    </span><span class="c1"># Poll interval in seconds (optional, default: 5)</span>
+<span class="w">    </span><span class="nt">pollInterval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+
+<span class="w">    </span><span class="c1"># CDC-style options (optional)</span>
+<span class="w">    </span><span class="nt">readBatchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span><span class="w">           </span><span class="c1"># Limit rows per poll to reduce DB load (0 = no limit)</span>
+<span class="w">    </span><span class="nt">changeTrackingColumn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">updated_at</span><span class="w">  </span><span class="c1"># Column to track changes (default: updated_at). Not used when query is specified</span>
+<span class="w">    </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">         </span><span class="c1"># Create table if it doesn&#39;t exist before reading</span>
+
+<span class="w">    </span><span class="c1"># SecretRef (optional) - use instead of direct values</span>
+<span class="w">    </span><span class="c1"># connectionStringSecretRef:</span>
+<span class="w">    </span><span class="c1">#   name: postgres-credentials</span>
+<span class="w">    </span><span class="c1">#   key: connectionString</span>
+<span class="w">    </span><span class="c1"># tableSecretRef:</span>
+<span class="w">    </span><span class="c1">#   name: postgres-credentials</span>
+<span class="w">    </span><span class="c1">#   key: table</span>
+</code></pre></div>
+<h3 id="source-features">Source Features</h3>
+<ul>
+<li><strong>Periodic Polling</strong>: Regularly polls the table for new data</li>
+<li><strong>Custom Queries</strong>: Support for complex SQL with JOIN, WHERE, etc.</li>
+<li><strong>Metadata</strong>: Each message contains <code>table</code> metadata and <code>operation</code> (insert/update)</li>
+<li><strong>Read Batch Size</strong>: Limits rows per poll to reduce database load when many new records appear</li>
+<li><strong>Change Tracking</strong>: By default tracks changes via <code>updated_at</code> column (or <code>changeTrackingColumn</code>), captures both INSERTs and UPDATEs</li>
+<li><strong>Auto-create Table</strong>: When <code>autoCreateTable: true</code>, creates the table with CDC-friendly schema (<code>id SERIAL PRIMARY KEY</code>, <code>created_at</code>, <code>updated_at</code>) if it doesn't exist. Creation happens at Connect time.</li>
+<li><strong>Schema notation</strong>: Table name supports <code>schema.table</code> format (e.g. <code>public.products</code>)</li>
+<li><strong>Checkpoint persistence</strong>: By default, read position (lastReadChangeTime) is persisted to ConfigMap; on restart, reading resumes from the last position. Set <code>checkpointPersistence: false</code> in spec to store only in memory. For pg→pg flows, enable <code>upsertMode: true</code> in sink to update duplicates instead of inserting them again.</li>
+</ul>
+<h3 id="sink_1">Sink</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">sink</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgresql</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;postgres://user:password@localhost:5432/dbname?sslmode=disable&quot;</span>
+<span class="w">    </span><span class="c1"># Table to write to. Supports schema.table (e.g. public.products_clone)</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">target_table</span>
+
+<span class="w">    </span><span class="c1"># Batch size (optional, default: 1). 0 = flush only by timer</span>
+<span class="w">    </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">    </span><span class="c1"># Flush interval in seconds (optional, default: 10). 0 = disable timer</span>
+<span class="w">    </span><span class="nt">batchFlushIntervalSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">    </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">    </span><span class="c1"># Raw mode (optional, default: false)</span>
+<span class="w">    </span><span class="c1"># When true, expects messages in format {&quot;value&quot;: &lt;data&gt;, &quot;_metadata&quot;: {...}}</span>
+<span class="w">    </span><span class="c1"># Table is created with value JSONB and _metadata JSONB columns</span>
+<span class="w">    </span><span class="nt">rawMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+
+<span class="w">    </span><span class="c1"># UPSERT mode (optional, default: false)</span>
+<span class="w">    </span><span class="nt">upsertMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">conflictKey</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;id&quot;</span>
+<span class="w">    </span><span class="c1"># Soft delete column (optional). When set, DELETE operations UPDATE this column instead of physical delete</span>
+<span class="w">    </span><span class="nt">softDeleteColumn</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;deleted_at&quot;</span>
+
+<span class="w">    </span><span class="c1"># SecretRef (optional)</span>
+<span class="w">    </span><span class="c1"># connectionStringSecretRef: { name: postgres-credentials, key: connectionString }</span>
+<span class="w">    </span><span class="c1"># tableSecretRef: { name: postgres-credentials, key: table }</span>
+</code></pre></div>
+<h3 id="sink-features">Sink Features</h3>
+<ul>
+<li><strong>Batch Inserts</strong>: Groups messages for efficient writing. Flush when <code>batchSize</code> reached or on timer. Use <code>batchFlushIntervalSeconds: 0</code> for size-only flush; <code>batchSize: 0</code> for timer-only flush.</li>
+<li><strong>Auto-create Tables</strong> (when <code>autoCreateTable: true</code>):</li>
+<li><strong>rawMode: true</strong> — table is created at Connect time. Schema: <code>id SERIAL PRIMARY KEY</code>, <code>value</code> JSONB, <code>_metadata</code> JSONB, <code>created_at</code>, <code>updated_at</code>, <code>deleted_at</code>, GIN index on <code>value</code></li>
+<li><strong>rawMode: false</strong> — table is created at first write from the first message structure (replicates source schema). Column types are inferred automatically (TEXT, BIGINT, NUMERIC, JSONB, etc.)</li>
+<li><strong>Raw Mode</strong>: When true, expects <code>{"value": &lt;data&gt;, "_metadata": {...}}</code> and creates table with value/_metadata columns. When false, uses columnar format from message.</li>
+<li><strong>UPSERT Mode</strong>: Updates existing records on conflict (PRIMARY KEY or <code>conflictKey</code>)</li>
+<li><strong>Soft Delete</strong>: When <code>softDeleteColumn</code> is set and message has <code>metadata.operation=delete</code>, performs <code>UPDATE ... SET deleted_at = NOW()</code> instead of physical DELETE</li>
+</ul>
+<h2 id="clickhouse_1">ClickHouse</h2>
+<p>The ClickHouse connector supports reading from and writing to ClickHouse tables. It supports polling for incremental reads, custom SQL queries, batch inserts, and auto-creation of MergeTree tables.</p>
+<h3 id="source_2">Source</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">clickhouse</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Connection string (required)</span>
+<span class="w">    </span><span class="c1"># Native: clickhouse://host:9000?username=default&amp;password=xxx&amp;database=default</span>
+<span class="w">    </span><span class="c1"># HTTP: http://host:8123/default?username=default&amp;password=xxx</span>
+<span class="w">    </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;clickhouse://default@clickhouse:9000/default?dial_timeout=10s&quot;</span>
+
+<span class="w">    </span><span class="c1"># Table to read from (required, if not using query)</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">source_table</span>
+
+<span class="w">    </span><span class="c1"># Custom SQL query (optional)</span>
+<span class="w">    </span><span class="c1"># If specified, used instead of reading from table</span>
+<span class="w">    </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;SELECT</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">FROM</span><span class="nv"> </span><span class="s">source_table</span><span class="nv"> </span><span class="s">WHERE</span><span class="nv"> </span><span class="s">id</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">100&quot;</span>
+
+<span class="w">    </span><span class="c1"># Poll interval in seconds (optional, default: 5)</span>
+<span class="w">    </span><span class="nt">pollInterval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+</code></pre></div>
+<h3 id="source-features_1">Source Features</h3>
+<ul>
+<li><strong>Polling</strong>: Periodically polls the table for new data (interval set by <code>pollInterval</code>)</li>
+<li><strong>Incremental Reads</strong>: When <code>query</code> is not specified, uses <code>id</code> or <code>created_at</code> columns to filter already-read rows (<code>WHERE id &gt; lastReadID</code> or <code>WHERE created_at &gt; lastReadTime</code>), avoiding duplicates on restart</li>
+<li><strong>Custom Queries</strong>: When <code>query</code> is specified, only that query is used; incremental logic is not applied</li>
+<li><strong>Metadata</strong>: Each message contains <code>table</code> and <code>id</code> (if column exists)</li>
+</ul>
+<h3 id="sink_2">Sink</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">sink</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">clickhouse</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;clickhouse://default@clickhouse:9000/default?dial_timeout=10s&quot;</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">output_table</span>
+
+<span class="w">    </span><span class="c1"># Batch size for inserts (optional, default: 100). 0 = flush only by timer</span>
+<span class="w">    </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">    </span><span class="c1"># Flush interval in seconds (optional, default: 10). 0 = disable timer</span>
+<span class="w">    </span><span class="nt">batchFlushIntervalSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+
+<span class="w">    </span><span class="c1"># Auto-create table (optional)</span>
+<span class="w">    </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">    </span><span class="c1"># rawMode: false (default) — creates table from first message structure (columnar, replicates source schema)</span>
+<span class="w">    </span><span class="c1"># rawMode: true — creates MergeTree table with data String, created_at columns (JSON storage)</span>
+<span class="w">    </span><span class="nt">rawMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</code></pre></div>
+<h3 id="sink-features_1">Sink Features</h3>
+<ul>
+<li><strong>Batch Inserts</strong>: Groups messages; flush when batch size or timer (10s) is reached. Size only: <code>batchFlushIntervalSeconds: 0</code>. Timer only: <code>batchSize: 0</code></li>
+<li><strong>Retry on Transient Errors</strong>: Batch writes automatically retry on connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503, and similar transient errors (up to 5 attempts with exponential backoff)</li>
+</ul>
+<h3 id="resilience-and-fault-tolerance">Resilience and Fault Tolerance</h3>
+<ul>
+<li><strong>Error sink</strong>: Use <code>spec.errors</code> with ClickHouse (or Kafka) to capture failed messages for replay or analysis. See <a href="../errors/">Error Handling</a>.</li>
+<li><strong>Connection string</strong>: Recommended parameters: <code>dial_timeout=10s</code>, <code>max_execution_time=60</code> (e.g. <code>clickhouse://host:9000/default?dial_timeout=10s&amp;max_execution_time=60</code>).</li>
+<li><strong>Batch tuning</strong>: For throughput and resilience, use <code>batchSize</code> 100–1000 and <code>batchFlushIntervalSeconds</code> 5–10. Larger batches reduce insert frequency and can help avoid TOO_MANY_PARTS.</li>
+<li><strong>TOO_MANY_PARTS</strong>: If you see this error, increase <code>batchSize</code>, decrease flush frequency, or tune ClickHouse merge settings (<code>background_pool_size</code>, <code>parts_to_throw_insert</code>). Consider <code>ReplacingMergeTree</code> for deduplication. See <a href="../fault-tolerance/">Fault Tolerance</a>.</li>
+<li><strong>Auto-create Tables</strong> (when <code>autoCreateTable: true</code>):</li>
+<li><strong>rawMode: true</strong> — table is created at Connect time. Schema: <code>data String</code>, <code>created_at DateTime DEFAULT now()</code>, MergeTree engine, ORDER BY created_at. Messages are stored as JSON string in <code>data</code> column</li>
+<li><strong>rawMode: false</strong> — table is created at first write from the first message structure. Column types are inferred automatically (String, Int32/Int64, Float64, Decimal, DateTime, etc.). Supports <code>{"value": {...}, "_metadata": {...}}</code> format — uses fields from <code>value</code></li>
+<li><strong>Raw Mode</strong>: When true, expects/stores JSON in <code>data</code> column. When false, uses columnar format from message (INSERT with named columns)</li>
+</ul>
+<h3 id="example-kafka-to-clickhouse">Example: Kafka to ClickHouse</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-to-clickhouse</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka:9092</span>
+<span class="w">      </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">input-topic</span>
+<span class="w">      </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow-group</span>
+<span class="w">  </span><span class="nt">sink</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">clickhouse</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;clickhouse://default@clickhouse:9000/default&quot;</span>
+<span class="w">      </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">output_table</span>
+<span class="w">      </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">      </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<h3 id="example-clickhouse-to-clickhouse-schema-replication">Example: ClickHouse to ClickHouse (schema replication)</h3>
+<p>With <code>autoCreateTable: true</code> and <code>rawMode: false</code>, the target table is created automatically from the source structure:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">clickhouse-to-clickhouse</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">clickhouse</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s&quot;</span>
+<span class="w">      </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">products</span>
+<span class="w">      </span><span class="nt">pollInterval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">  </span><span class="nt">sink</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">clickhouse</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">connectionString</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;clickhouse://dataflow:dataflow@localhost:9000/dataflow?dial_timeout=10s&quot;</span>
+<span class="w">      </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">products_clone</span>
+<span class="w">      </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">      </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<h2 id="trino_1">Trino</h2>
+<p>The Trino connector supports reading from and writing to Trino (formerly PrestoSQL) tables. It supports SQL queries, Keycloak OAuth2/OIDC authentication, and batch inserts.</p>
+<h3 id="source_3">Source</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trino</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Trino server URL (required)</span>
+<span class="w">    </span><span class="nt">serverURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://trino:8080&quot;</span>
+
+<span class="w">    </span><span class="c1"># Catalog to use (required)</span>
+<span class="w">    </span><span class="nt">catalog</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hive</span>
+
+<span class="w">    </span><span class="c1"># Schema to use (required)</span>
+<span class="w">    </span><span class="nt">schema</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+
+<span class="w">    </span><span class="c1"># Table to read from (required, if not using query)</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">source_table</span>
+
+<span class="w">    </span><span class="c1"># Custom SQL query (optional)</span>
+<span class="w">    </span><span class="c1"># If specified, used instead of reading from table</span>
+<span class="w">    </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;SELECT</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">FROM</span><span class="nv"> </span><span class="s">hive.default.source_table</span><span class="nv"> </span><span class="s">WHERE</span><span class="nv"> </span><span class="s">id</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">100&quot;</span>
+
+<span class="w">    </span><span class="c1"># Poll interval in seconds (optional, default: 5)</span>
+<span class="w">    </span><span class="c1"># Used for periodic reading of new data</span>
+<span class="w">    </span><span class="nt">pollInterval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+
+<span class="w">    </span><span class="c1"># Keycloak authentication (optional)</span>
+<span class="w">    </span><span class="nt">keycloak</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Option 1: Use long-lived token directly (recommended for long-lived tokens)</span>
+<span class="w">      </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...&quot;</span>
+
+<span class="w">      </span><span class="c1"># Option 2: Use OAuth2 flow (alternative to direct token)</span>
+<span class="w">      </span><span class="c1"># serverURL: &quot;https://keycloak.example.com&quot;</span>
+<span class="w">      </span><span class="c1"># realm: myrealm</span>
+<span class="w">      </span><span class="c1"># clientID: trino-client</span>
+<span class="w">      </span><span class="c1"># clientSecret: client-secret</span>
+<span class="w">      </span><span class="c1"># username: trino-user</span>
+<span class="w">      </span><span class="c1"># password: trino-password</span>
+</code></pre></div>
+<h3 id="features_1">Features</h3>
+<ul>
+<li><strong>SQL Queries</strong>: Support for custom SQL queries with WHERE, JOIN, etc.</li>
+<li><strong>Periodic Polling</strong>: Regularly polls tables for new data</li>
+<li><strong>Keycloak Authentication</strong>: OAuth2/OIDC authentication via Keycloak</li>
+<li><strong>Direct Token</strong>: Use a long-lived token obtained from Keycloak (recommended for long-lived tokens)</li>
+<li><strong>Password Grant</strong>: Use username/password for authentication</li>
+<li><strong>Client Credentials</strong>: Use client ID/secret for service-to-service authentication</li>
+<li><strong>Automatic Token Refresh</strong>: Tokens are automatically refreshed before expiration (only for OAuth2 flow, not for direct tokens)</li>
+<li><strong>Metadata</strong>: Each message contains metadata:</li>
+<li><code>catalog</code> - catalog name</li>
+<li><code>schema</code> - schema name</li>
+<li><code>table</code> - table name</li>
+</ul>
+<h4 id="obtaining-a-token-from-keycloak">Obtaining a Token from Keycloak</h4>
+<p>To use a long-lived token, you can obtain it from Keycloak using the following methods:</p>
+<p><strong>Method 1: Using curl (Password Grant)</strong>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;https://keycloak.example.com/realms/myrealm/protocol/openid-connect/token&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/x-www-form-urlencoded&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;grant_type=password&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;client_id=trino-client&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;client_secret=client-secret&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;username=trino-user&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;password=trino-password&quot;</span>
+</code></pre></div></p>
+<p><strong>Method 2: Using curl (Client Credentials)</strong>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;https://keycloak.example.com/realms/myrealm/protocol/openid-connect/token&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/x-www-form-urlencoded&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;grant_type=client_credentials&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;client_id=trino-client&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">&quot;client_secret=client-secret&quot;</span>
+</code></pre></div></p>
+<p>The response will contain an <code>access_token</code> field. Use this token value in the <code>token</code> field of the Keycloak configuration.</p>
+<p><strong>Note</strong>: For long-lived tokens, configure the token lifespan in Keycloak realm settings or client settings.</p>
+<h3 id="sink_3">Sink</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">sink</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trino</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Trino server URL (required)</span>
+<span class="w">    </span><span class="nt">serverURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://trino:8080&quot;</span>
+
+<span class="w">    </span><span class="c1"># Catalog to use (required)</span>
+<span class="w">    </span><span class="nt">catalog</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hive</span>
+
+<span class="w">    </span><span class="c1"># Schema to use (required)</span>
+<span class="w">    </span><span class="nt">schema</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+
+<span class="w">    </span><span class="c1"># Table to write to (required)</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">target_table</span>
+
+<span class="w">    </span><span class="c1"># Batch size for inserts (optional, default: 1). 0 = flush only by timer</span>
+<span class="w">    </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">    </span><span class="c1"># Flush interval in seconds (optional, default: 10). 0 = disable timer</span>
+<span class="w">    </span><span class="nt">batchFlushIntervalSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+
+<span class="w">    </span><span class="c1"># Auto-create table (optional, default: false)</span>
+<span class="w">    </span><span class="c1"># If true, creates table with VARCHAR column for JSON data</span>
+<span class="w">    </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">    </span><span class="c1"># Raw mode (optional, default: false)</span>
+<span class="w">    </span><span class="c1"># When true, creates table with data VARCHAR column; messages stored as JSON string</span>
+<span class="w">    </span><span class="c1"># When false, uses columnar format matching message keys to table columns</span>
+<span class="w">    </span><span class="nt">rawMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">    </span><span class="c1"># Keycloak authentication (optional)</span>
+<span class="w">    </span><span class="nt">keycloak</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">serverURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://keycloak.example.com&quot;</span>
+<span class="w">      </span><span class="nt">realm</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myrealm</span>
+<span class="w">      </span><span class="nt">clientID</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trino-client</span>
+<span class="w">      </span><span class="nt">clientSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">client-secret</span>
+<span class="w">      </span><span class="nt">username</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trino-user</span>
+<span class="w">      </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trino-password</span>
+</code></pre></div>
+<h3 id="features_2">Features</h3>
+<ul>
+<li><strong>Batch Inserts</strong>: Groups messages; flush when batch size or timer (10s) is reached. Size only: <code>batchFlushIntervalSeconds: 0</code>. Timer only: <code>batchSize: 0</code></li>
+<li><strong>Auto-create Tables</strong>: Automatically creates tables if they don't exist</li>
+<li><strong>Raw Mode</strong>: When <code>rawMode: true</code>, creates table with <code>data VARCHAR</code> column; messages stored as JSON string. When <code>false</code> (default), uses columnar format matching message keys to table columns</li>
+<li><strong>Keycloak Authentication</strong>: OAuth2/OIDC authentication via Keycloak</li>
+<li><strong>Automatic Token Refresh</strong>: Tokens are automatically refreshed</li>
+</ul>
+<h3 id="example-kafka-to-trino-with-keycloak">Example: Kafka to Trino with Keycloak</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-to-trino</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka:9092</span>
+<span class="w">      </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">input-topic</span>
+<span class="w">      </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow-group</span>
+<span class="w">  </span><span class="nt">sink</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trino</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">serverURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://trino:8080&quot;</span>
+<span class="w">      </span><span class="nt">catalog</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hive</span>
+<span class="w">      </span><span class="nt">schema</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="w">      </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">output_table</span>
+<span class="w">      </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">      </span><span class="nt">keycloak</span><span class="p">:</span>
+<span class="w">        </span><span class="c1"># Use long-lived token obtained from Keycloak</span>
+<span class="w">        </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...&quot;</span>
+
+<span class="w">        </span><span class="c1"># Alternative: Use OAuth2 flow</span>
+<span class="w">        </span><span class="c1"># serverURL: &quot;https://keycloak.example.com&quot;</span>
+<span class="w">        </span><span class="c1"># realm: myrealm</span>
+<span class="w">        </span><span class="c1"># clientID: trino-client</span>
+<span class="w">        </span><span class="c1"># clientSecret: client-secret</span>
+<span class="w">        </span><span class="c1"># username: trino-user</span>
+<span class="w">        </span><span class="c1"># password: trino-password</span>
+</code></pre></div>
+<h2 id="nessie_1">Nessie</h2>
+<p>The Nessie connector reads from and writes to Apache Iceberg tables via the <a href="https://projectnessie.org/">Nessie</a> catalog (Iceberg REST API). All operations are performed in the context of a Nessie branch; metadata and data are managed by the catalog.</p>
+<h3 id="source_4">Source</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">source</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nessie</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Nessie server base URL (required), e.g. https://nessie:19120</span>
+<span class="w">    </span><span class="nt">baseURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://nessie:19120&quot;</span>
+
+<span class="w">    </span><span class="c1"># Nessie branch to read from (optional, default: main)</span>
+<span class="w">    </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+
+<span class="w">    </span><span class="c1"># Warehouse name for storage location (optional), e.g. for /iceberg/|warehouse</span>
+<span class="w">    </span><span class="nt">warehouse</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+
+<span class="w">    </span><span class="c1"># Namespace (schema) of the Iceberg table (required)</span>
+<span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_schema</span>
+
+<span class="w">    </span><span class="c1"># Table name (required)</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_table</span>
+
+<span class="w">    </span><span class="c1"># Poll interval in seconds (optional, default: 10)</span>
+<span class="w">    </span><span class="nt">pollInterval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+
+<span class="w">    </span><span class="c1"># Authentication (optional)</span>
+<span class="w">    </span><span class="nt">bearerToken</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-token&quot;</span>
+<span class="w">    </span><span class="c1"># Or Basic auth:</span>
+<span class="w">    </span><span class="c1"># basicAuth:</span>
+<span class="w">    </span><span class="c1">#   username: user</span>
+<span class="w">    </span><span class="c1">#   password: pass</span>
+</code></pre></div>
+<h3 id="features_3">Features</h3>
+<ul>
+<li><strong>Branch context</strong>: Reads from the specified Nessie branch; table metadata is resolved from the catalog.</li>
+<li><strong>Polling</strong>: Periodically scans the Iceberg table for new data.</li>
+<li><strong>Authentication</strong>: Bearer token (OAuth2) or Basic auth for Nessie/Iceberg REST.</li>
+</ul>
+<h3 id="sink_4">Sink</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">sink</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nessie</span>
+<span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">baseURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://nessie:19120&quot;</span>
+<span class="w">    </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">    </span><span class="nt">warehouse</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">    </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_schema</span>
+<span class="w">    </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_table</span>
+
+<span class="w">    </span><span class="c1"># Batch size for appends (optional, default: 100). 0 = flush only by timer</span>
+<span class="w">    </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">    </span><span class="c1"># Flush interval in seconds (optional, default: 10). 0 = disable timer</span>
+<span class="w">    </span><span class="nt">batchFlushIntervalSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+
+<span class="w">    </span><span class="c1"># Create table if it does not exist (optional); creates table with single &quot;data&quot; (string) column</span>
+<span class="w">    </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">    </span><span class="nt">bearerToken</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your-token&quot;</span>
+<span class="w">    </span><span class="c1"># Or basicAuth: { username, password }</span>
+</code></pre></div>
+<h3 id="features_4">Features</h3>
+<ul>
+<li><strong>Branch context</strong>: Writes are committed to the specified Nessie branch via the catalog.</li>
+<li><strong>Batch appends</strong>: Groups messages; flush when batch size or timer (10s) is reached. Size only: <code>batchFlushIntervalSeconds: 0</code>. Timer only: <code>batchSize: 0</code></li>
+<li><strong>Auto-create table</strong>: Creates an Iceberg table with one <code>data</code> (string) column for JSON payloads when the table does not exist.</li>
+<li><strong>Authentication</strong>: Same as source (Bearer or Basic).</li>
+</ul>
+<h3 id="example-kafka-to-nessie-iceberg">Example: Kafka to Nessie (Iceberg)</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow.dataflow.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DataFlow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-to-nessie</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka:9092</span>
+<span class="w">      </span><span class="nt">topic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">input-topic</span>
+<span class="w">      </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow-group</span>
+<span class="w">  </span><span class="nt">sink</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nessie</span>
+<span class="w">    </span><span class="nt">config</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">baseURL</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http://nessie:19120&quot;</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analytics</span>
+<span class="w">      </span><span class="nt">table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">events</span>
+<span class="w">      </span><span class="nt">batchSize</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">      </span><span class="nt">autoCreateTable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<h2 id="error-sink">Error Sink</h2>
+<p>DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The <code>errors</code> section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse, Nessie) as the main sink.</p>
+<p>For configuration, error message structure, and error types, see <a href="../errors/">Error Handling</a>.</p>
+<h2 id="performance-recommendations">Performance Recommendations</h2>
+<h3 id="spec-level-settings">Spec-level settings</h3>
+<h4 id="channelbuffersize">channelBufferSize</h4>
+<p>Buffer size for message channels between source, processor, and sink (default 100). For high Kafka throughput (tens of thousands msg/s), increase to 500–1000 to reduce blocking when the sink is slower than the source.</p>
+<h3 id="kafka_2">Kafka</h3>
+<ul>
+<li>Use multiple brokers for fault tolerance</li>
+<li>Configure an appropriate consumer group size for parallel processing</li>
+<li>Use batch writes for higher throughput</li>
+</ul>
+<h3 id="postgresql_2">PostgreSQL</h3>
+<ul>
+<li>Increase <code>batchSize</code> for the sink (recommended 50–100)</li>
+<li>Add indexes on frequently queried columns</li>
+<li>Tune <code>pollInterval</code> based on data update frequency</li>
+</ul>
+<h2 id="troubleshooting_1">Troubleshooting</h2>
+<h3 id="connection-issues">Connection issues</h3>
+<ol>
+<li>Verify data source accessibility from the cluster</li>
+<li>Ensure credentials are correct</li>
+<li>Check Kubernetes network policies</li>
+<li>For TLS, verify certificates</li>
+</ol>
+<h3 id="performance-issues">Performance issues</h3>
+<ol>
+<li>Increase <code>channelBufferSize</code> (500–1000) for high Kafka load</li>
+<li>Increase batch sizes for sinks</li>
+<li>Tune <code>pollInterval</code> for sources</li>
+<li>Scale operator instances if needed</li>
+<li>Monitor message processing metrics</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../architecture/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Architecture">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Architecture
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../transformations/" class="md-footer__link md-footer__link--next" aria-label="Next: Transformations">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Transformations
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; DataFlow Team. Apache License 2.0
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/dataflow-operator" target="_blank" rel="noopener" title="GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/dataflow-operator/dataflow/issues" target="_blank" rel="noopener" title="Issues" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M80 104a24 24 0 1 0 0-48 24 24 0 1 0 0 48m80-24c0 32.8-19.7 61-48 73.3V224h176c26.5 0 48-21.5 48-48v-22.7c-28.3-12.3-48-40.5-48-73.3 0-44.2 35.8-80 80-80s80 35.8 80 80c0 32.8-19.7 61-48 73.3V176c0 61.9-50.1 112-112 112H112v70.7c28.3 12.3 48 40.5 48 73.3 0 44.2-35.8 80-80 80S0 476.2 0 432c0-32.8 19.7-61 48-73.3V153.4C19.7 141 0 112.8 0 80 0 35.8 35.8 0 80 0s80 35.8 80 80m232 0a24 24 0 1 0-48 0 24 24 0 1 0 48 0M80 456a24 24 0 1 0 0-48 24 24 0 1 0 0 48"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/dataflow-operator/dataflow/releases" target="_blank" rel="noopener" title="Releases" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M32.5 96v149.5c0 17 6.7 33.3 18.7 45.3l192 192c25 25 65.5 25 90.5 0l149.5-149.5c25-25 25-65.5 0-90.5l-192-192C279.2 38.7 263 32 246 32H96.5c-35.3 0-64 28.7-64 64m112 16a32 32 0 1 1 0 64 32 32 0 1 1 0-64"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.instant", "navigation.instant.progress", "navigation.top", "navigation.path", "navigation.footer", "toc.integrate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/versions.js"></script>
+      
+    
+  </body>
+</html>

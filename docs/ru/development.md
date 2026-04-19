@@ -4,7 +4,7 @@
 
 ## Предварительные требования
 
-- Go 1.21 или выше
+- Go 1.25 или выше
 - Docker и Docker Compose
 - kubectl настроен для работы с кластером
 - Helm 3.0+ (для тестирования установки)
@@ -597,7 +597,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25'
       - run: go mod download
       - run: task test-unit
       - run: task vet

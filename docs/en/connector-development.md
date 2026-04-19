@@ -345,6 +345,10 @@ func TestMyDBSourceConnector_Connect_WhenClosed(t *testing.T) {
 }
 ```
 
+## Subprocess Connectors
+
+Connectors can also run as **separate binaries** communicating via stdin/stdout (JSON Lines). When `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1` is set and a binary like `dataflow-connector-kafka` is found, the processor spawns it instead of using in-process connectors. See [Connector Protocol](connector-protocol.md) for the wire format. Example: `dataflow/cmd/connector-kafka/main.go`.
+
 ## See Also
 
 - [Adding a New Connector](development.md#adding-a-new-connector) — general section in the development guide

@@ -4,7 +4,7 @@ Guide for developers who want to contribute to DataFlow Operator or set up a loc
 
 ## Prerequisites
 
-- Go 1.21 or higher
+- Go 1.25 or higher
 - Docker and Docker Compose
 - kubectl configured to work with the cluster
 - Helm 3.0+ (for testing installation)
@@ -597,7 +597,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25'
       - run: go mod download
       - run: task test-unit
       - run: task vet

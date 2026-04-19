@@ -6,8 +6,8 @@ Documentation site for [DataFlow Operator](https://github.com/dataflow-operator/
 
 ## Languages
 
-- English (`docs/en/`)
-- Russian (`docs/ru/`)
+- English ([`docs/docs/en/`](docs/docs/en/)) — primary technical reference
+- Russian ([`docs/docs/ru/`](docs/docs/ru/)) — mirror where maintained; substantive protocol and API details may lag English slightly
 
 ## Local development
 
@@ -26,6 +26,12 @@ mkdocs build
 
 Output goes to `site/`.
 
+Quick check (no MkDocs run) that every `nav` target exists on disk:
+
+```bash
+python3 verify_nav_files.py
+```
+
 ## Structure
 
 ```
@@ -33,8 +39,8 @@ docs/
 ├── mkdocs.yml              # MkDocs configuration
 ├── requirements.txt        # Python dependencies
 ├── docs/
-│   ├── en/                 # English documentation
-│   ├── ru/                 # Russian documentation
+│   ├── en/                 # English pages (MkDocs docs_dir)
+│   ├── ru/                 # Russian pages
 │   ├── images/             # Logo, favicon
 │   ├── stylesheets/        # Custom CSS
 │   └── javascripts/        # Custom JS

@@ -79,6 +79,7 @@ nav:
   - Development: en/development.md
   - Release Process: en/semver-release.md
   - Connector Development: en/connector-development.md
+  - Connector Protocol (stdin/stdout): en/connector-protocol.md
   - "---"
   - "Русский":
     - "Главная": ru/index.md
@@ -96,6 +97,7 @@ nav:
     - "Разработка": ru/development.md
     - "Release Process": ru/semver-release.md
     - "Разработка коннекторов": ru/connector-development.md
+    - "Протокол коннекторов (stdin/stdout)": ru/connector-protocol.md
 
 markdown_extensions:
   - attr_list

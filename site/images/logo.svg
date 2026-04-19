@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 32" width="160" height="32">
+  <defs>
+    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#5e35b1"/>
+      <stop offset="100%" style="stop-color:#00897b"/>
+    </linearGradient>
+  </defs>
+  <!-- Swap horizontal arrows (data flow) -->
+  <g fill="url(#flowGrad)">
+    <path d="M4 8l4 4h-3v4H4l4 4 4-4H9V8H8L4 8z"/>
+    <path d="M24 8l-4 4h3v4h1l-4 4-4-4h4v-4h-1l4-4z"/>
+  </g>
+  <text x="36" y="22" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="currentColor">DataFlow</text>
+</svg>

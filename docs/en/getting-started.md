@@ -13,7 +13,7 @@ This guide will help you get started with DataFlow Operator. You'll learn how to
 
 ### For Local Development
 
-- Go 1.21+
+- Go 1.25+
 - Docker and Docker Compose
 - Task (optional, for using Taskfile commands)
 - Access to ports: 8080, 5050, 15672, 8081, 5432, 9092, 5672
@@ -438,3 +438,19 @@ kubectl get crd dataflows.dataflow.dataflow.io -o yaml
 - Check Kubernetes network policies
 - Verify connection strings and credentials are correct
 - For local development, use `localhost` or `host.docker.internal`
+
+### Trino: REMOTE_TASK_ERROR (Code 65542)
+
+When using Trino sink, you may see:
+
+```
+Trino query failed: Expected response from http://.../v1/task/.../status is empty (Error: REMOTE_TASK_ERROR, Code: 65542)
+```
+
+This indicates a Trino worker did not respond to the coordinator (worker overload, restart, or network issue). The operator retries such errors automatically (up to 5 attempts with exponential backoff).
+
+**If errors persist:**
+
+1. **Reduce batch size** — set `batchSize` to 3–5 in the Trino sink config for large payloads (e.g. JSON with many fields)
+2. **Check Trino cluster** — inspect worker logs, memory, and network connectivity
+3. **Increase timeouts** — if Trino workers are slow, increase query timeout in the connector config

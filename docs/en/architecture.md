@@ -272,6 +272,16 @@ Connectors are created by a factory from `spec.Source` and `spec.Sink` (and `spe
 
 Connector interfaces are defined in `internal/connectors/interface.go`: **SourceConnector** (Connect, Read, Close), **SinkConnector** (Connect, Write, Close).
 
+### Connector Execution Model (optional: subprocess)
+
+When `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1` is set, the processor runs connectors as **separate binaries** instead of in-process. The processor spawns the connector (e.g. `dataflow-connector-kafka`), sends commands via **stdin** (JSON Lines), and receives responses via **stdout**. This allows:
+
+- Adding connectors without recompiling the processor
+- Running connectors in different languages
+- Isolating connector failures
+
+See [Connector Protocol](connector-protocol.md) for the full protocol and discovery rules.
+
 ### Connectors and Transformations
 
 - **Source/Sink types**: Kafka, PostgreSQL, Trino, Nessie (selected by `spec.source.type` and `spec.sink.type`).

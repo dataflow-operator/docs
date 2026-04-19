@@ -1,0 +1,1959 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Kubernetes operator for data flow between different sources" name="description"/>
+<meta content="DataFlow Team" name="author"/>
+<link href="https://dataflow-operator.github.io/docs/ru/development/" rel="canonical"/>
+<link href="../mcp/" rel="prev"/>
+<link href="../semver-release/" rel="next"/>
+<link href="../../images/favicon.svg" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator"/>
+<title>Разработка - DataFlow Operator Documentation</title>
+<link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+<link href="../../stylesheets/extra.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="teal" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#development">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="DataFlow Operator Documentation" class="md-header__button md-logo" data-md-component="logo" href="../.." title="DataFlow Operator Documentation">
+<img alt="logo" src="../../images/logo.svg"/>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            DataFlow Operator Documentation
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Разработка
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="teal" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="teal" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+<nav aria-label="Tabs" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/getting-started/">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/architecture/">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/connectors/">
+        
+  
+  
+    
+  
+  Connectors
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/transformations/">
+        
+  
+  
+    
+  
+  Transformations
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/examples/">
+        
+  
+  
+    
+  
+  Examples
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/errors/">
+        
+  
+  
+    
+  
+  Errors
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/fault-tolerance/">
+        
+  
+  
+    
+  
+  Fault Tolerance
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/metrics/">
+        
+  
+  
+    
+  
+  Metrics
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/gui/">
+        
+  
+  
+    
+  
+  Web GUI
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/kubernetes-events/">
+        
+  
+  
+    
+  
+  Kubernetes Events
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/mcp/">
+        
+  
+  
+    
+  
+  MCP
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/development/">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/semver-release/">
+        
+  
+  
+    
+  
+  Release Process
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/connector-development/">
+        
+  
+  
+    
+  
+  Connector Development
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../en/connector-protocol/">
+        
+  
+  
+    
+  
+  Connector Protocol (stdin/stdout)
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../---">
+        
+  
+  
+    
+  
+  None
+
+      </a>
+</li>
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="../">
+          
+  
+  
+  Русский
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="DataFlow Operator Documentation" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="DataFlow Operator Documentation">
+<img alt="logo" src="../../images/logo.svg"/>
+</a>
+    DataFlow Operator Documentation
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/getting-started/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/architecture/">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/connectors/">
+<span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/transformations/">
+<span class="md-ellipsis">
+    
+  
+    Transformations
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/examples/">
+<span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/errors/">
+<span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/fault-tolerance/">
+<span class="md-ellipsis">
+    
+  
+    Fault Tolerance
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/metrics/">
+<span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/gui/">
+<span class="md-ellipsis">
+    
+  
+    Web GUI
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/kubernetes-events/">
+<span class="md-ellipsis">
+    
+  
+    Kubernetes Events
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/mcp/">
+<span class="md-ellipsis">
+    
+  
+    MCP
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/development/">
+<span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/semver-release/">
+<span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/connector-development/">
+<span class="md-ellipsis">
+    
+  
+    Connector Development
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../en/connector-protocol/">
+<span class="md-ellipsis">
+    
+  
+    Connector Protocol (stdin/stdout)
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../---">
+<span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_18" type="checkbox"/>
+<label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Русский
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_18_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_18">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Русский
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../">
+<span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../getting-started/">
+<span class="md-ellipsis">
+    
+  
+    Начало работы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../architecture/">
+<span class="md-ellipsis">
+    
+  
+    Архитектура
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../connectors/">
+<span class="md-ellipsis">
+    
+  
+    Коннекторы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../transformations/">
+<span class="md-ellipsis">
+    
+  
+    Трансформации
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../examples/">
+<span class="md-ellipsis">
+    
+  
+    Примеры
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../errors/">
+<span class="md-ellipsis">
+    
+  
+    Обработка ошибок
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../fault-tolerance/">
+<span class="md-ellipsis">
+    
+  
+    Отказоустойчивость
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../metrics/">
+<span class="md-ellipsis">
+    
+  
+    Метрики
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../gui/">
+<span class="md-ellipsis">
+    
+  
+    Web GUI
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../kubernetes-events/">
+<span class="md-ellipsis">
+    
+  
+    События Kubernetes
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../mcp/">
+<span class="md-ellipsis">
+    
+  
+    MCP
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Разработка
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Разработка
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_1">
+<span class="md-ellipsis">
+      
+        Предварительные требования
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Настройка окружения
+      
+    </span>
+</a>
+<nav aria-label="Настройка окружения" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_3">
+<span class="md-ellipsis">
+      
+        Клонирование репозитория
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_4">
+<span class="md-ellipsis">
+      
+        Установка зависимостей
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_5">
+<span class="md-ellipsis">
+      
+        Установка инструментов разработки
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_6">
+<span class="md-ellipsis">
+      
+        Локальная разработка
+      
+    </span>
+</a>
+<nav aria-label="Локальная разработка" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_7">
+<span class="md-ellipsis">
+      
+        Запуск зависимостей
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_8">
+<span class="md-ellipsis">
+      
+        Запуск оператора локально
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#kind">
+<span class="md-ellipsis">
+      
+        Настройка kind кластера
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_9">
+<span class="md-ellipsis">
+      
+        Структура проекта
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_10">
+<span class="md-ellipsis">
+      
+        Генерация кода
+      
+    </span>
+</a>
+<nav aria-label="Генерация кода" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#crd-rbac">
+<span class="md-ellipsis">
+      
+        Генерация CRD и RBAC
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#deepcopy">
+<span class="md-ellipsis">
+      
+        Генерация DeepCopy методов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#controller-gen">
+<span class="md-ellipsis">
+      
+        Обновление controller-gen
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_11">
+<span class="md-ellipsis">
+      
+        Логирование
+      
+    </span>
+</a>
+<nav aria-label="Логирование" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_12">
+<span class="md-ellipsis">
+      
+        Структурированные поля
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#log_level">
+<span class="md-ellipsis">
+      
+        Уровень лога (LOG_LEVEL)
+      
+    </span>
+</a>
+<nav aria-label="Уровень лога (LOG_LEVEL)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#processor_log_level">
+<span class="md-ellipsis">
+      
+        PROCESSOR_LOG_LEVEL
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#validating-webhook">
+<span class="md-ellipsis">
+      
+        Настройка Validating Webhook
+      
+    </span>
+</a>
+<nav aria-label="Настройка Validating Webhook" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#helm">
+<span class="md-ellipsis">
+      
+        Включение через Helm
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#webhook">
+<span class="md-ellipsis">
+      
+        Что проверяет webhook
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_13">
+<span class="md-ellipsis">
+      
+        Тестирование
+      
+    </span>
+</a>
+<nav aria-label="Тестирование" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#unit">
+<span class="md-ellipsis">
+      
+        Unit тесты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_14">
+<span class="md-ellipsis">
+      
+        Интеграционные тесты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_15">
+<span class="md-ellipsis">
+      
+        Запуск тестов вручную
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_16">
+<span class="md-ellipsis">
+      
+        Сборка
+      
+    </span>
+</a>
+<nav aria-label="Сборка" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_17">
+<span class="md-ellipsis">
+      
+        Локальная сборка
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#docker">
+<span class="md-ellipsis">
+      
+        Сборка Docker образа
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_18">
+<span class="md-ellipsis">
+      
+        Добавление нового коннектора
+      
+    </span>
+</a>
+<nav aria-label="Добавление нового коннектора" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-api">
+<span class="md-ellipsis">
+      
+        1. Определение типов в API
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. Реализация коннектора
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. Регистрация в фабрике
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4">
+<span class="md-ellipsis">
+      
+        4. Генерация кода
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. Тестирование
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_19">
+<span class="md-ellipsis">
+      
+        Добавление новой трансформации
+      
+    </span>
+</a>
+<nav aria-label="Добавление новой трансформации" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-api_1">
+<span class="md-ellipsis">
+      
+        1. Определение типов в API
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2_1">
+<span class="md-ellipsis">
+      
+        2. Реализация трансформации
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3_1">
+<span class="md-ellipsis">
+      
+        3. Регистрация в фабрике
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4_1">
+<span class="md-ellipsis">
+      
+        4. Генерация и тестирование
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_20">
+<span class="md-ellipsis">
+      
+        Отладка
+      
+    </span>
+</a>
+<nav aria-label="Отладка" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_21">
+<span class="md-ellipsis">
+      
+        Логирование
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_22">
+<span class="md-ellipsis">
+      
+        Отладка контроллера
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_23">
+<span class="md-ellipsis">
+      
+        Отладка коннекторов
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_24">
+<span class="md-ellipsis">
+      
+        Форматирование и линтинг
+      
+    </span>
+</a>
+<nav aria-label="Форматирование и линтинг" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_25">
+<span class="md-ellipsis">
+      
+        Форматирование кода
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_26">
+<span class="md-ellipsis">
+      
+        Проверка кода
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_27">
+<span class="md-ellipsis">
+      
+        Линтинг (опционально)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#cicd">
+<span class="md-ellipsis">
+      
+        CI/CD
+      
+    </span>
+</a>
+<nav aria-label="CI/CD" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#github-actions">
+<span class="md-ellipsis">
+      
+        GitHub Actions
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_28">
+<span class="md-ellipsis">
+      
+        Сборка документации
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_29">
+<span class="md-ellipsis">
+      
+        Вклад в проект
+      
+    </span>
+</a>
+<nav aria-label="Вклад в проект" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_30">
+<span class="md-ellipsis">
+      
+        Процесс разработки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_31">
+<span class="md-ellipsis">
+      
+        Стандарты кода
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_32">
+<span class="md-ellipsis">
+      
+        Коммиты
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_33">
+<span class="md-ellipsis">
+      
+        Полезные команды
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_34">
+<span class="md-ellipsis">
+      
+        Ресурсы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_35">
+<span class="md-ellipsis">
+      
+        Получение помощи
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../semver-release/">
+<span class="md-ellipsis">
+    
+  
+    Release Process
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../connector-development/">
+<span class="md-ellipsis">
+    
+  
+    Разработка коннекторов
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../connector-protocol/">
+<span class="md-ellipsis">
+    
+  
+    Протокол коннекторов (stdin/stdout)
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="development">Development</h1>
+<p>Руководство для разработчиков, желающих внести вклад в DataFlow Operator или настроить локальную среду разработки.</p>
+<h2 id="_1">Предварительные требования</h2>
+<ul>
+<li>Go 1.25 или выше</li>
+<li>Docker и Docker Compose</li>
+<li>kubectl настроен для работы с кластером</li>
+<li>Helm 3.0+ (для тестирования установки)</li>
+<li>Task (опционально, для использования Taskfile)</li>
+</ul>
+<h2 id="_2">Настройка окружения</h2>
+<h3 id="_3">Клонирование репозитория</h3>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>&lt;repository-url&gt;
+<span class="nb">cd</span><span class="w"> </span>dataflow
+</code></pre></div>
+<h3 id="_4">Установка зависимостей</h3>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>mod<span class="w"> </span>download
+go<span class="w"> </span>mod<span class="w"> </span>tidy
+</code></pre></div>
+<h3 id="_5">Установка инструментов разработки</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Установка controller-gen</span>
+task<span class="w"> </span>controller-gen
+
+<span class="c1"># Установка envtest</span>
+task<span class="w"> </span>envtest
+</code></pre></div>
+<h2 id="_6">Локальная разработка</h2>
+<h3 id="_7">Запуск зависимостей</h3>
+<p>Запустите все необходимые сервисы через docker-compose:</p>
+<div class="highlight"><pre><span></span><code>docker-compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<p>Это запустит:
+- Kafka (порт 9092) с Kafka UI (порт 8080)
+- PostgreSQL (порт 5432) с pgAdmin (порт 5050)</p>
+<h3 id="_8">Запуск оператора локально</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Генерация кода и манифестов</span>
+task<span class="w"> </span>generate
+task<span class="w"> </span>manifests
+
+<span class="c1"># Установка CRD в кластер (если используете kind/minikube)</span>
+task<span class="w"> </span>install
+
+<span class="c1"># Запуск оператора</span>
+task<span class="w"> </span>run
+</code></pre></div>
+<p>Или используйте скрипт:</p>
+<div class="highlight"><pre><span></span><code>./scripts/run-local.sh
+</code></pre></div>
+<h3 id="kind">Настройка kind кластера</h3>
+<p>Для полноценного тестирования используйте kind:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Создать kind кластер</span>
+./scripts/setup-kind.sh
+
+<span class="c1"># Установить CRD</span>
+task<span class="w"> </span>install
+
+<span class="c1"># Запустить оператор локально</span>
+task<span class="w"> </span>run
+</code></pre></div>
+<h2 id="_9">Структура проекта</h2>
+<div class="highlight"><pre><span></span><code>dataflow/
+├── api/v1/                    # CRD определения
+│   ├── dataflow_types.go      # Типы DataFlow ресурсов
+│   └── groupversion_info.go    # Версия API
+├── internal/
+│   ├── connectors/            # Коннекторы для источников/приемников
+│   │   ├── interface.go       # Интерфейсы коннекторов
+│   │   ├── factory.go         # Фабрика коннекторов
+│   │   ├── kafka.go           # Kafka коннектор
+│   │   ├── postgresql.go      # PostgreSQL коннектор
+│   ├── transformers/          # Трансформации сообщений
+│   │   ├── interface.go       # Интерфейс трансформаций
+│   │   ├── factory.go         # Фабрика трансформаций
+│   │   ├── timestamp.go        # Timestamp трансформация
+│   │   ├── flatten.go         # Flatten трансформация
+│   │   ├── filter.go          # Filter трансформация
+│   │   ├── mask.go            # Mask трансформация
+│   │   ├── router.go          # Router трансформация
+│   │   ├── select.go          # Select трансформация
+│   │   └── remove.go          # Remove трансформация
+│   ├── processor/             # Процессор сообщений
+│   │   └── processor.go       # Оркестрация обработки
+│   ├── controller/            # Kubernetes контроллер
+│   │   └── dataflow_controller.go
+│   └── types/                 # Внутренние типы
+│       └── message.go         # Тип Message
+├── config/                    # Конфигурация Kubernetes
+│   ├── crd/                   # CRD манифесты
+│   ├── rbac/                  # RBAC манифесты
+│   └── samples/              # Примеры DataFlow ресурсов
+├── helm/                      # Helm Chart
+│   └── dataflow-operator/
+├── docs/                      # Документация MkDocs
+├── test/                      # Тесты
+│   └── fixtures/             # Тестовые данные
+├── scripts/                   # Вспомогательные скрипты
+├── main.go                    # Точка входа
+├── Taskfile                   # Команды сборки
+└── go.mod                     # Зависимости Go
+</code></pre></div>
+<h2 id="_10">Генерация кода</h2>
+<h3 id="crd-rbac">Генерация CRD и RBAC</h3>
+<div class="highlight"><pre><span></span><code>task<span class="w"> </span>manifests
+</code></pre></div>
+<p>Эта команда генерирует:
+- CRD манифесты в <code>dataflow/config/crd/bases/</code></p>
+<h3 id="deepcopy">Генерация DeepCopy методов</h3>
+<div class="highlight"><pre><span></span><code>task<span class="w"> </span>generate
+</code></pre></div>
+<p>Генерирует методы <code>DeepCopy</code> для всех типов в <code>api/v1/</code>.</p>
+<h3 id="controller-gen">Обновление controller-gen</h3>
+<p>Если возникают проблемы с генерацией:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Обновить controller-gen</span>
+go<span class="w"> </span>install<span class="w"> </span>sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+
+<span class="c1"># Затем</span>
+task<span class="w"> </span>generate
+task<span class="w"> </span>manifests
+</code></pre></div>
+<h2 id="_11">Логирование</h2>
+<h3 id="_12">Структурированные поля</h3>
+<p>В логах оператора и процессора используются единые поля для корреляции:</p>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Где</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dataflow_name</code></td>
+<td>Оператор, процессор, коннекторы</td>
+<td>Имя ресурса DataFlow</td>
+</tr>
+<tr>
+<td><code>dataflow_namespace</code></td>
+<td>Оператор, процессор, коннекторы</td>
+<td>Namespace DataFlow</td>
+</tr>
+<tr>
+<td><code>reconcile_id</code></td>
+<td>Оператор</td>
+<td>Короткий идентификатор одного цикла реконсиляции (8 hex-символов)</td>
+</tr>
+<tr>
+<td><code>connector_type</code></td>
+<td>Процессор, коннекторы</td>
+<td>Тип коннектора (например <code>kafka-source</code>, <code>trino-sink</code>)</td>
+</tr>
+<tr>
+<td><code>message_id</code></td>
+<td>Процессор, коннекторы</td>
+<td>Идентификатор сообщения из метаданных (если есть) или partition/offset для Kafka</td>
+</tr>
+</tbody>
+</table>
+<p>По этим полям можно фильтровать логи в агрегаторе (например по <code>dataflow_name</code> и <code>reconcile_id</code>) и связывать ошибки с конкретным DataFlow и сообщением.</p>
+<h3 id="log_level">Уровень лога (LOG_LEVEL)</h3>
+<p>Оператор и процессор читают переменную окружения <strong>LOG_LEVEL</strong>. Допустимые значения (без учёта регистра): <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>.</p>
+<ul>
+<li><strong>В проде</strong>: задайте <code>LOG_LEVEL=info</code> (или не задавайте — по умолчанию в Helm используется <code>info</code>), чтобы уменьшить объём логов.</li>
+<li><strong>При отладке</strong>: задайте <code>LOG_LEVEL=debug</code> для более детального вывода.</li>
+</ul>
+<p>В Helm для оператора уровень задаётся через value <strong>logLevel</strong> (по умолчанию <code>"info"</code>); он подставляется в env <code>LOG_LEVEL</code> в поде оператора.</p>
+<h4 id="processor_log_level">PROCESSOR_LOG_LEVEL</h4>
+<p>Оператор читает переменную окружения <strong>PROCESSOR_LOG_LEVEL</strong> и передаёт её в каждый под процессора как <strong>LOG_LEVEL</strong>. Поды процессора — это рабочие нагрузки, создаваемые для каждого DataFlow; в них выполняются сами пайплайны.</p>
+<table>
+<thead>
+<tr>
+<th>Аспект</th>
+<th>Описание</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>По умолчанию</strong></td>
+<td><code>info</code> (если переменная не задана, поды процессора получают <code>LOG_LEVEL=info</code>)</td>
+</tr>
+<tr>
+<td><strong>Допустимые значения</strong></td>
+<td>Те же, что у LOG_LEVEL: <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code> (регистр не важен)</td>
+</tr>
+<tr>
+<td><strong>Где задавать</strong></td>
+<td>В Deployment <strong>оператора</strong> (не в ресурсе DataFlow). Оператор подставляет это значение в env <code>LOG_LEVEL</code> каждого пода процессора. При установке через Helm задаётся value <strong>processorLogLevel</strong> (см. ниже).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Через Helm:</strong> используйте value <strong>processorLogLevel</strong> (по умолчанию <code>"info"</code>). Пример для детальных логов процессоров:</p>
+<div class="highlight"><pre><span></span><code>helm<span class="w"> </span>upgrade<span class="w"> </span>dataflow-operator<span class="w"> </span>oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span><span class="nv">processorLogLevel</span><span class="o">=</span>debug<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--reuse-values
+</code></pre></div>
+<p>Или в <code>values.yaml</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">processorLogLevel</span><span class="p">:</span><span class="w"> </span><span class="s">"debug"</span><span class="w">   </span><span class="c1"># поды процессора получают LOG_LEVEL=debug</span>
+</code></pre></div>
+<p><strong>Без Helm:</strong> задайте переменную окружения в Deployment оператора, например:</p>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span><span class="nb">set</span><span class="w"> </span>env<span class="w"> </span>deployment/dataflow-operator<span class="w"> </span><span class="nv">PROCESSOR_LOG_LEVEL</span><span class="o">=</span>debug<span class="w"> </span>-n<span class="w"> </span>&lt;namespace-оператора&gt;
+</code></pre></div>
+<p>После этого перезапустите или пересоздайте оператор, чтобы поды процессора пересоздались с новым уровнем.</p>
+<h2 id="validating-webhook">Настройка Validating Webhook</h2>
+<p>Validating Webhook проверяет spec ресурса DataFlow при создании и обновлении и отклоняет невалидные объекты до записи в кластер. Это даёт немедленную обратную связь (ошибка при <code>kubectl apply</code> или в GUI) и не создаёт лишние объекты и поды с заведомо нерабочей конфигурацией. Подробнее о роли webhook в архитектуре см. <a href="../architecture/#admission-webhook-validating">Admission Webhook (Validating)</a>.</p>
+<h3 id="helm">Включение через Helm</h3>
+<p>Webhook <strong>опционален</strong> и по умолчанию выключен. Чтобы включить его:</p>
+<ol>
+<li><strong>Включите webhook и задайте CA для TLS:</strong> в <code>values.yaml</code> или через <code>--set</code>:</li>
+<li><code>webhook.enabled: true</code></li>
+<li>
+<p><code>webhook.caBundle</code> — строка в base64 (PEM-сертификат CA, которым подписан сертификат оператора на порту 9443). Без неё ValidatingWebhookConfiguration не создаётся, так как API-сервер требует caBundle для вызова webhook по HTTPS.</p>
+</li>
+<li>
+<p><strong>Настройте TLS для оператора:</strong> API-сервер подключается к оператору по HTTPS. Задайте:</p>
+</li>
+<li><code>webhook.certDir</code> — путь в контейнере, куда смонтированы сертификаты (например <code>/tmp/k8s-webhook-server/serving-certs</code>).</li>
+<li><code>webhook.secretName</code> — имя Secret с ключами <code>tls.crt</code> и <code>tls.key</code> (и при необходимости <code>ca.crt</code>). Этот Secret монтируется в под оператора по пути <code>webhook.certDir</code>; переменная окружения <code>WEBHOOK_CERT_DIR</code> в поде устанавливается в это значение.</li>
+</ol>
+<p>Секрет с сертификатами можно создать вручную или через <strong>cert-manager</strong> (Certificate для сервиса оператора). CA из этого сертификата (или из выдавшего его CA) нужно подставить в <code>webhook.caBundle</code> в base64.</p>
+<p>Пример фрагмента <code>values.yaml</code> при использовании cert-manager и уже известного caBundle:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">webhook</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">caBundle</span><span class="p">:</span><span class="w"> </span><span class="s">"LS0tLS1CRUdJTi..."</span><span class="w">   </span><span class="c1"># base64 PEM CA</span>
+<span class="w">  </span><span class="nt">certDir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/tmp/k8s-webhook-server/serving-certs</span>
+<span class="w">  </span><span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dataflow-operator-webhook-cert</span>
+</code></pre></div>
+<p>После установки/обновления чарта с этими значениями создаётся ресурс ValidatingWebhookConfiguration; при следующем create/update DataFlow API-сервер будет вызывать оператор для валидации.</p>
+<h3 id="webhook">Что проверяет webhook</h3>
+<ul>
+<li>Обязательные поля: <code>spec.source</code>, <code>spec.sink</code>, типы source/sink из списка (<code>kafka</code>, <code>postgresql</code>, <code>trino</code>), наличие соответствующей конфигурации (например <code>source.config</code> при <code>source.type: kafka</code>).</li>
+<li>Для каждого типа source/sink — обязательные поля или SecretRef (например для Kafka: brokers или brokersSecretRef, topic или topicSecretRef).</li>
+<li>Список трансформаций: допустимые типы и наличие конфигурации для каждого типа; для router — валидация вложенных sink.</li>
+<li>Опционально: <code>spec.errors</code> (если задан — как SinkSpec), SecretRef (name и key), неотрицательные ресурсы.</li>
+</ul>
+<p>При ошибке валидации API возвращает ответ с перечислением полей и сообщений (агрегат из <code>field.ErrorList</code>).</p>
+<h2 id="_13">Тестирование</h2>
+<h3 id="unit">Unit тесты</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Запустить все unit тесты</span>
+task<span class="w"> </span>test-unit
+
+<span class="c1"># Запустить тесты с покрытием</span>
+task<span class="w"> </span><span class="nb">test</span>
+
+<span class="c1"># Запустить тесты конкретного пакета</span>
+go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./internal/connectors/...<span class="w"> </span>-v
+
+<span class="c1"># Запустить тесты с покрытием для конкретного пакета</span>
+go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./internal/transformers/...<span class="w"> </span>-coverprofile<span class="o">=</span>coverage.out
+go<span class="w"> </span>tool<span class="w"> </span>cover<span class="w"> </span>-html<span class="o">=</span>coverage.out
+</code></pre></div>
+<h3 id="_14">Интеграционные тесты</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Настроить kind кластер</span>
+./scripts/setup-kind.sh
+
+<span class="c1"># Запустить интеграционные тесты</span>
+task<span class="w"> </span>test-integration
+</code></pre></div>
+<h3 id="_15">Запуск тестов вручную</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Unit тесты без envtest</span>
+go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./...<span class="w"> </span>-v
+
+<span class="c1"># Тесты с envtest (требует kubebuilder)</span>
+<span class="nv">KUBEBUILDER_ASSETS</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>task<span class="w"> </span>envtest<span class="w"> </span>use<span class="w"> </span><span class="m">1</span>.28.0<span class="w"> </span>-p<span class="w"> </span>path<span class="k">)</span><span class="s2">"</span><span class="w"> </span>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./...<span class="w"> </span>-coverprofile<span class="w"> </span>cover.out
+</code></pre></div>
+<h2 id="_16">Сборка</h2>
+<h3 id="_17">Локальная сборка</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Сборка бинарного файла</span>
+task<span class="w"> </span>build
+
+<span class="c1"># Бинарный файл будет в bin/manager</span>
+./bin/manager
+</code></pre></div>
+<h3 id="docker">Сборка Docker образа</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Сборка образа</span>
+task<span class="w"> </span>docker-build<span class="w"> </span><span class="nv">IMG</span><span class="o">=</span>your-registry/dataflow-operator:v1.0.0
+
+<span class="c1"># Отправка образа</span>
+task<span class="w"> </span>docker-push<span class="w"> </span><span class="nv">IMG</span><span class="o">=</span>your-registry/dataflow-operator:v1.0.0
+</code></pre></div>
+<p>Или вручную. Если репозиторий — монорепо (есть папки <code>dataflow</code> и <code>dataflow-web</code>), сборка из <strong>корня репозитория</strong>:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>dataflow/Dockerfile<span class="w"> </span>-t<span class="w"> </span>your-registry/dataflow-operator:v1.0.0<span class="w"> </span>.
+docker<span class="w"> </span>push<span class="w"> </span>your-registry/dataflow-operator:v1.0.0
+</code></pre></div>
+<p>Если вы находитесь в каталоге <code>dataflow</code> и контекст сборки — только он (без <code>dataflow-web</code>), используйте прежний вариант: <code>docker build -t ... .</code></p>
+<h2 id="_18">Добавление нового коннектора</h2>
+<blockquote>
+<p><strong>Подробное руководство:</strong> см. <a href="../connector-development/">Разработка коннекторов с baseConnector</a> — пошаговая инструкция с примерами использования <code>baseConnector</code> и <code>baseConnectorRWMutex</code>.</p>
+</blockquote>
+<h3 id="1-api">1. Определение типов в API</h3>
+<p>Добавьте спецификацию в <code>api/v1/dataflow_types.go</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// NewConnectorSourceSpec defines new connector source configuration</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">NewConnectorSourceSpec</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Configuration fields</span>
+<span class="w">    </span><span class="nx">Endpoint</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"endpoint"`</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="c1">// Добавьте в SourceSpec</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">SourceSpec</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="nx">NewConnector</span><span class="w"> </span><span class="o">*</span><span class="nx">NewConnectorSourceSpec</span><span class="w"> </span><span class="s">`json:"newConnector,omitempty"`</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="2">2. Реализация коннектора</h3>
+<p>Создайте файл <code>internal/connectors/newconnector.go</code>. <strong>Рекомендуется</strong> встраивать <code>baseConnector</code> для общей синхронизации Connect/Close:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">connectors</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">"context"</span>
+<span class="w">    </span><span class="s">"fmt"</span>
+<span class="w">    </span><span class="nx">v1</span><span class="w"> </span><span class="s">"github.com/dataflow-operator/dataflow/api/v1"</span>
+<span class="w">    </span><span class="s">"github.com/dataflow-operator/dataflow/internal/types"</span>
+<span class="w">    </span><span class="s">"github.com/go-logr/logr"</span>
+<span class="p">)</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">NewConnectorSourceConnector</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">baseConnector</span>
+<span class="w">    </span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">NewConnectorSourceSpec</span>
+<span class="w">    </span><span class="nx">conn</span><span class="w">   </span><span class="o">*</span><span class="nx">Connection</span>
+<span class="w">    </span><span class="nx">logger</span><span class="w"> </span><span class="nx">logr</span><span class="p">.</span><span class="nx">Logger</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">NewNewConnectorSourceConnector</span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">NewConnectorSourceSpec</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">NewConnectorSourceConnector</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">NewConnectorSourceConnector</span><span class="p">{</span><span class="nx">config</span><span class="p">:</span><span class="w"> </span><span class="nx">config</span><span class="p">,</span><span class="w"> </span><span class="nx">logger</span><span class="p">:</span><span class="w"> </span><span class="nx">logr</span><span class="p">.</span><span class="nx">Discard</span><span class="p">()}</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">n</span><span class="w"> </span><span class="o">*</span><span class="nx">NewConnectorSourceConnector</span><span class="p">)</span><span class="w"> </span><span class="nx">Connect</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">!</span><span class="nx">n</span><span class="p">.</span><span class="nx">guardConnect</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"connector is closed"</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">n</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
+<span class="w">    </span><span class="c1">// ... connection logic</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">n</span><span class="w"> </span><span class="o">*</span><span class="nx">NewConnectorSourceConnector</span><span class="p">)</span><span class="w"> </span><span class="nx">Read</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">&lt;-</span><span class="kd">chan</span><span class="w"> </span><span class="o">*</span><span class="nx">types</span><span class="p">.</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Implement read logic</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">n</span><span class="w"> </span><span class="o">*</span><span class="nx">NewConnectorSourceConnector</span><span class="p">)</span><span class="w"> </span><span class="nx">Close</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">n</span><span class="p">.</span><span class="nx">guardClose</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">n</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
+<span class="w">    </span><span class="c1">// ... close logic</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="3">3. Регистрация в фабрике</h3>
+<p>Добавьте в <code>internal/connectors/factory.go</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">CreateSourceConnector</span><span class="p">(</span><span class="nx">source</span><span class="w"> </span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">SourceSpec</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">SourceConnector</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="nx">source</span><span class="p">.</span><span class="nx">Type</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s">"newconnector"</span><span class="p">:</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">source</span><span class="p">.</span><span class="nx">NewConnector</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"newconnector source configuration is required"</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">NewNewConnectorSourceConnector</span><span class="p">(</span><span class="nx">source</span><span class="p">.</span><span class="nx">NewConnector</span><span class="p">),</span><span class="w"> </span><span class="kc">nil</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="4">4. Генерация кода</h3>
+<div class="highlight"><pre><span></span><code>task<span class="w"> </span>generate
+task<span class="w"> </span>manifests
+</code></pre></div>
+<h3 id="5">5. Тестирование</h3>
+<p>Создайте тесты в <code>internal/connectors/newconnector_test.go</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">TestNewConnectorSourceConnector</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Test implementation</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="_19">Добавление новой трансформации</h2>
+<h3 id="1-api_1">1. Определение типов в API</h3>
+<p>Добавьте в <code>api/v1/dataflow_types.go</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// NewTransformation defines new transformation configuration</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">NewTransformation</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Field</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="s">`json:"field"`</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="c1">// Добавьте в TransformationSpec</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">TransformationSpec</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="nx">NewTransformation</span><span class="w"> </span><span class="o">*</span><span class="nx">NewTransformation</span><span class="w"> </span><span class="s">`json:"newTransformation,omitempty"`</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="2_1">2. Реализация трансформации</h3>
+<p>Создайте файл <code>internal/transformers/newtransformation.go</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">transformers</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">"context"</span>
+<span class="w">    </span><span class="nx">v1</span><span class="w"> </span><span class="s">"github.com/dataflow-operator/dataflow/api/v1"</span>
+<span class="w">    </span><span class="s">"github.com/dataflow-operator/dataflow/internal/types"</span>
+<span class="p">)</span>
+
+<span class="kd">type</span><span class="w"> </span><span class="nx">NewTransformer</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">NewTransformation</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">NewNewTransformer</span><span class="p">(</span><span class="nx">config</span><span class="w"> </span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">NewTransformation</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">NewTransformer</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">NewTransformer</span><span class="p">{</span><span class="nx">config</span><span class="p">:</span><span class="w"> </span><span class="nx">config</span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">n</span><span class="w"> </span><span class="o">*</span><span class="nx">NewTransformer</span><span class="p">)</span><span class="w"> </span><span class="nx">Transform</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">message</span><span class="w"> </span><span class="o">*</span><span class="nx">types</span><span class="p">.</span><span class="nx">Message</span><span class="p">)</span><span class="w"> </span><span class="p">([]</span><span class="o">*</span><span class="nx">types</span><span class="p">.</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Implement transformation logic</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">[]</span><span class="o">*</span><span class="nx">types</span><span class="p">.</span><span class="nx">Message</span><span class="p">{</span><span class="nx">message</span><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="3_1">3. Регистрация в фабрике</h3>
+<p>Добавьте в <code>internal/transformers/factory.go</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">CreateTransformer</span><span class="p">(</span><span class="nx">transformation</span><span class="w"> </span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">TransformationSpec</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">Transformer</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="nx">transformation</span><span class="p">.</span><span class="nx">Type</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="s">"newtransformation"</span><span class="p">:</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">transformation</span><span class="p">.</span><span class="nx">NewTransformation</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"newtransformation configuration is required"</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">NewNewTransformer</span><span class="p">(</span><span class="nx">transformation</span><span class="p">.</span><span class="nx">NewTransformation</span><span class="p">),</span><span class="w"> </span><span class="kc">nil</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="4_1">4. Генерация и тестирование</h3>
+<div class="highlight"><pre><span></span><code>task<span class="w"> </span>generate
+task<span class="w"> </span><span class="nb">test</span>
+</code></pre></div>
+<h2 id="_20">Отладка</h2>
+<h3 id="_21">Логирование</h3>
+<p>Используйте структурированное логирование:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="s">"github.com/go-logr/logr"</span>
+
+<span class="nx">logger</span><span class="p">.</span><span class="nx">Info</span><span class="p">(</span><span class="s">"Processing message"</span><span class="p">,</span><span class="w"> </span><span class="s">"messageId"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">ID</span><span class="p">)</span>
+<span class="nx">logger</span><span class="p">.</span><span class="nx">Error</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span><span class="w"> </span><span class="s">"Failed to process"</span><span class="p">,</span><span class="w"> </span><span class="s">"messageId"</span><span class="p">,</span><span class="w"> </span><span class="nx">msg</span><span class="p">.</span><span class="nx">ID</span><span class="p">)</span>
+<span class="nx">logger</span><span class="p">.</span><span class="nx">V</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="nx">Info</span><span class="p">(</span><span class="s">"Debug information"</span><span class="p">,</span><span class="w"> </span><span class="s">"data"</span><span class="p">,</span><span class="w"> </span><span class="nx">data</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="_22">Отладка контроллера</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Запустить с детальным логированием</span>
+go<span class="w"> </span>run<span class="w"> </span>./main.go<span class="w"> </span>--zap-log-level<span class="o">=</span>debug
+</code></pre></div>
+<h3 id="_23">Отладка коннекторов</h3>
+<p>Добавьте логирование в методы коннекторов:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">k</span><span class="w"> </span><span class="o">*</span><span class="nx">KafkaSourceConnector</span><span class="p">)</span><span class="w"> </span><span class="nx">Read</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">&lt;-</span><span class="kd">chan</span><span class="w"> </span><span class="o">*</span><span class="nx">types</span><span class="p">.</span><span class="nx">Message</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">logger</span><span class="p">.</span><span class="nx">Info</span><span class="p">(</span><span class="s">"Starting to read from Kafka"</span><span class="p">,</span><span class="w"> </span><span class="s">"topic"</span><span class="p">,</span><span class="w"> </span><span class="nx">k</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Topic</span><span class="p">)</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="_24">Форматирование и линтинг</h2>
+<h3 id="_25">Форматирование кода</h3>
+<div class="highlight"><pre><span></span><code>task<span class="w"> </span>fmt
+</code></pre></div>
+<p>Или вручную:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>fmt<span class="w"> </span>./...
+</code></pre></div>
+<h3 id="_26">Проверка кода</h3>
+<div class="highlight"><pre><span></span><code>task<span class="w"> </span>vet
+</code></pre></div>
+<p>Или вручную:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>vet<span class="w"> </span>./...
+</code></pre></div>
+<h3 id="_27">Линтинг (опционально)</h3>
+<p>Установите golangci-lint:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>install<span class="w"> </span>github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+</code></pre></div>
+<p>Запустите:</p>
+<div class="highlight"><pre><span></span><code>golangci-lint<span class="w"> </span>run
+</code></pre></div>
+<h2 id="cicd">CI/CD</h2>
+<h3 id="github-actions">GitHub Actions</h3>
+<p>Пример workflow для CI:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CI</span>
+
+<span class="nt">on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">push</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">pull_request</span><span class="p p-Indicator">]</span>
+
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">test</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v3</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/setup-go@v4</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">go-version</span><span class="p">:</span><span class="w"> </span><span class="s">'1.25'</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">go mod download</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">task test-unit</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">task vet</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">task fmt</span>
+</code></pre></div>
+<h2 id="_28">Сборка документации</h2>
+<p>Документация собирается с помощью <a href="https://www.mkdocs.org/">MkDocs</a> и темы Material. Диаграммы строятся на <a href="https://mermaid.js.org/">Mermaid</a> через плагин <code>mkdocs-mermaid2-plugin</code>.</p>
+<p><strong>Установка зависимостей</strong> (из корня репозитория):</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>docs/requirements.txt
+</code></pre></div>
+<p>Или вручную:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"mkdocs-material[imaging]"</span><span class="w"> </span>pymdown-extensions<span class="w"> </span>mkdocs-mermaid2-plugin
+</code></pre></div>
+<p><strong>Сборка и просмотр</strong> (из корня репозитория):</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>docs<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>mkdocs<span class="w"> </span>build
+<span class="c1"># или локальный сервер:</span>
+<span class="nb">cd</span><span class="w"> </span>docs<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>mkdocs<span class="w"> </span>serve
+</code></pre></div>
+<p>При использовании <code>mkdocs serve</code> откройте в браузере <code>http://127.0.0.1:8000</code>.</p>
+<h2 id="_29">Вклад в проект</h2>
+<h3 id="_30">Процесс разработки</h3>
+<ol>
+<li>Создайте issue для обсуждения изменений</li>
+<li>Создайте feature branch: <code>git checkout -b feature/new-feature</code></li>
+<li>Внесите изменения и добавьте тесты</li>
+<li>Убедитесь, что все тесты проходят: <code>task test</code></li>
+<li>Отформатируйте код: <code>task fmt</code></li>
+<li>Создайте Pull Request</li>
+</ol>
+<h3 id="_31">Стандарты кода</h3>
+<ul>
+<li>Следуйте Go code review comments</li>
+<li>Добавляйте комментарии для публичных функций</li>
+<li>Пишите тесты для нового функционала</li>
+<li>Обновляйте документацию при необходимости</li>
+</ul>
+<h3 id="_32">Коммиты</h3>
+<p>Используйте понятные сообщения коммитов:</p>
+<div class="highlight"><pre><span></span><code>feat: add new connector for Redis
+fix: handle connection errors in Kafka connector
+docs: update getting started guide
+test: add tests for filter transformation
+</code></pre></div>
+<h2 id="_33">Полезные команды</h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># Просмотр всех доступных команд</span>
+task<span class="w"> </span><span class="nb">help</span>
+
+<span class="c1"># Очистка сгенерированных файлов</span>
+task<span class="w"> </span>clean
+
+<span class="c1"># Обновление зависимостей</span>
+go<span class="w"> </span>mod<span class="w"> </span>tidy
+
+<span class="c1"># Просмотр зависимостей</span>
+go<span class="w"> </span>list<span class="w"> </span>-m<span class="w"> </span>all
+
+<span class="c1"># Проверка устаревших зависимостей</span>
+go<span class="w"> </span>list<span class="w"> </span>-u<span class="w"> </span>-m<span class="w"> </span>all
+</code></pre></div>
+<h2 id="_34">Ресурсы</h2>
+<ul>
+<li><a href="https://book.kubebuilder.io/">Kubebuilder Book</a> - руководство по созданию Kubernetes операторов</li>
+<li><a href="https://github.com/kubernetes-sigs/controller-runtime">controller-runtime</a> - библиотека для контроллеров</li>
+<li><a href="https://golang.org/doc/">Go Documentation</a> - документация Go</li>
+</ul>
+<h2 id="_35">Получение помощи</h2>
+<ul>
+<li>Создайте issue в репозитории</li>
+<li>Проверьте существующие issues и PR</li>
+<li>Изучите примеры в <code>dataflow/config/samples/</code></li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Footer" class="md-footer__inner md-grid">
+<a aria-label="Previous: MCP" class="md-footer__link md-footer__link--prev" href="../mcp/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Previous
+              </span>
+<div class="md-ellipsis">
+                MCP
+              </div>
+</div>
+</a>
+<a aria-label="Next: Release Process" class="md-footer__link md-footer__link--next" href="../semver-release/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Next
+              </span>
+<div class="md-ellipsis">
+                Release Process
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+<div class="md-copyright__highlight">
+      Copyright © DataFlow Team. Apache License 2.0
+    </div>
+</div>
+<div class="md-social">
+<a class="md-social__link" href="https://github.com/dataflow-operator" rel="noopener" target="_blank" title="GitHub">
+<svg viewbox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+</a>
+<a class="md-social__link" href="https://github.com/dataflow-operator/dataflow/issues" rel="noopener" target="_blank" title="Issues">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M80 104a24 24 0 1 0 0-48 24 24 0 1 0 0 48m80-24c0 32.8-19.7 61-48 73.3V224h176c26.5 0 48-21.5 48-48v-22.7c-28.3-12.3-48-40.5-48-73.3 0-44.2 35.8-80 80-80s80 35.8 80 80c0 32.8-19.7 61-48 73.3V176c0 61.9-50.1 112-112 112H112v70.7c28.3 12.3 48 40.5 48 73.3 0 44.2-35.8 80-80 80S0 476.2 0 432c0-32.8 19.7-61 48-73.3V153.4C19.7 141 0 112.8 0 80 0 35.8 35.8 0 80 0s80 35.8 80 80m232 0a24 24 0 1 0-48 0 24 24 0 1 0 48 0M80 456a24 24 0 1 0 0-48 24 24 0 1 0 0 48"></path></svg>
+</a>
+<a class="md-social__link" href="https://github.com/dataflow-operator/dataflow/releases" rel="noopener" target="_blank" title="Releases">
+<svg viewbox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M32.5 96v149.5c0 17 6.7 33.3 18.7 45.3l192 192c25 25 65.5 25 90.5 0l149.5-149.5c25-25 25-65.5 0-90.5l-192-192C279.2 38.7 263 32 246 32H96.5c-35.3 0-64 28.7-64 64m112 16a32 32 0 1 1 0 64 32 32 0 1 1 0-64"></path></svg>
+</a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<div class="md-progress" data-md-component="progress" role="progressbar"></div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.instant", "navigation.instant.progress", "navigation.top", "navigation.path", "navigation.footer", "toc.integrate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../../javascripts/versions.js"></script>
+</body>
+</html>
