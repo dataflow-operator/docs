@@ -34,6 +34,28 @@ spec:
 kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
 ```
 
+## Kafka → Nessie
+
+Пример выгрузки событий из Kafka в таблицу Iceberg через sink `nessie`.
+
+**Применение:**
+```bash
+kubectl apply -f dataflow/config/samples/kafka-to-nessie.yaml
+```
+
+Подробности по настройке коннектора смотрите в разделе [Коннекторы — Nessie](connectors.md#nessie).
+
+## Nessie → Kafka
+
+Пример чтения из Iceberg-таблицы через Nessie source и публикации строк в Kafka-топик.
+
+**Применение:**
+```bash
+kubectl apply -f dataflow/config/samples/nessie-to-kafka.yaml
+```
+
+Подробности по настройке коннектора смотрите в разделе [Коннекторы — Nessie](connectors.md#nessie).
+
 ## Kafka с режимом сырой записи (rawMode)
 
 Пример сохранения полного контекста Kafka-сообщения: value + метаданные (offset, partition, timestamp, key, topic). Используйте `rawMode: true` в sink для сохранения сообщений как JSON с колонками `value` и `_metadata`.

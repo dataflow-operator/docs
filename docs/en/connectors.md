@@ -740,6 +740,14 @@ spec:
 
 The Nessie connector reads from and writes to Apache Iceberg tables via the [Nessie](https://projectnessie.org/) catalog (Iceberg REST API). All operations are performed in the context of a Nessie branch; metadata and data are managed by the catalog.
 
+### Nessie Core API vs Iceberg REST
+
+- **Nessie Core API** (`/api/v1`, `/api/v2`) manages repository metadata: references, commits, and content entries.
+- **Iceberg REST catalog API** (`{baseURL}/iceberg[/{branch}][|{warehouse}]`) is used by DataFlow for table reads and writes.
+- **Physical table files** are stored in the configured warehouse/object storage (for example S3-compatible storage), while Nessie tracks catalog metadata and versioned pointers.
+
+If you need Core API details for administrative operations, use the OpenAPI document at repository root: `nessie-openapi-0.107.5.yaml`.
+
 ### Source
 
 ```yaml
@@ -765,6 +773,8 @@ source:
     pollInterval: 10
 
     # Authentication (optional)
+    # authenticationType: AUTO (default) | BEARER | BASIC | NONE
+    authenticationType: BEARER
     bearerToken: "your-token"
     # Or Basic auth:
     # basicAuth:
@@ -798,6 +808,7 @@ sink:
     # Create table if it does not exist (optional); creates table with single "data" (string) column
     autoCreateTable: true
 
+    authenticationType: BEARER
     bearerToken: "your-token"
     # Or basicAuth: { username, password }
 ```

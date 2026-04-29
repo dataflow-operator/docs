@@ -775,6 +775,14 @@ spec:
 
 Коннектор Nessie читает из таблиц Apache Iceberg и записывает в них через каталог [Nessie](https://projectnessie.org/) (Iceberg REST API). Все операции выполняются в контексте ветки Nessie; метаданные и данные управляются каталогом.
 
+### Nessie Core API и Iceberg REST
+
+- **Nessie Core API** (`/api/v1`, `/api/v2`) отвечает за метаданные репозитория: ссылки, коммиты и content-объекты.
+- **Iceberg REST каталог** (`{baseURL}/iceberg[/{branch}][|{warehouse}]`) используется DataFlow для чтения и записи табличных данных.
+- **Физические файлы таблиц** хранятся в настроенном warehouse/object storage (например, S3-совместимом), а Nessie хранит и версионирует каталог и указатели на данные.
+
+Для административных операций по Core API см. OpenAPI-файл в корне репозитория: `nessie-openapi-0.107.5.yaml`.
+
 ### Источник (Source)
 
 ```yaml
@@ -800,11 +808,25 @@ source:
     pollInterval: 10
 
     # Аутентификация (опционально)
+    # authenticationType: AUTO (по умолчанию) | BEARER | BASIC | NONE
+    authenticationType: BEARER
     bearerToken: "your-token"
+    # Или из Secret:
+    # tokenSecretRef:
+    #   name: nessie-credentials
+    #   key: bearerToken
     # Или Basic auth:
     # basicAuth:
     #   username: user
     #   password: pass
+    # Или Basic auth из Secret:
+    # basicAuth:
+    #   usernameSecretRef:
+    #     name: nessie-credentials
+    #     key: username
+    #   passwordSecretRef:
+    #     name: nessie-credentials
+    #     key: password
 ```
 
 #### Особенности Nessie источника
@@ -834,6 +856,7 @@ sink:
     # Создать таблицу, если не существует (опционально); создаётся таблица с одной колонкой "data" (string)
     autoCreateTable: true
 
+    authenticationType: BEARER
     bearerToken: "your-token"
     # Или basicAuth: { username, password }
 ```
