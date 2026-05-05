@@ -811,6 +811,18 @@ sink:
     authenticationType: BEARER
     bearerToken: "your-token"
     # Or basicAuth: { username, password }
+
+    # Optional: Iceberg warehouse object storage (S3-compatible). Separate from Nessie REST auth above.
+    # Set accessKeySecretRef and secretAccessKeySecretRef together. Secrets must be in the same namespace as the DataFlow (Kubernetes secretKeyRef env limitation).
+    # Values are injected only into the processor pod env (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY); they are not resolved into the mounted spec ConfigMap.
+    # s3Endpoint: "https://storage.yandexcloud.net"
+    # s3Region: "ru-central1"
+    # accessKeySecretRef:
+    #   name: iceberg-s3-creds
+    #   key: AWS_ACCESS_KEY_ID
+    # secretAccessKeySecretRef:
+    #   name: iceberg-s3-creds
+    #   key: AWS_SECRET_ACCESS_KEY
 ```
 
 ### Features
@@ -819,6 +831,7 @@ sink:
 - **Batch appends**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
 - **Auto-create table**: Creates an Iceberg table with one `data` (string) column for JSON payloads when the table does not exist.
 - **Authentication**: Same as source (Bearer or Basic).
+- **Warehouse object storage**: Optional static credentials for the Parquet warehouse (`accessKeySecretRef` + `secretAccessKeySecretRef`) set iceberg-go / AWS SDK env (`AWS_S3_ENDPOINT`, `AWS_REGION` when `s3Endpoint` / `s3Region` are set). Cross-namespace Secret references are rejected at reconcile time.
 
 ### Example: Kafka to Nessie (Iceberg)
 
