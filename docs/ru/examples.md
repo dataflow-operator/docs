@@ -860,6 +860,7 @@ kubectl top pod df-<name>-<hash>
 Больше примеров можно найти в директории `dataflow/config/samples/`:
 
 - `kafka-to-postgres.yaml` - базовый Kafka → PostgreSQL
+- `kafka-debezium-to-postgres.yaml` - Kafka (Debezium envelope) → PostgreSQL через `debeziumUnwrap`
 - `kafka-to-postgres-with-resources.yaml` - пример с настройкой ресурсов и размещения
 - `flatten-example.yaml` - пример с Flatten трансформацией
 - `router-example.yaml` - пример с Router трансформацией

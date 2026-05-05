@@ -413,5 +413,11 @@ kubectl describe pod df-<name>-<hash>
 kubectl top pod df-<name>-<hash>
 ```
 
-Additional examples are available in `dataflow/config/samples/` directory.
+Additional examples are available in `dataflow/config/samples/` directory:
+
+- `kafka-to-postgres.yaml` - basic Kafka -> PostgreSQL
+- `kafka-debezium-to-postgres.yaml` - Kafka (Debezium envelope) -> PostgreSQL via `debeziumUnwrap`
+- `kafka-to-postgres-with-resources.yaml` - example with custom resources and scheduling
+- `flatten-example.yaml` - example with Flatten transformation
+- `router-example.yaml` - example with Router transformation
 

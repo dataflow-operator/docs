@@ -15,6 +15,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 | Remove | Removes specified fields | 1 message | 1 message |
 | SnakeCase | Converts keys to snake_case | 1 message | 1 message |
 | CamelCase | Converts keys to CamelCase | 1 message | 1 message |
+| DebeziumUnwrap | Unwraps Debezium envelope into row payload | 1 message | 0 or 1 message |
 
 ## Timestamp
 
@@ -1112,6 +1113,55 @@ transformations:
 - With `deep: false` converts only top-level keys
 - With `deep: true` recursively converts all nested objects and arrays
 
+## DebeziumUnwrap
+
+Converts Debezium Kafka events (`payload.before/after/op`) into a flat row-style message that can be processed by regular transformations and sinks.
+
+### Configuration
+
+```yaml
+transformations:
+  - type: debeziumUnwrap
+    config:
+      # Convert Kafka tombstones (empty value) into operation=delete using metadata.key JSON (optional, default: false)
+      inferDeleteFromTombstone: true
+
+      # Copy payload.source.* into metadata as source_<field> (optional, default: false)
+      includeSourceInMetadata: true
+
+      # Operation for Debezium snapshot records (op="r"): insert (default) or update
+      snapshotOperation: insert
+```
+
+### Behavior
+
+- `op=c` -> body from `payload.after`, `metadata.operation=insert`
+- `op=u` -> body from `payload.after`, `metadata.operation=update`
+- `op=r` -> body from `payload.after`, `metadata.operation=insert` (or `update` if `snapshotOperation: update`)
+- `op=d` -> body from `payload.before`, `metadata.operation=delete`
+- If a message does not contain Debezium envelope (`payload.op`), it is passed through unchanged.
+
+### Kafka tombstones
+
+When `inferDeleteFromTombstone: true` and message value is empty, the transformer tries to parse `metadata.key` as JSON (typically Debezium key) and produce a delete message.
+
+If key parsing fails or key is missing, the message is dropped (without error).
+
+### PostgreSQL sink compatibility
+
+For `operation=delete`, the current PostgreSQL sink uses soft delete via `softDeleteColumn`. Enable `softDeleteColumn` in `sink.config` for delete handling.
+
+### Debezium -> PostgreSQL example
+
+```yaml
+transformations:
+  - type: debeziumUnwrap
+    config:
+      inferDeleteFromTombstone: true
+      includeSourceInMetadata: true
+      snapshotOperation: insert
+```
+
 ## Planned transformations
 
 The following are not yet available in the API (CRD):
@@ -1128,4 +1178,5 @@ Use the [Connectors](connectors.md) and [Examples](examples.md) for current capa
 - **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **SnakeCase** and **CamelCase**: work only with valid JSON; binary data is returned unchanged.
+- **DebeziumUnwrap**: supports Debezium JSON envelope (`payload.op/before/after`). For `operation=delete` in PostgreSQL sink, `softDeleteColumn` is required; otherwise delete events can be treated as regular insert/update writes.
 
