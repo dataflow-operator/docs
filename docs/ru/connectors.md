@@ -861,8 +861,9 @@ sink:
     # Или basicAuth: { username, password }
 
     # Опционально: объектное хранилище warehouse (S3-совместимое). Не путать с аутентификацией Nessie REST выше.
-    # Задавайте accessKeySecretRef и secretAccessKeySecretRef вместе. Secret должен быть в том же namespace, что и DataFlow (ограничение Kubernetes для secretKeyRef в env).
-    # Значения попадают только в переменные окружения пода processor (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY); в ConfigMap со спекой они не материализуются.
+    # Задавайте accessKeySecretRef и secretAccessKeySecretRef вместе.
+    # Если namespace не указан, считается namespace DataFlow и используется secretKeyRef в Pod (предпочтительно).
+    # Если указан другой namespace, оператор читает Secret при reconcile и подставляет литералы в env Deployment (аналогично другим коннекторам с секретами в ConfigMap по модели раскрытия в etcd API).
     # s3Endpoint: "https://storage.yandexcloud.net"
     # s3Region: "ru-central1"
     # accessKeySecretRef:
@@ -879,7 +880,7 @@ sink:
 - **Батч-дозапись**: Группировка сообщений и дозапись батчами в Iceberg; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
 - **Автосоздание таблицы**: Создание таблицы Iceberg с одной колонкой `data` (string) для JSON при отсутствии таблицы.
 - **Аутентификация**: Аналогично источнику (Bearer или Basic).
-- **Объектное хранилище warehouse**: Опциональные статические ключи (`accessKeySecretRef` + `secretAccessKeySecretRef`) задают переменные iceberg-go / AWS SDK; при необходимости укажите `s3Endpoint` и `s3Region` (например Yandex Object Storage). Ссылки на Secret в другом namespace отклоняются при reconcile.
+- **Объектное хранилище warehouse**: Опциональные статические ключи (`accessKeySecretRef` + `secretAccessKeySecretRef`) задают переменные iceberg-go / AWS SDK; при необходимости укажите `s3Endpoint` и `s3Region` (например Yandex Object Storage). В том же namespace, что DataFlow, используются `secretKeyRef`; для другого namespace оператор подставляет значения в env Deployment. Изменение целевого Secret приводит к reconcile через watch.
 
 #### Пример: Kafka → Nessie (Iceberg)
 
