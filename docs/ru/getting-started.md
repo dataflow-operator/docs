@@ -261,6 +261,47 @@ kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 
 Этот пример демонстрирует использование `SecretRef` для конфигурации коннекторов. Подробнее см. раздел [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes) в документации по коннекторам.
 
+## DataFlowCron (запуск по расписанию)
+
+`DataFlowCron` позволяет запускать pipeline по cron-расписанию.
+
+Ключевые особенности:
+
+- `schedule` задаёт расписание в cron-формате.
+- Основной `processor` (блок `source -> transformations -> sink`) запускается первым.
+- `triggers` запускаются **после** успешного завершения `processor`.
+- Для polling-источников (`postgresql`, `trino`, `clickhouse`, `nessie`) `processor` завершается, когда источник исчерпан (`source exhausted`).
+- Для `kafka` источник считается потоковым (streaming) и обычно не завершается по `source exhausted`.
+
+Пример:
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlowCron
+metadata:
+  name: kafka-to-nessie-cron
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  source:
+    type: kafka
+    config:
+      brokers: ["kafka:9092"]
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: nessie
+    config:
+      baseURL: "http://nessie:19120"
+      namespace: analytics
+      table: events
+  triggers:
+    - name: trigger-airflow
+      image: curlimages/curl:8.8.0
+      command: ["curl"]
+      args: ["-X", "POST", "http://airflow-webserver:8080/api/v1/dags/example/dagRuns"]
+```
+
 ### Проверка статуса
 
 Проверьте статус созданного потока данных:

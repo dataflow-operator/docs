@@ -45,6 +45,44 @@ kubectl apply -f dataflow/config/samples/kafka-to-nessie.yaml
 
 Подробности по настройке коннектора смотрите в разделе [Коннекторы — Nessie](connectors.md#nessie).
 
+## DataFlowCron с триггерами после processor
+
+Пример запуска pipeline по расписанию, где сначала выполняется основной `processor`, а затем запускаются `triggers`.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlowCron
+metadata:
+  name: kafka-to-nessie-cron
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  source:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: nessie
+    config:
+      baseURL: "http://nessie:19120"
+      branch: main
+      namespace: analytics
+      table: events
+  triggers:
+    - name: start-spark
+      image: bitnami/kubectl:latest
+      command: ["kubectl"]
+      args: ["apply", "-f", "/manifests/spark-application.yaml"]
+```
+
+Примечания по завершению:
+
+- polling-источники (`postgresql`, `trino`, `clickhouse`, `nessie`) завершают run при `source exhausted`;
+- `kafka` является streaming-источником и по умолчанию не завершает run по exhausted.
+
 ## Nessie → Kafka
 
 Пример чтения из Iceberg-таблицы через Nessie source и публикации строк в Kafka-топик.
