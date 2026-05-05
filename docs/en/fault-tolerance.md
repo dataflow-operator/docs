@@ -114,7 +114,7 @@ Ensure `terminationGracePeriodSeconds` is sufficient for large batches to flush 
 !!! note "Enabled by default"
     The `checkpointPersistence` field in the DataFlow spec defaults to `true`. You do not need to set it explicitly — checkpoint persistence is enabled for all DataFlows with polling sources.
 
-Checkpoint persistence is **enabled by default**. The read position (lastReadID, lastReadChangeTime) is persisted to ConfigMap `dataflow-<name>-checkpoint`. On processor restart, polling sources (PostgreSQL, ClickHouse, Trino) resume from the last committed position, reducing duplicates.
+Checkpoint persistence is **enabled by default**. The read position (lastReadID, lastReadChangeTime) is persisted to ConfigMap `df-<name>-checkpoint`. On processor restart, polling sources (PostgreSQL, ClickHouse, Trino) resume from the last committed position, reducing duplicates.
 
 To disable, set `checkpointPersistence: false`:
 

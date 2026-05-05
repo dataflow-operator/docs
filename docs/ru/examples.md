@@ -811,10 +811,10 @@ kubectl apply -f dataflow/config/samples/kafka-to-postgres-with-resources.yaml
 kubectl get pods -l app=dataflow-processor
 
 # Описание конкретного пода
-kubectl describe pod dataflow-<name>-<hash>
+kubectl describe pod df-<name>-<hash>
 
 # Проверка использования ресурсов
-kubectl top pod dataflow-<name>-<hash>
+kubectl top pod df-<name>-<hash>
 ```
 
 ## Дополнительные примеры

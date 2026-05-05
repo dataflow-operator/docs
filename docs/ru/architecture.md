@@ -114,16 +114,16 @@ flowchart TB
 
 | Ресурс | Имя | Назначение |
 |--------|-----|------------|
-| ConfigMap | `dataflow-<name>-spec` | Хранит `spec.json` (spec с подставленными секретами). |
-| ConfigMap | `dataflow-<name>-checkpoint` | Хранит позицию чтения для polling-источников (по умолчанию). Не создаётся при `checkpointPersistence: false`. |
-| Deployment | `dataflow-<name>` | Одна реплика; под запускает контейнер **processor**. |
-| ServiceAccount, Role, RoleBinding | `dataflow-<name>-processor` | RBAC для доступа процессора к checkpoint ConfigMap (по умолчанию). Не создаётся при `checkpointPersistence: false`. |
+| ConfigMap | `df-<name>-spec` | Хранит `spec.json` (spec с подставленными секретами). |
+| ConfigMap | `df-<name>-checkpoint` | Хранит позицию чтения для polling-источников (по умолчанию). Не создаётся при `checkpointPersistence: false`. |
+| Deployment | `df-<name>` | Одна реплика; под запускает контейнер **processor**. |
+| ServiceAccount, Role, RoleBinding | `df-<name>-processor` | RBAC для доступа процессора к checkpoint ConfigMap (по умолчанию). Не создаётся при `checkpointPersistence: false`. |
 
 Контейнер процессора:
 
 - Образ: из переменной окружения `PROCESSOR_IMAGE` (часто тот же образ и тег, что и у оператора).
 - Аргументы: `--spec-path=/etc/dataflow/spec.json`, `--namespace=...`, `--name=...`.
-- Том: ConfigMap `dataflow-<name>-spec` смонтирован в `/etc/dataflow` (только чтение).
+- Том: ConfigMap `df-<name>-spec` смонтирован в `/etc/dataflow` (только чтение).
 - Переменные: `LOG_LEVEL` (например из `PROCESSOR_LOG_LEVEL`).
 
 Контроллер выставляет **owner reference** от DataFlow к ConfigMap и Deployment, чтобы при удалении DataFlow эти объекты тоже удалялись.
@@ -195,13 +195,13 @@ flowchart LR
    **SecretResolver** подставляет все поля с `SecretRef` в spec значениями из Kubernetes Secrets. Результат: **resolved spec**.
 
 3. **ConfigMap**  
-   Создать или обновить ConfigMap `dataflow-<name>-spec` с ключом `spec.json` = JSON resolved spec. Установить controller reference на DataFlow.
+   Создать или обновить ConfigMap `df-<name>-spec` с ключом `spec.json` = JSON resolved spec. Установить controller reference на DataFlow.
 
 4. **Checkpoint ConfigMap и RBAC** (когда `checkpointPersistence` не `false`, по умолчанию включено)  
-   Создать ConfigMap `dataflow-<name>-checkpoint` и RBAC (ServiceAccount, Role, RoleBinding), чтобы под процессора мог читать и записывать checkpoint. Процессор сохраняет позицию чтения источника (lastReadID, lastReadChangeTime), уменьшая дубликаты при перезапуске.
+   Создать ConfigMap `df-<name>-checkpoint` и RBAC (ServiceAccount, Role, RoleBinding), чтобы под процессора мог читать и записывать checkpoint. Процессор сохраняет позицию чтения источника (lastReadID, lastReadChangeTime), уменьшая дубликаты при перезапуске.
 
 5. **Deployment**  
-   Создать или обновить Deployment `dataflow-<name>`: образ процессора, том из spec ConfigMap, аргументы и переменные окружения как выше. При включённой персистенции checkpoint задать `serviceAccountName` для использования выделенного ServiceAccount. Ресурсы и affinity из spec DataFlow, если заданы. Установить controller reference на DataFlow.
+   Создать или обновить Deployment `df-<name>`: образ процессора, том из spec ConfigMap, аргументы и переменные окружения как выше. При включённой персистенции checkpoint задать `serviceAccountName` для использования выделенного ServiceAccount. Ресурсы и affinity из spec DataFlow, если заданы. Установить controller reference на DataFlow.
 
 6. **Статус Deployment**  
    Прочитать Deployment; выставить в статусе DataFlow **Phase** и **Message** по нему (например `Running` при `ReadyReplicas > 0`, `Pending` при запуске реплик, `Error` при отсутствии реплик).

@@ -407,10 +407,10 @@ After creating a DataFlow with custom resources, check the pod:
 kubectl get pods -l app=dataflow-processor
 
 # Describe a specific pod
-kubectl describe pod dataflow-<name>-<hash>
+kubectl describe pod df-<name>-<hash>
 
 # Check resource usage
-kubectl top pod dataflow-<name>-<hash>
+kubectl top pod df-<name>-<hash>
 ```
 
 Additional examples are available in `dataflow/config/samples/` directory.

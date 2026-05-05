@@ -114,7 +114,7 @@ Producer Kafka использует `RequiredAcks = WaitForAll` и `Producer.Ide
 !!! note "По умолчанию включено"
     Поле `checkpointPersistence` в spec DataFlow по умолчанию равно `true`. Явно указывать его не требуется — персистенция checkpoint включена для всех DataFlow с polling-источниками.
 
-Персистенция checkpoint **включена по умолчанию**. Позиция чтения (lastReadID, lastReadChangeTime) сохраняется в ConfigMap `dataflow-<name>-checkpoint`. При перезапуске процессора polling источники (PostgreSQL, ClickHouse, Trino) возобновляют чтение с последней закоммиченной позиции, уменьшая дубликаты.
+Персистенция checkpoint **включена по умолчанию**. Позиция чтения (lastReadID, lastReadChangeTime) сохраняется в ConfigMap `df-<name>-checkpoint`. При перезапуске процессора polling источники (PostgreSQL, ClickHouse, Trino) возобновляют чтение с последней закоммиченной позиции, уменьшая дубликаты.
 
 Чтобы отключить, задайте `checkpointPersistence: false`:
 

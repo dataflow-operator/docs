@@ -114,16 +114,16 @@ For each DataFlow `<name>` in a namespace:
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| ConfigMap | `dataflow-<name>-spec` | Holds `spec.json` (resolved spec with secrets inlined). |
-| ConfigMap | `dataflow-<name>-checkpoint` | Stores read position for polling sources (default). Omitted when `checkpointPersistence: false`. |
-| Deployment | `dataflow-<name>` | One replica; pod runs the **processor** container. |
-| ServiceAccount, Role, RoleBinding | `dataflow-<name>-processor` | RBAC for processor to read/write checkpoint ConfigMap (default). Omitted when `checkpointPersistence: false`. |
+| ConfigMap | `df-<name>-spec` | Holds `spec.json` (resolved spec with secrets inlined). |
+| ConfigMap | `df-<name>-checkpoint` | Stores read position for polling sources (default). Omitted when `checkpointPersistence: false`. |
+| Deployment | `df-<name>` | One replica; pod runs the **processor** container. |
+| ServiceAccount, Role, RoleBinding | `df-<name>-processor` | RBAC for processor to read/write checkpoint ConfigMap (default). Omitted when `checkpointPersistence: false`. |
 
 The processor container:
 
 - Image: from env `PROCESSOR_IMAGE` (often same as operator image/tag).
 - Args: `--spec-path=/etc/dataflow/spec.json`, `--namespace=...`, `--name=...`.
-- Volume: ConfigMap `dataflow-<name>-spec` mounted at `/etc/dataflow` (read-only).
+- Volume: ConfigMap `df-<name>-spec` mounted at `/etc/dataflow` (read-only).
 - Env: `LOG_LEVEL` (e.g. from `PROCESSOR_LOG_LEVEL`).
 
 The controller sets **owner references** from the DataFlow to the ConfigMap and Deployment so they are deleted when the DataFlow is deleted.
@@ -195,13 +195,13 @@ For each DataFlow, the controller runs the following steps (on create, update, o
    Use **SecretResolver** to substitute all `SecretRef` fields in the spec with values from Kubernetes Secrets. Result: **resolved spec**.
 
 3. **ConfigMap**  
-   Create or update the ConfigMap `dataflow-<name>-spec` with key `spec.json` = JSON of the resolved spec. Set controller reference to the DataFlow.
+   Create or update the ConfigMap `df-<name>-spec` with key `spec.json` = JSON of the resolved spec. Set controller reference to the DataFlow.
 
 4. **Checkpoint ConfigMap and RBAC** (when `checkpointPersistence` is not `false`, default: enabled)  
-   Create ConfigMap `dataflow-<name>-checkpoint` and RBAC (ServiceAccount, Role, RoleBinding) so the processor pod can read/write the checkpoint. The processor persists source read position (lastReadID, lastReadChangeTime) there, reducing duplicates on restart.
+   Create ConfigMap `df-<name>-checkpoint` and RBAC (ServiceAccount, Role, RoleBinding) so the processor pod can read/write the checkpoint. The processor persists source read position (lastReadID, lastReadChangeTime) there, reducing duplicates on restart.
 
 5. **Deployment**  
-   Create or update the Deployment `dataflow-<name>`: processor image, volume from the spec ConfigMap, args and env as above. When checkpoint persistence is enabled, set `serviceAccountName` so the pod uses the dedicated ServiceAccount. Use resources/affinity from DataFlow spec if set. Set controller reference to the DataFlow.
+   Create or update the Deployment `df-<name>`: processor image, volume from the spec ConfigMap, args and env as above. When checkpoint persistence is enabled, set `serviceAccountName` so the pod uses the dedicated ServiceAccount. Use resources/affinity from DataFlow spec if set. Set controller reference to the DataFlow.
 
 6. **Deployment status**  
    Read the Deployment; set DataFlow status **Phase** and **Message** from it (e.g. `Running` when `ReadyReplicas > 0`, `Pending` when replicas are starting, `Error` when no replicas).
