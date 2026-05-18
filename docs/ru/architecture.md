@@ -48,7 +48,7 @@ flowchart LR
 - **API group**: `dataflow.dataflow.io`
 - **Ресурс**: `dataflows` (kind `DataFlow`), **namespaced**.
 - **Spec** включает:
-  - **Source**: тип (например `kafka`, `postgresql`, `trino`) и конфигурацию (брокеры, топик, строка подключения и т.д.).
+  - **Source**: тип (например `kafka`, `postgresql`, `trino`, `clickhouse`, `nessie`) и конфигурацию (брокеры, топик, строка подключения и т.д.).
   - **Sink**: тип и конфигурация основного приёмника.
   - **Transformations**: упорядоченный список трансформаций (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase и др.).
   - **Errors**: опциональный приёмник для сообщений, которые не удалось записать в основной.
@@ -58,6 +58,10 @@ flowchart LR
   - **ChannelBufferSize**: опционально; по умолчанию `100`. Размер буфера каналов между source, processor и sink. Используйте 500–1000 при высокой нагрузке Kafka, чтобы снизить блокировки, когда sink медленнее source.
 
 Секреты задаются через `SecretRef` в spec; оператор подставляет их перед записью spec в ConfigMap.
+
+### DataFlowCron (запуск по расписанию)
+
+Для **периодических** или **пакетных** прогонов используйте **`DataFlowCron`** (`dataflowcrons`): в spec встроены те же поля, что у **DataFlow** (`source`, `sink`, `transformations`, …), плюс **`schedule`** (cron) и при необходимости **`triggers`** — контейнеры, которые выполняются отдельными Kubernetes **Job** *после* успешного завершения Job процессора для данного тика. Контроллер создаёт **CronJob**, ConfigMap со spec и цепочку **Job**. Подробнее — [DataFlowCron](dataflow-cron.md).
 
 ### Структура DataFlow CRD
 
@@ -146,11 +150,11 @@ Helm-чарт может развернуть опциональный **GUI** (
 
 ### Admission Webhook (Validating)
 
-Оператор может принимать запросы **Validating Admission Webhook**: при создании или обновлении ресурса DataFlow API-сервер Kubernetes отправляет объект оператору на порт 9443; оператор проверяет spec (типы source/sink, наличие обязательных полей, допустимые трансформации и т.д.) и либо разрешает операцию, либо отклоняет её с понятным сообщением об ошибке.
+Оператор может принимать запросы **Validating Admission Webhook**: при создании или обновлении ресурса **DataFlow** или **DataFlowCron** API-сервер Kubernetes отправляет объект оператору на порт 9443; оператор проверяет spec (типы source/sink, обязательные поля, трансформации, для cron — расписание и триггеры и т.д.) и либо разрешает операцию, либо отклоняет её с понятным сообщением об ошибке.
 
 **Зачем это нужно:** без webhook некорректный spec (неверный тип source/sink, пустые обязательные поля, неизвестная трансформация) приведёт к ошибке только **в рантайме** — когда контроллер уже создал ConfigMap и Deployment, а процессор при старте не смог построить коннектор или трансформацию. Пользователь увидит ошибку в статусе DataFlow или в логах пода, а не при `kubectl apply`. С включённым webhook невалидный spec отклоняется **до записи в etcd**: `kubectl apply` и GUI получают ответ 4xx с текстом ошибки, в кластере не появляются лишние объекты и не создаётся под процессора с заведомо нерабочей конфигурацией.
 
-**Опциональность:** webhook включается только на уровне Helm (value `webhook.enabled`). По умолчанию он выключен: ValidatingWebhookConfiguration не создаётся, API-сервер не вызывает оператор при create/update DataFlow — поведение как раньше. Подробная настройка (TLS, caBundle, включение в production) описана в разделе [Настройка Validating Webhook](development.md#настройка-validating-webhook) руководства по разработке.
+**Опциональность:** webhook включается только на уровне Helm (value `webhook.enabled`). По умолчанию он выключен: ValidatingWebhookConfiguration не создаётся, API-сервер не вызывает оператор при create/update **DataFlow** или **DataFlowCron** — поведение как раньше. Подробная настройка (TLS, caBundle, включение в production) описана в разделе [Настройка Validating Webhook](development.md#настройка-validating-webhook) руководства по разработке.
 
 ---
 

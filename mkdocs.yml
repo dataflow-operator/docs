@@ -67,6 +67,7 @@ nav:
   - Home: en/index.md
   - Getting Started: en/getting-started.md
   - Architecture: en/architecture.md
+  - DataFlowCron: en/dataflow-cron.md
   - Connectors: en/connectors.md
   - Transformations: en/transformations.md
   - Examples: en/examples.md
@@ -85,6 +86,7 @@ nav:
     - "Главная": ru/index.md
     - "Начало работы": ru/getting-started.md
     - "Архитектура": ru/architecture.md
+    - "DataFlowCron": ru/dataflow-cron.md
     - "Коннекторы": ru/connectors.md
     - "Трансформации": ru/transformations.md
     - "Примеры": ru/examples.md

@@ -12,6 +12,11 @@ DataFlow MCP server helps generate DataFlow manifests and migrate Kafka Connect 
 | **list_dataflow_connectors** | Reference of supported connectors (sources and sinks). |
 | **list_dataflow_transformations** | Reference of transformations with examples. |
 
+!!! note "Validation depth"
+    **`validate_dataflow_manifest`** only performs shallow structural checks (apiVersion/kind and presence of source/sink `type` + `config`). It does **not** enforce the same allow-list or field rules as the operator validating webhook (`pkg/providers` + `dataflow/api/v1/dataflow_validation.go`).
+    
+    **`list_dataflow_connectors`** is reference metadata for the IDE and may omit connectors that the operator already supports (for example **`nessie`**). See **`docs/provider-types-inventory.md`** for how MCP and the operator lists relate.
+
 ## Docker image
 
 The server is published to GitHub Container Registry. Recommended image for production use:

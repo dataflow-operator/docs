@@ -246,14 +246,18 @@ webhook:
   secretName: dataflow-operator-webhook-cert
 ```
 
-После установки/обновления чарта с этими значениями создаётся ресурс ValidatingWebhookConfiguration; при следующем create/update DataFlow API-сервер будет вызывать оператор для валидации.
+После установки/обновления чарта с этими значениями создаётся ресурс ValidatingWebhookConfiguration; при следующем create/update **DataFlow** или **DataFlowCron** API-сервер будет вызывать оператор для валидации.
 
 ### Что проверяет webhook
 
-- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из списка (`kafka`, `postgresql`, `trino`), наличие соответствующей конфигурации (например `source.config` при `source.type: kafka`).
+**DataFlow** (`dataflows`):
+
+- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из реестра провайдеров (`kafka`, `postgresql`, `trino`, `clickhouse`, `nessie` — см. `dataflow/api/v1/provider_registry.go` и `pkg/providers`), наличие соответствующей конфигурации (например `source.config` при `source.type: kafka`).
 - Для каждого типа source/sink — обязательные поля или SecretRef (например для Kafka: brokers или brokersSecretRef, topic или topicSecretRef).
 - Список трансформаций: допустимые типы и наличие конфигурации для каждого типа; для router — валидация вложенных sink.
 - Опционально: `spec.errors` (если задан — как SinkSpec), SecretRef (name и key), неотрицательные ресурсы.
+
+**DataFlowCron** (`dataflowcrons`): встроенные поля в стиле DataFlow (`source`, `sink`, `transformations`, …) проверяются так же; дополнительно — непустой `schedule` с 5–6 полями cron, у каждого триггера задан `image`, при наличии `concurrencyPolicy` допустимы только `Allow`, `Forbid`, `Replace`.
 
 При ошибке валидации API возвращает ответ с перечислением полей и сообщений (агрегат из `field.ErrorList`).
 

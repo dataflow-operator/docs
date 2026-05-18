@@ -45,6 +45,51 @@ kubectl apply -f dataflow/config/samples/kafka-to-nessie.yaml
 
 See also the connector setup details in [Connectors — Nessie](connectors.md#nessie).
 
+## DataFlowCron {#dataflowcron-example}
+
+Scheduled pipeline: the operator creates a **CronJob** and runs the processor (and optional **post-triggers**) on a cron schedule. The `spec` embeds the same fields as `DataFlow` plus `schedule` and optional `triggers`.
+
+Full reference: [DataFlowCron](dataflow-cron.md).
+
+**Apply the sample:**
+```bash
+kubectl apply -f dataflow/config/samples/dataflowcron-example.yaml
+```
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlowCron
+metadata:
+  name: kafka-to-nessie-cron
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  source:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: nessie
+    config:
+      baseURL: "http://nessie:19120"
+      branch: main
+      namespace: analytics
+      table: events
+  triggers:
+    - name: start-spark
+      image: bitnami/kubectl:latest
+      command: ["kubectl"]
+      args: ["apply", "-f", "/manifests/spark-application.yaml"]
+```
+
+Completion behavior:
+
+- Polling sources (`postgresql`, `trino`, `clickhouse`, `nessie`) usually finish the run when the source is **exhausted**.
+- **Kafka** is streaming and often does **not** exit by exhaustion, so “success → triggers” may not happen without extra design.
+
 ## Nessie → Kafka
 
 Example of reading from a Nessie-backed Iceberg table and publishing rows to a Kafka topic.

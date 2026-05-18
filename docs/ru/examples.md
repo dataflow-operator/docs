@@ -45,7 +45,9 @@ kubectl apply -f dataflow/config/samples/kafka-to-nessie.yaml
 
 Подробности по настройке коннектора смотрите в разделе [Коннекторы — Nessie](connectors.md#nessie).
 
-## DataFlowCron с триггерами после processor
+## DataFlowCron с триггерами после processor {#dataflowcron-example}
+
+Полное описание ресурса и объектов в кластере: [DataFlowCron](dataflow-cron.md).
 
 Пример запуска pipeline по расписанию, где сначала выполняется основной `processor`, а затем запускаются `triggers`.
 

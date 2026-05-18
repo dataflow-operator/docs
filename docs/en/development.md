@@ -246,14 +246,18 @@ webhook:
   secretName: dataflow-operator-webhook-cert
 ```
 
-After installing or upgrading the chart with these values, a ValidatingWebhookConfiguration is created; on the next DataFlow create/update, the API server will call the operator for validation.
+After installing or upgrading the chart with these values, a ValidatingWebhookConfiguration is created; on the next **DataFlow** or **DataFlowCron** create/update, the API server will call the operator for validation.
 
 ### What the webhook validates
 
-- Required fields: `spec.source`, `spec.sink`, source/sink types from the allowed list (`kafka`, `postgresql`, `trino`), and the matching config block (e.g. `source.config` when `source.type: kafka`).
+**DataFlow** (`dataflows`):
+
+- Required fields: `spec.source`, `spec.sink`, source/sink types allowed by the provider registry (`kafka`, `postgresql`, `trino`, `clickhouse`, `nessie` — see `dataflow/api/v1/provider_registry.go` / `pkg/providers`), and the matching config block (e.g. `source.config` when `source.type: kafka`).
 - For each source/sink type, required fields or SecretRef (e.g. for Kafka: brokers or brokersSecretRef, topic or topicSecretRef).
 - Transformations: allowed types and config present for each type; for router, nested sinks are validated.
 - Optionally: `spec.errors` (if set, validated as SinkSpec), SecretRef (name and key), non-negative resources.
+
+**DataFlowCron** (`dataflowcrons`): the embedded DataFlow-shaped fields (`source`, `sink`, `transformations`, …) are validated as above; additionally `schedule` must be non-empty with 5–6 cron fields, each trigger must set `image`, and `concurrencyPolicy` (if set) must be `Allow`, `Forbid`, or `Replace`.
 
 On validation failure, the API returns a response with field paths and messages (aggregated from the validator’s field errors).
 

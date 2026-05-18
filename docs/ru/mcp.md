@@ -12,6 +12,11 @@ MCP-сервер DataFlow помогает генерировать манифе
 | **list_dataflow_connectors** | Справочник поддерживаемых коннекторов (sources и sinks). |
 | **list_dataflow_transformations** | Справочник трансформаций с примерами. |
 
+!!! note "Глубина валидации"
+    **`validate_dataflow_manifest`** выполняет только поверхностные проверки структуры (apiVersion/kind и наличие `type` + `config` у source/sink). Он **не** воспроизводит те же правила допустимых типов и полей, что validating webhook оператора (`pkg/providers` + `dataflow/api/v1/dataflow_validation.go`).
+    
+    **`list_dataflow_connectors`** — справочные метаданные для IDE и может не включать коннекторы, которые оператор уже поддерживает (например **`nessie`**). Связь списков MCP и оператора описана в **`docs/provider-types-inventory.md`**.
+
 ## Docker-образ
 
 Сервер публикуется в GitHub Container Registry. Рекомендуемый образ для использования:

@@ -96,7 +96,7 @@ The operator consists of the following components:
 
 ### CRD (Custom Resource Definitions)
 
-Defines the schema for the `DataFlow` resource, which describes the data flow configuration, including source, sink, and list of transformations.
+Defines **`DataFlow`** (continuous processor) and **`DataFlowCron`** (scheduled runs with optional post-triggers): source, sink, transformations, and orchestration-specific fields.
 
 ### Controller
 
@@ -136,6 +136,7 @@ See [Metrics](metrics.md) for more details.
 ## Documentation
 
 - [Getting Started](getting-started.md) — installation and first data flow
+- [DataFlowCron](dataflow-cron.md) — scheduled pipelines, CronJob, triggers after a successful run
 - [Installation & Helm Configuration](getting-started.md#installation) — Helm charts, values, installation options
 - [Web GUI](gui.md) — web interface: how it works and capabilities
 - [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino, Nessie (sources and sinks)

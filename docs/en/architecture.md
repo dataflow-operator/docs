@@ -48,7 +48,7 @@ Transformations are applied in order: `timestamp`, `flatten`, `filter`, `mask`, 
 - **API group**: `dataflow.dataflow.io`
 - **Resource**: `dataflows` (kind `DataFlow`), **namespaced**.
 - **Spec** includes:
-  - **Source**: type (e.g. `kafka`, `postgresql`, `trino`) and type-specific config (brokers, topic, connection string, etc.).
+  - **Source**: type (e.g. `kafka`, `postgresql`, `trino`, `clickhouse`, `nessie`) and type-specific config (brokers, topic, connection string, etc.).
   - **Sink**: type and config for the main destination.
   - **Transformations**: ordered list (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase, etc.).
   - **Errors**: optional sink for messages that fail to be written to the main sink.
@@ -58,6 +58,10 @@ Transformations are applied in order: `timestamp`, `flatten`, `filter`, `mask`, 
   - **ChannelBufferSize**: optional; defaults to `100`. Buffer size for message channels between source, processor, and sink. Use 500–1000 for high Kafka throughput to reduce blocking when the sink is slower than the source.
 
 Secrets can be referenced via `SecretRef` in the spec; the operator resolves them before writing the spec into the ConfigMap.
+
+### DataFlowCron (scheduled runs)
+
+For **periodic** or **batch-style** runs, use **`DataFlowCron`** (`dataflowcrons`): the spec embeds the same fields as **DataFlow** (`source`, `sink`, `transformations`, …) plus a **`schedule`** (cron) and optional **`triggers`** — containers executed as separate Kubernetes **Jobs** *after* the processor Job for that tick succeeds. The controller manages a **CronJob**, a spec **ConfigMap**, and chained **Jobs**. See [DataFlowCron](dataflow-cron.md).
 
 ### DataFlow CRD Structure
 
@@ -146,11 +150,11 @@ The Helm chart can deploy an optional **GUI** (separate Deployment, Service, and
 
 ### Admission Webhook (Validating)
 
-The operator can serve a **Validating Admission Webhook**: when a DataFlow resource is created or updated, the Kubernetes API server sends the object to the operator on port 9443; the operator validates the spec (source/sink types, required fields, allowed transformations, etc.) and either allows the operation or rejects it with a clear error message.
+The operator can serve **Validating Admission Webhooks**: when a **DataFlow** or **DataFlowCron** resource is created or updated, the Kubernetes API server sends the object to the operator on port 9443; the operator validates the spec (source/sink types, required fields, allowed transformations, schedule/triggers for cron, etc.) and either allows the operation or rejects it with a clear error message.
 
 **Why it matters:** without the webhook, an invalid spec (wrong source/sink type, missing required fields, unknown transformation) only fails **at runtime** — after the controller has created the ConfigMap and Deployment and the processor fails to build a connector or transformer on startup. Users see the error in the DataFlow status or pod logs, not at `kubectl apply`. With the webhook enabled, invalid specs are rejected **before being stored in etcd**: `kubectl apply` and the GUI get a 4xx response with the error text, no extra resources are created, and no processor pod is started with a broken configuration.
 
-**Optional:** the webhook is controlled only at the Helm level (value `webhook.enabled`). By default it is disabled: no ValidatingWebhookConfiguration is created, and the API server does not call the operator on DataFlow create/update. See [Configuring the Validating Webhook](development.md#configuring-the-validating-webhook) in the development guide for TLS, caBundle, and production setup.
+**Optional:** the webhook is controlled only at the Helm level (value `webhook.enabled`). By default it is disabled: no ValidatingWebhookConfiguration is created, and the API server does not call the operator on **DataFlow** or **DataFlowCron** create/update. See [Configuring the Validating Webhook](development.md#configuring-the-validating-webhook) in the development guide for TLS, caBundle, and production setup.
 
 ---
 
