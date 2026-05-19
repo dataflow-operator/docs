@@ -54,8 +54,9 @@ Transformations are applied in order: `timestamp`, `flatten`, `filter`, `mask`, 
   - **Errors**: optional sink for messages that fail to be written to the main sink.
   - **Resources**: optional CPU/memory for the processor pod.
   - **Scheduling**: optional `nodeSelector`, `affinity`, `tolerations`.
-  - **CheckpointPersistence**: optional; defaults to `true`. When enabled, polling sources (PostgreSQL, ClickHouse, Trino) persist read position to a ConfigMap, reducing duplicates on restart. Set to `false` to disable.
+  - **CheckpointPersistence**: optional; defaults to `true`. When enabled, polling sources (PostgreSQL, ClickHouse, Trino) persist read position to a ConfigMap, reducing duplicates on restart. For Nessie, checkpoint applies when `source.config.incrementalBySnapshot: true` (see [connectors](connectors.md#nessie)). Set to `false` to disable.
   - **ChannelBufferSize**: optional; defaults to `100`. Buffer size for message channels between source, processor, and sink. Use 500–1000 for high Kafka throughput to reduce blocking when the sink is slower than the source.
+  - **Replicas**: optional; defaults to `1`. Number of processor pods (Deployment replicas). Values **greater than 1** are allowed **only for Kafka** (consumer group coordinates partition assignment). For polling sources, including Nessie, keep `1` — otherwise the admission webhook rejects the spec.
 
 Secrets can be referenced via `SecretRef` in the spec; the operator resolves them before writing the spec into the ConfigMap.
 
@@ -83,6 +84,7 @@ flowchart TB
     Scheduling["scheduling (optional)"]
     Checkpoint["checkpointPersistence (optional)"]
     ChannelBuffer["channelBufferSize (optional)"]
+    Replicas["replicas (optional, Kafka)"]
     Image["processorImage / processorVersion (optional)"]
   end
 
@@ -98,6 +100,7 @@ flowchart TB
   Spec --> Scheduling
   Spec --> Checkpoint
   Spec --> ChannelBuffer
+  Spec --> Replicas
   Spec --> Image
 ```
 
@@ -249,7 +252,7 @@ It reads the spec from the file, builds a **Processor** from it, and runs `Proce
 
 The **Processor** (in `internal/processor/processor.go`) is built from the spec and contains:
 
-- **Source**: a **SourceConnector** (Kafka, PostgreSQL, Trino, or Nessie) — `Connect`, `Read`, `Close`. By default, polling sources load initial checkpoint from ConfigMap and save it after each successful sink write (debounced). Disable with `checkpointPersistence: false`.
+- **Source**: a **SourceConnector** (Kafka, PostgreSQL, Trino, ClickHouse, or Nessie) — `Connect`, `Read`, `Close`. Polling sources with checkpoint (PostgreSQL, ClickHouse, Trino; Nessie when `incrementalBySnapshot: true`) load position from ConfigMap and persist it after sink `Ack`. Disable persistence with `checkpointPersistence: false`.
 - **Sink**: a **SinkConnector** for the main destination — `Connect`, `Write`, `Close`.
 - **Error sink** (optional): another SinkConnector for failed writes.
 - **Transformations**: an ordered list of **Transformer** implementations (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase).

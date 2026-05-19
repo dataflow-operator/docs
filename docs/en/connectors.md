@@ -10,7 +10,7 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 | PostgreSQL | ✅ | ✅ | SQL queries, batch inserts, auto-create tables, UPSERT mode |
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
-| Nessie | ✅ | ✅ | Iceberg tables via Nessie catalog, branches, Basic/Bearer auth, polling, batch appends |
+| Nessie | ✅ | ✅ | Iceberg via Nessie catalog, polling, batch appends, sink `rawMode` (`data` + `_metadata`); `spec.replicas` must be 1 |
 
 
 ## Using Kubernetes Secrets
@@ -772,6 +772,11 @@ source:
     # Poll interval in seconds (optional, default: 10)
     pollInterval: 10
 
+    # Incremental read by Iceberg snapshot (optional, default: false)
+    # incrementalBySnapshot: true
+    # startSnapshotID: "1234567890123456789"  # first run without checkpoint
+    # snapshotCheckpoints: true              # default
+
     # Authentication (optional)
     # authenticationType: AUTO (default) | BEARER | BASIC | NONE
     authenticationType: BEARER
@@ -786,7 +791,10 @@ source:
 
 - **Branch context**: Reads from the specified Nessie branch; table metadata is resolved from the catalog.
 - **Polling**: Periodically scans the Iceberg table for new data.
+- **Full scan (default)**: Each poll scans the table’s current snapshot in full.
+- **Incremental mode** (`incrementalBySnapshot: true`): Reads only snapshots newer than the last `Ack`; position is stored in the checkpoint ConfigMap (see [fault tolerance](fault-tolerance.md)). The `query` field is not supported in this mode.
 - **Authentication**: Bearer token (OAuth2) or Basic auth for Nessie/Iceberg REST.
+- **No `rawMode` on source**: Each Iceberg row is emitted as a JSON object keyed by column names (for example `data` and `_metadata` if the table was written with sink `rawMode: true`). Incremental mode reduces duplicates on restart but does **not** enable multiple processor pods — see [Horizontal scaling](#horizontal-scaling-specreplicas) below.
 
 ### Sink
 
@@ -805,8 +813,12 @@ sink:
     # Flush interval in seconds (optional, default: 10). 0 = disable timer
     batchFlushIntervalSeconds: 10
 
-    # Create table if it does not exist (optional); creates table with single "data" (string) column
+    # Create table if it does not exist (optional)
     autoCreateTable: true
+
+    # Raw mode (optional, default: false)
+    # When true, creates table with data and _metadata string columns; plain messages use msg.Metadata for _metadata
+    rawMode: false
 
     authenticationType: BEARER
     bearerToken: "your-token"
@@ -831,9 +843,69 @@ sink:
 
 - **Branch context**: Writes are committed to the specified Nessie branch via the catalog.
 - **Batch appends**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
-- **Auto-create table**: Creates an Iceberg table with one `data` (string) column for JSON payloads when the table does not exist.
+- **Auto-create table**: When `autoCreateTable: true`, creates an Iceberg table if missing. Default: one `data` (string) column. With `rawMode: true`: `data` and `_metadata` (string) columns — see [rawMode and `_metadata`](#rawmode-and-_metadata-column-sink-only).
 - **Authentication**: Same as source (Bearer or Basic).
 - **Warehouse object storage**: Optional static credentials for the Parquet warehouse (`accessKeySecretRef` + `secretAccessKeySecretRef`) set iceberg-go / AWS SDK env (`AWS_S3_ENDPOINT`, `AWS_REGION` when `s3Endpoint` / `s3Region` are set). Same-namespace refs use `secretKeyRef`; other namespaces are resolved by the operator into Deployment env literals. Changing a referenced Secret triggers reconcile via normal Secret watches.
+
+### Horizontal scaling (`spec.replicas`)
+
+Nessie is a **polling** source. The processor Deployment follows `spec.replicas` (default `1`).
+
+| `spec.source.type` | `spec.replicas` | Behavior |
+|--------------------|-----------------|----------|
+| `kafka` | `> 1` allowed | Consumer group assigns topic partitions across pods. Nessie sink can run on multiple pods only in this case (each pod writes batches independently). |
+| `nessie` (or any other polling source) | must be `1` or unset | Admission webhook rejects `replicas > 1`. Multiple pods would share one checkpoint ConfigMap and **duplicate** reads/writes. |
+| any ( **DataFlowCron** ) | must be `1` or unset | One processor Job per schedule tick; `replicas > 1` is always rejected. |
+
+`incrementalBySnapshot` on the Nessie source improves restart behavior (checkpoint by Iceberg snapshot) but **does not** replace Kafka-style horizontal scaling.
+
+For higher throughput with Nessie sink, tune `batchSize`, `batchFlushIntervalSeconds`, and `channelBufferSize` instead of increasing `replicas`. Details: [fault tolerance — horizontal scaling](fault-tolerance.md#horizontal-scaling-specreplicas), [architecture — CRD](architecture.md#custom-resource-definition-crd).
+
+### rawMode and `_metadata` column (sink only)
+
+`rawMode` is configured on the **sink** (`sink.config.rawMode`). It is **not** available on the Nessie source.
+
+Iceberg schema when `autoCreateTable: true` and `rawMode: true`:
+
+| Column | Iceberg type | Content |
+|--------|--------------|---------|
+| `data` | string | Payload JSON (message body) |
+| `_metadata` | string | JSON object with lineage fields (Kafka offset, partition, topic, etc.) |
+
+Unlike PostgreSQL sink raw mode (`value` / `_metadata` as **JSONB**), Nessie stores both fields as **string** columns containing JSON text.
+
+**How messages are mapped on write**
+
+1. **Plain message** — `msg.Data` is the payload; `msg.Metadata` (for example from Kafka source) is serialized into `_metadata`:
+
+   ```json
+   {"id": 1, "event": "login"}
+   ```
+
+   → `data` = body JSON, `_metadata` = `{"offset":100,"partition":0,"topic":"events",...}`
+
+2. **Pre-wrapped message** — body already has `value` and `_metadata` keys (common when chaining from another rawMode sink):
+
+   ```json
+   {"value": {"id": 1}, "_metadata": {"offset": 10, "topic": "t1"}}
+   ```
+
+   → inner `value` → `data` column, inner `_metadata` → `_metadata` column (same convention as Trino/PostgreSQL rawMode).
+
+**Existing tables**
+
+- With `rawMode: true`, `Connect` validates that the table has both `data` and `_metadata` string-compatible columns (case-insensitive). Otherwise the processor fails fast.
+- A table created without `_metadata` cannot be used with `rawMode: true` until you recreate it or add the column manually.
+
+**Reading back (Nessie source)**
+
+The source does not unwrap `rawMode`; it emits one JSON object per row with Iceberg column names. A row from a rawMode table looks like:
+
+```json
+{"data": "{\"id\":1}", "_metadata": "{\"offset\":100,\"topic\":\"events\"}"}
+```
+
+Parse `data` / `_metadata` in the downstream sink if you need structured fields.
 
 ### Example: Kafka to Nessie (Iceberg)
 
@@ -859,6 +931,7 @@ spec:
       table: events
       batchSize: 100
       autoCreateTable: true
+      rawMode: true  # Kafka offset/partition/topic → _metadata column
 ```
 
 ## Error Sink
@@ -901,6 +974,6 @@ Buffer size for message channels between source, processor, and sink (default 10
 1. Increase `channelBufferSize` (500–1000) for high Kafka load
 2. Increase batch sizes for sinks
 3. Tune `pollInterval` for sources
-4. Scale operator instances if needed
+4. For Kafka sources, increase `spec.replicas` (up to topic partition count). For Nessie and other polling sources, keep `replicas: 1` and tune `batchSize` / `channelBufferSize` instead
 5. Monitor message processing metrics
 

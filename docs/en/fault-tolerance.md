@@ -15,6 +15,13 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 | **PostgreSQL** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **ClickHouse** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **Trino** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
+| **Nessie** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Incremental reads along the Iceberg snapshot chain; without `incrementalBySnapshot`, full scan on every poll (no checkpoint). |
+
+### Horizontal scaling (`spec.replicas`)
+
+- **Kafka**: you may set `spec.replicas > 1`. All pods share one consumer group; parallelism is capped by the topic **partition** count.
+- **PostgreSQL, ClickHouse, Trino, Nessie**: `replicas` must be `1` (or unset). Multiple pods with a shared checkpoint ConfigMap will **duplicate** data.
+- **DataFlowCron**: `replicas > 1` is not supported (one processor Job per schedule tick).
 
 ### Kafka Source
 
@@ -23,6 +30,12 @@ The Kafka consumer commits offset **only after** the message is successfully wri
 - **Before sink write**: Offset not committed. On restart, message is re-read. No duplicate in sink.
 - **After sink write, before Ack**: Data may be in sink, offset not committed. On restart, re-read → duplicate in sink.
 - **After Ack**: Offset committed. On restart, resume from next message. No duplicate.
+
+### Nessie source (incremental mode)
+
+When `source.config.incrementalBySnapshot: true`, the processor reads only **new** Iceberg snapshots since the last `Ack`. Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) is stored in a ConfigMap when `snapshotCheckpoints` (default) and `spec.checkpointPersistence` are enabled.
+
+See [nessie-incremental-snapshots-design.md](nessie-incremental-snapshots-design.md).
 
 ### Polling Sources (PostgreSQL, ClickHouse, Trino)
 

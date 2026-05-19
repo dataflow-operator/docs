@@ -10,7 +10,7 @@ DataFlow Operator поддерживает различные коннектор
 | PostgreSQL | ✅ | ✅ | SQL запросы, батч-вставки, автосоздание таблиц, UPSERT режим |
 | Trino | ✅ | ✅ | SQL запросы, аутентификация Keycloak OAuth2, батч-вставки |
 | ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
-| Nessie | ✅ | ✅ | Таблицы Iceberg через каталог Nessie, ветки, Basic/Bearer auth, опрос, батч-дозапись |
+| Nessie | ✅ | ✅ | Iceberg через каталог Nessie, опрос, батч-дозапись, sink `rawMode` (`data` + `_metadata`); `spec.replicas` только 1 |
 
 ## Kafka
 
@@ -807,6 +807,11 @@ source:
     # Интервал опроса в секундах (опционально, по умолчанию: 10)
     pollInterval: 10
 
+    # Инкрементальное чтение по Iceberg snapshot (опционально, по умолчанию: false)
+    # incrementalBySnapshot: true
+    # startSnapshotID: "1234567890123456789"  # при первом запуске без checkpoint
+    # snapshotCheckpoints: true              # по умолчанию
+
     # Аутентификация (опционально)
     # authenticationType: AUTO (по умолчанию) | BEARER | BASIC | NONE
     authenticationType: BEARER
@@ -833,7 +838,10 @@ source:
 
 - **Контекст ветки**: Чтение из указанной ветки Nessie; метаданные таблицы берутся из каталога.
 - **Опрос**: Периодическое сканирование таблицы Iceberg для новых данных.
+- **Полный scan (по умолчанию)**: На каждом poll выполняется полное сканирование текущего snapshot таблицы.
+- **Инкрементальный режим** (`incrementalBySnapshot: true`): Читаются только snapshot новее последнего подтверждённого `Ack`; позиция сохраняется в checkpoint ConfigMap (см. [отказоустойчивость](fault-tolerance.md)). Поле `query` в этом режиме не поддерживается.
 - **Аутентификация**: Bearer токен (OAuth2) или Basic auth для Nessie/Iceberg REST.
+- **Без `rawMode` у источника**: Каждая строка Iceberg отдаётся как JSON-объект с именами колонок (например `data` и `_metadata`, если таблица создана sink с `rawMode: true`). Инкрементальный режим уменьшает дубликаты при рестарте, но **не** включает несколько подов процессора — см. [Горизонтальное масштабирование](#горизонтальное-масштабирование-specreplicas) ниже.
 
 ### Приемник (Sink)
 
@@ -853,8 +861,12 @@ sink:
     # Интервал сброса батча в секундах (опционально, по умолчанию: 10). 0 — отключить сброс по таймеру
     batchFlushIntervalSeconds: 10
 
-    # Создать таблицу, если не существует (опционально); создаётся таблица с одной колонкой "data" (string)
+    # Создать таблицу, если не существует (опционально)
     autoCreateTable: true
+
+    # Режим rawMode (опционально, по умолчанию: false)
+    # При true создаёт таблицу с колонками data и _metadata (string); plain-сообщения оборачиваются с msg.Metadata
+    rawMode: false
 
     authenticationType: BEARER
     bearerToken: "your-token"
@@ -878,9 +890,69 @@ sink:
 
 - **Контекст ветки**: Запись выполняется в указанную ветку Nessie через каталог.
 - **Батч-дозапись**: Группировка сообщений и дозапись батчами в Iceberg; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
-- **Автосоздание таблицы**: Создание таблицы Iceberg с одной колонкой `data` (string) для JSON при отсутствии таблицы.
+- **Автосоздание таблицы**: При `autoCreateTable: true` создаёт таблицу Iceberg при отсутствии. По умолчанию — одна колонка `data` (string). При `rawMode: true` — колонки `data` и `_metadata` (string) — см. [rawMode и колонка `_metadata`](#rawmode-и-колонка-_metadata-только-sink).
 - **Аутентификация**: Аналогично источнику (Bearer или Basic).
 - **Объектное хранилище warehouse**: Опциональные статические ключи (`accessKeySecretRef` + `secretAccessKeySecretRef`) задают переменные iceberg-go / AWS SDK; при необходимости укажите `s3Endpoint` и `s3Region` (например Yandex Object Storage). В том же namespace, что DataFlow, используются `secretKeyRef`; для другого namespace оператор подставляет значения в env Deployment. Изменение целевого Secret приводит к reconcile через watch.
+
+#### Горизонтальное масштабирование (`spec.replicas`)
+
+Nessie — **polling**-источник. Число подов процессора задаётся полем `spec.replicas` (по умолчанию `1`).
+
+| `spec.source.type` | `spec.replicas` | Поведение |
+|--------------------|-----------------|-----------|
+| `kafka` | допускается `> 1` | Consumer group распределяет партиции топика между подами. Sink Nessie в таком пайплайне может работать на нескольких подах (каждый пишет батчи независимо). |
+| `nessie` (или другой polling-источник) | только `1` или не задан | Admission webhook отклоняет `replicas > 1`. Несколько подов с общим checkpoint ConfigMap **дублируют** чтение/запись. |
+| любой (**DataFlowCron**) | только `1` или не задан | Один Job процессора на тик расписания; `replicas > 1` всегда запрещён. |
+
+`incrementalBySnapshot` у Nessie-источника улучшает поведение при рестарте (checkpoint по Iceberg snapshot), но **не** заменяет горизонтальное масштабирование как у Kafka.
+
+Для большей пропускной способности при записи в Nessie настраивайте `batchSize`, `batchFlushIntervalSeconds` и `channelBufferSize`, а не увеличивайте `replicas`. Подробнее: [отказоустойчивость — горизонтальное масштабирование](fault-tolerance.md#горизонтальное-масштабирование-specreplicas), [архитектура — CRD](architecture.md#custom-resource-definition-crd).
+
+#### rawMode и колонка `_metadata` (только sink)
+
+`rawMode` задаётся в **sink** (`sink.config.rawMode`). У Nessie-источника этого параметра **нет**.
+
+Схема Iceberg при `autoCreateTable: true` и `rawMode: true`:
+
+| Колонка | Тип Iceberg | Содержимое |
+|---------|-------------|------------|
+| `data` | string | JSON полезной нагрузки (тело сообщения) |
+| `_metadata` | string | JSON с полями происхождения (offset, partition, topic Kafka и т.д.) |
+
+В отличие от PostgreSQL sink (`value` / `_metadata` как **JSONB**), Nessie хранит оба поля как **string** с JSON-текстом внутри.
+
+**Как сообщение попадает в таблицу при записи**
+
+1. **Обычное сообщение** — `msg.Data` — тело; `msg.Metadata` (например от Kafka) сериализуется в `_metadata`:
+
+   ```json
+   {"id": 1, "event": "login"}
+   ```
+
+   → `data` = JSON тела, `_metadata` = `{"offset":100,"partition":0,"topic":"events",...}`
+
+2. **Уже обёрнутое сообщение** — в теле есть ключи `value` и `_metadata` (типично при цепочке из другого rawMode sink):
+
+   ```json
+   {"value": {"id": 1}, "_metadata": {"offset": 10, "topic": "t1"}}
+   ```
+
+   → внутренний `value` → колонка `data`, внутренний `_metadata` → колонка `_metadata` (как у Trino/PostgreSQL rawMode).
+
+**Существующие таблицы**
+
+- При `rawMode: true` на `Connect` проверяется наличие колонок `data` и `_metadata` (без учёта регистра). Иначе процессор завершится с ошибкой.
+- Таблица без `_metadata` несовместима с `rawMode: true`, пока вы не пересоздадите её или не добавите колонку вручную.
+
+**Чтение обратно (Nessie source)**
+
+Источник не разворачивает rawMode: одна строка Iceberg → один JSON с именами колонок. Строка из rawMode-таблицы выглядит так:
+
+```json
+{"data": "{\"id\":1}", "_metadata": "{\"offset\":100,\"topic\":\"events\"}"}
+```
+
+При необходимости распарсите `data` / `_metadata` на стороне downstream sink.
 
 #### Пример: Kafka → Nessie (Iceberg)
 
@@ -906,6 +978,7 @@ spec:
       table: events
       batchSize: 100
       autoCreateTable: true
+      rawMode: true  # Kafka offset/partition/topic → колонка _metadata
 ```
 
 ## Error Sink
@@ -1298,7 +1371,7 @@ kubectl logs -l app.kubernetes.io/name=dataflow-operator | grep -i secret
 1. Увеличьте `channelBufferSize` (500–1000) при высокой нагрузке Kafka
 2. Увеличьте размер батчей для приемников
 3. Настройте правильный `pollInterval` для источников
-4. Используйте несколько инстансов оператора для масштабирования
+4. Для Kafka увеличивайте `spec.replicas` (не больше числа партиций топика). Для Nessie и других polling-источников оставляйте `replicas: 1` и настраивайте `batchSize` / `channelBufferSize`
 5. Мониторьте метрики обработки сообщений
 
 ### Логирование

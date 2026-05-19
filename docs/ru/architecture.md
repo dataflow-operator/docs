@@ -54,8 +54,9 @@ flowchart LR
   - **Errors**: опциональный приёмник для сообщений, которые не удалось записать в основной.
   - **Resources**: опциональные CPU/память для пода процессора.
   - **Scheduling**: опционально `nodeSelector`, `affinity`, `tolerations`.
-  - **CheckpointPersistence**: опционально; по умолчанию `true`. При включении polling-источники (PostgreSQL, ClickHouse, Trino) сохраняют позицию чтения в ConfigMap, уменьшая дубликаты при перезапуске. Задайте `false` для отключения.
+  - **CheckpointPersistence**: опционально; по умолчанию `true`. При включении polling-источники (PostgreSQL, ClickHouse, Trino) сохраняют позицию чтения в ConfigMap, уменьшая дубликаты при перезапуске. Для Nessie checkpoint применяется при `source.config.incrementalBySnapshot: true` (см. [connectors](connectors.md#nessie)). Задайте `false` для отключения.
   - **ChannelBufferSize**: опционально; по умолчанию `100`. Размер буфера каналов между source, processor и sink. Используйте 500–1000 при высокой нагрузке Kafka, чтобы снизить блокировки, когда sink медленнее source.
+  - **Replicas**: опционально; по умолчанию `1`. Число подов процессора (реплик Deployment). Значения **больше 1** допустимы **только для Kafka** (consumer group распределяет партиции). Для polling-источников, включая Nessie, оставляйте `1` — иначе admission webhook отклонит spec.
 
 Секреты задаются через `SecretRef` в spec; оператор подставляет их перед записью spec в ConfigMap.
 
@@ -83,6 +84,7 @@ flowchart TB
     Scheduling["scheduling (опционально)"]
     Checkpoint["checkpointPersistence (опционально)"]
     ChannelBuffer["channelBufferSize (опционально)"]
+    Replicas["replicas (опционально, Kafka)"]
     Image["processorImage / processorVersion (опционально)"]
   end
 
@@ -98,6 +100,7 @@ flowchart TB
   Spec --> Scheduling
   Spec --> Checkpoint
   Spec --> ChannelBuffer
+  Spec --> Replicas
   Spec --> Image
 ```
 
@@ -249,7 +252,7 @@ flowchart TD
 
 **Processor** (в `internal/processor/processor.go`) строится из spec и содержит:
 
-- **Source**: **SourceConnector** (Kafka, PostgreSQL, Trino или Nessie) — `Connect`, `Read`, `Close`. По умолчанию polling-источники загружают начальный checkpoint из ConfigMap и сохраняют его после каждой успешной записи в sink (с debounce). Отключить: `checkpointPersistence: false`.
+- **Source**: **SourceConnector** (Kafka, PostgreSQL, Trino, ClickHouse или Nessie) — `Connect`, `Read`, `Close`. Polling-источники с checkpoint (PostgreSQL, ClickHouse, Trino; Nessie при `incrementalBySnapshot: true`) загружают позицию из ConfigMap и сохраняют её после `Ack` в sink. Отключить персистенцию: `checkpointPersistence: false`.
 - **Sink**: **SinkConnector** основного приёмника — `Connect`, `Write`, `Close`.
 - **Error sink** (опционально): ещё один SinkConnector для неудачных записей.
 - **Transformations**: упорядоченный список реализаций **Transformer** (timestamp, flatten, filter, mask, router, select, remove, snakeCase, camelCase).
