@@ -918,7 +918,7 @@ When `flattenMetadataColumns: true`, each key from `msg.Metadata` is written to 
 | `flattenMetadataColumns` | `true` — expand metadata into columns |
 | `flattenMetadataColumnsPrefix` | Column name prefix (for example `kafka_`) |
 
-With `autoCreateTable: true`, the schema is `data` (string) plus columns for metadata keys from the **first** batch (types inferred: int/long/string/bool). The `_metadata` column is **not** created. New metadata keys in later batches are skipped (warning logged).
+With `autoCreateTable: true`, the schema is `data` (string) plus columns for metadata keys from the **first** batch (types inferred: int/long/string/bool/timestamp). The metadata key `timestamp` (for example `kafka_timestamp` with prefix `kafka_`) is stored as **timestamptz** (Kafka source provides `time.Time` in UTC). Legacy string timestamps in metadata are parsed when possible. The `_metadata` column is **not** created. New metadata keys in later batches are skipped (warning logged).
 
 Tables with an `_metadata` column are **incompatible** with `flattenMetadataColumns: true` — recreate the table or use a new table name.
 
