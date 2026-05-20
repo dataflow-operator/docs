@@ -103,7 +103,7 @@ See also the connector setup details in [Connectors — Nessie](connectors.md#ne
 
 ## Kafka with Raw Mode (rawMode)
 
-Example of preserving full Kafka message context: value + metadata (offset, partition, timestamp, key, topic). Use `rawMode: true` in the sink to store messages as JSON with `value` and `_metadata` columns.
+Example of preserving full Kafka message context: payload + metadata (offset, partition, timestamp, key, topic). Use `rawMode: true` in the sink to store messages in `data` and `_metadata` columns (PostgreSQL/Trino/ClickHouse/Nessie).
 
 ```yaml
 apiVersion: dataflow.dataflow.io/v1

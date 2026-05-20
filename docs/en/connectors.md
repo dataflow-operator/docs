@@ -419,8 +419,8 @@ sink:
     autoCreateTable: true
 
     # Raw mode (optional, default: false)
-    # When true, expects messages in format {"value": <data>, "_metadata": {...}}
-    # Table is created with value JSONB and _metadata JSONB columns
+    # When true, expects {"value": <data>, "_metadata": {...}} or plain body with msg.Metadata
+    # Table is created with data JSONB and _metadata JSONB columns
     rawMode: false
 
     # UPSERT mode (optional, default: false)
@@ -438,9 +438,9 @@ sink:
 
 - **Batch Inserts**: Groups messages for efficient writing. Flush when `batchSize` reached or on timer. Use `batchFlushIntervalSeconds: 0` for size-only flush; `batchSize: 0` for timer-only flush.
 - **Auto-create Tables** (when `autoCreateTable: true`):
-  - **rawMode: true** — table is created at Connect time. Schema: `id SERIAL PRIMARY KEY`, `value` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN index on `value`
+  - **rawMode: true** — table is created at Connect time. Schema: `id SERIAL PRIMARY KEY`, `data` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN index on `data`
   - **rawMode: false** — table is created at first write from the first message structure (replicates source schema). Column types are inferred automatically (TEXT, BIGINT, NUMERIC, JSONB, etc.)
-- **Raw Mode**: When true, expects `{"value": <data>, "_metadata": {...}}` and creates table with value/_metadata columns. When false, uses columnar format from message.
+- **Raw Mode**: When true, stores message body in `data` and metadata in `_metadata` (or flattened columns). When false, uses columnar format from message.
 - **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`)
 - **Soft Delete**: When `softDeleteColumn` is set and message has `metadata.operation=delete`, performs `UPDATE ... SET deleted_at = NOW()` instead of physical DELETE
 
@@ -872,7 +872,7 @@ Iceberg schema when `autoCreateTable: true` and `rawMode: true`:
 | `data` | string | Payload JSON (message body) |
 | `_metadata` | string | JSON object with lineage fields (Kafka offset, partition, topic, etc.) |
 
-Unlike PostgreSQL sink raw mode (`value` / `_metadata` as **JSONB**), Nessie stores both fields as **string** columns containing JSON text.
+Unlike PostgreSQL sink raw mode (`data` / `_metadata` as **JSONB**), Nessie stores both fields as **string** columns containing JSON text.
 
 **How messages are mapped on write**
 
@@ -907,6 +907,23 @@ The source does not unwrap `rawMode`; it emits one JSON object per row with Iceb
 
 Parse `data` / `_metadata` in the downstream sink if you need structured fields.
 
+#### flattenMetadataColumns — flat metadata columns (sink)
+
+Supported on **PostgreSQL**, **Trino**, **ClickHouse**, and **Nessie** sinks when `rawMode: true`.
+
+When `flattenMetadataColumns: true`, each key from `msg.Metadata` is written to a **separate** column instead of a JSON `_metadata` column. Optional `flattenMetadataColumnsPrefix` is prepended to column names (for example `kafka_` + `offset` → `kafka_offset`).
+
+| Parameter | Description |
+|-----------|-------------|
+| `flattenMetadataColumns` | `true` — expand metadata into columns |
+| `flattenMetadataColumnsPrefix` | Column name prefix (for example `kafka_`) |
+
+With `autoCreateTable: true`, the schema is `data` (string) plus columns for metadata keys from the **first** batch (types inferred: int/long/string/bool). The `_metadata` column is **not** created. New metadata keys in later batches are skipped (warning logged).
+
+Tables with an `_metadata` column are **incompatible** with `flattenMetadataColumns: true` — recreate the table or use a new table name.
+
+**Reading (Nessie source):** rows with `data` and prefixed columns (without `_metadata`) are emitted as `{"value": ..., "_metadata": ...}`; metadata fields are also copied to `msg.Metadata`.
+
 ### Example: Kafka to Nessie (Iceberg)
 
 ```yaml
@@ -931,7 +948,9 @@ spec:
       table: events
       batchSize: 100
       autoCreateTable: true
-      rawMode: true  # Kafka offset/partition/topic → _metadata column
+      rawMode: true
+      flattenMetadataColumns: true
+      flattenMetadataColumnsPrefix: kafka_
 ```
 
 ## Error Sink

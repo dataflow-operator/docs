@@ -98,7 +98,7 @@ kubectl apply -f dataflow/config/samples/nessie-to-kafka.yaml
 
 ## Kafka с режимом сырой записи (rawMode)
 
-Пример сохранения полного контекста Kafka-сообщения: value + метаданные (offset, partition, timestamp, key, topic). Используйте `rawMode: true` в sink для сохранения сообщений как JSON с колонками `value` и `_metadata`.
+Пример сохранения полного контекста Kafka-сообщения: payload + метаданные (offset, partition, timestamp, key, topic). Используйте `rawMode: true` в sink для сохранения сообщений в колонках `data` и `_metadata` (PostgreSQL/Trino/ClickHouse/Nessie).
 
 ```yaml
 apiVersion: dataflow.dataflow.io/v1
