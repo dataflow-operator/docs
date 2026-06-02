@@ -63,6 +63,10 @@ If the processor crashes **between Commit and the last Ack**:
 !!! tip "Reduce duplicate window"
     Use a smaller `batchSize` to reduce the number of messages at risk of duplication on crash.
 
+!!! tip "Trino long-running INSERTs"
+    For large JSON payloads and Iceberg/Nessie tables, keep `batchSize` low (often `1`) and set `sink.config.queryTimeoutSeconds` to cover the full Trino execution window (including `nextUri` polling).
+    Timeouts during `nextUri` follow can happen after Trino already started processing the INSERT, so retries may produce duplicates.
+
 ## Idempotent Sink Configuration
 
 ### PostgreSQL Sink
@@ -105,8 +109,9 @@ The Kafka producer uses `RequiredAcks = WaitForAll` and `Producer.Idempotent = t
 1. **Use idempotent sinks** for PostgreSQL (UPSERT) and ClickHouse (ReplacingMergeTree) when using polling sources or when duplicates are possible.
 2. **Kafka source**: Consumer group stores offset; at-least-once is preserved. Idempotent sink recommended for batch sinks.
 3. **batchSize**: Smaller batches reduce the duplicate window on crash. Balance with throughput.
-4. **batchFlushIntervalSeconds**: Shorter intervals flush more frequently, reducing in-flight data at risk.
-5. **Error sink**: Configure `spec.errors` to capture failed messages for replay or analysis.
+4. **Trino `queryTimeoutSeconds`**: Use a timeout large enough for peak load; too low values increase false failures on long INSERTs.
+5. **batchFlushIntervalSeconds**: Shorter intervals flush more frequently, reducing in-flight data at risk.
+6. **Error sink**: Configure `spec.errors` to capture failed messages for replay or analysis.
 
 ## Graceful Shutdown
 
