@@ -197,6 +197,9 @@ serviceMonitor:
 - Статус подключения коннекторов
 - Статус DataFlow манифестов
 - Статистику по трансформерам
+- SLO-панели, соответствующие алертам PrometheusRule (error rate, p95 processing, p99 E2E, queue, Kafka timeouts)
+- Pipeline health (poll health источников, ошибки по stage, активные сообщения)
+- Секции по этапам (stages) и метрикам reconcile оператора
 
 ### Sentry (мониторинг ошибок и трейсинг)
 

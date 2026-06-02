@@ -89,6 +89,19 @@ gui:
       value: "http://dataflow-operator.dataflow-system:9090/metrics"
 ```
 
+### Исторические графики (PromQL)
+
+Для построения **исторических графиков** в веб-интерфейсе GUI может выполнять ограниченный набор PromQL-запросов к Prometheus.
+Укажите базовый URL Prometheus через `gui.prometheus.url` (или переменную окружения `PROMETHEUS_URL`):
+
+```yaml
+gui:
+  prometheus:
+    url: "http://kube-prometheus-stack-prometheus.monitoring:9090"
+```
+
+Если `PROMETHEUS_URL` не задан или Prometheus недоступен, GUI автоматически переходит в режим «текущие значения» и показывает данные, полученные через `OPERATOR_METRICS_URL`.
+
 ## Развёртывание
 
 ### В кластере (Helm)

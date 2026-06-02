@@ -89,6 +89,19 @@ gui:
       value: "http://dataflow-operator.dataflow-system:9090/metrics"
 ```
 
+### Historical charts (PromQL)
+
+To render **historical charts** in the GUI, the server can run a whitelisted set of PromQL queries against Prometheus.
+Configure the Prometheus base URL via `gui.prometheus.url` (or the `PROMETHEUS_URL` environment variable):
+
+```yaml
+gui:
+  prometheus:
+    url: "http://kube-prometheus-stack-prometheus.monitoring:9090"
+```
+
+If `PROMETHEUS_URL` is not set or Prometheus is unavailable, the GUI falls back to “current values” by reading from `OPERATOR_METRICS_URL`.
+
 ## Deployment
 
 ### In cluster (Helm)

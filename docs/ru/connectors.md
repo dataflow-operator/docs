@@ -231,7 +231,7 @@ source:
 
     # Опции CDC-стиля (опционально)
     readBatchSize: 1000           # Ограничение строк за один опрос (0 = без лимита)
-    changeTrackingColumn: updated_at  # Колонка для отслеживания изменений (по умолчанию: updated_at). WHERE при query не добавляется
+    changeTrackingColumn: updated_at  # Колонка для отслеживания изменений (по умолчанию: updated_at). В query mode задайте явно для инкрементальной обёртки subquery
     orderByColumn: id             # Вторичный ключ сортировки для стабильной пагинации (по умолчанию: id). Пример: price_id
     autoCreateTable: true         # Создать таблицу, если не существует, перед чтением
 
@@ -247,10 +247,11 @@ source:
 - **Метаданные**: Каждое сообщение содержит метаданные `table` и `operation` (insert/update)
 - **Размер батча чтения**: Ограничивает количество строк за один опрос для снижения нагрузки на БД
 - **Отслеживание обновлений**: По умолчанию отслеживает изменения по колонке `updated_at` (или `changeTrackingColumn`), захватывает INSERT и UPDATE
-- **Стабильная сортировка**: В table mode добавляется `ORDER BY changeTrackingColumn, orderByColumn` (по умолчанию вторичный ключ — `id`). В query mode ваш SQL оборачивается в подзапрос с тем же `ORDER BY`. Значение колонки `orderByColumn` попадает в metadata `id`.
+- **Стабильная сортировка**: В table mode добавляется `ORDER BY changeTrackingColumn, orderByColumn` (по умолчанию вторичный ключ — `id`). При одновременном указании `query` и `changeTrackingColumn` SQL оборачивается в subquery с composite checkpoint `(changeTrackingColumn, orderByColumn) > (lastTime, lastId)` и `ORDER BY`. Без явного `changeTrackingColumn` query mode выполняет SQL как есть (legacy). Значение колонки `orderByColumn` попадает в metadata `id`.
+- **Требования query mode**: При инкрементальном query mode в SELECT должны быть колонки `changeTrackingColumn` и `orderByColumn`, иначе checkpoint не продвигается.
 - **Автосоздание таблицы**: При `autoCreateTable: true` создаёт таблицу с CDC-совместимой схемой (`id SERIAL PRIMARY KEY`, `created_at`, `updated_at`), если не существует. Создание выполняется при подключении (Connect).
 - **Схема таблицы**: Имя таблицы поддерживает формат `schema.table` (напр. `public.products`)
-- **Персистенция checkpoint**: По умолчанию позиция чтения (lastReadChangeTime) сохраняется в ConfigMap и при перезапуске чтение продолжается с последней позиции. Задайте `checkpointPersistence: false` в spec, чтобы хранить только в памяти. Для pg→pg включите `upsertMode: true` в sink, чтобы дубликаты обновлялись, а не вставлялись повторно.
+- **Персистенция checkpoint**: По умолчанию позиция чтения (`lastReadChangeTime`, `lastReadOrderByValue`) сохраняется в ConfigMap и при перезапуске чтение продолжается с последней позиции. Задайте `checkpointPersistence: false` в spec, чтобы хранить только в памяти. Для pg→pg включите `upsertMode: true` в sink, чтобы дубликаты обновлялись, а не вставлялись повторно.
 
 #### Пример с кастомным запросом
 
@@ -391,14 +392,22 @@ source:
 
     # Колонка для инкрементальной пагинации и стабильного ORDER BY (опционально, по умолчанию: id)
     orderByColumn: price_id
+
+    # Колонка для отслеживания изменений (опционально, по умолчанию: created_at)
+    changeTrackingColumn: created_at
+
+    # Лимит строк за один запрос в цикле опроса (опционально, 0 = без лимита)
+    readBatchSize: 1000
 ```
 
 #### Особенности ClickHouse источника
 
 - **Опрос**: Периодически опрашивает таблицу на наличие новых данных (интервал задаётся `pollInterval`)
-- **Инкрементальное чтение**: При отсутствии `query` использует `orderByColumn` (по умолчанию `id`) или `created_at` (`WHERE orderByColumn > lastReadID` или `WHERE created_at > lastReadTime`)
-- **Кастомные запросы**: При указании `query` SQL оборачивается в подзапрос с `ORDER BY orderByColumn`; фильтры инкремента задаются в вашем SQL
-- **Стабильная сортировка**: В table mode при первом опросе и по `created_at` — `ORDER BY created_at, orderByColumn`; по id — `ORDER BY orderByColumn`
+- **Батчинг чтения**: `readBatchSize` ограничивает число строк за запрос в цикле опроса (как у PostgreSQL source)
+- **Инкрементальное чтение**: Table mode использует composite checkpoint `(changeTrackingColumn, orderByColumn) > (lastTime, lastKey)` с tuple WHERE; legacy checkpoint только с `lastReadOrderByValue` — `WHERE orderByColumn > N` до появления timestamp
+- **Кастомные запросы**: При указании `query` и `changeTrackingColumn` SQL оборачивается в subquery с composite filter; без явного `changeTrackingColumn` query mode выполняет SQL как есть (legacy)
+- **Стабильная сортировка**: Table mode — `ORDER BY changeTrackingColumn, orderByColumn` (по умолчанию `created_at`, `id`)
+- **Персистенция checkpoint**: Позиция (`lastReadChangeTime`, `lastReadOrderByValue`) сохраняется в ConfigMap; legacy `lastReadID`/`lastReadTime` мигрируются при загрузке
 - **Метаданные**: `table` и `id` (значение колонки `orderByColumn`, если есть)
 
 ### Приемник (Sink)
@@ -524,6 +533,9 @@ source:
     # Колонка для инкрементальной пагинации и стабильного ORDER BY (опционально, по умолчанию: id)
     orderByColumn: price_id
 
+    # Лимит строк за один запрос в цикле опроса (опционально, 0 = без лимита)
+    readBatchSize: 1000
+
     # Аутентификация Keycloak (опционально)
     keycloak:
       # Вариант 1: Использование долгоживущего токена напрямую (рекомендуется для долгоживущих токенов)
@@ -540,8 +552,10 @@ source:
 
 #### Особенности Trino источника
 
-- **SQL запросы**: Кастомные запросы оборачиваются в подзапрос с `ORDER BY orderByColumn` (по умолчанию `id`)
-- **Периодический опрос**: Table mode: `WHERE orderByColumn > lastReadID` и `ORDER BY orderByColumn`
+- **SQL запросы**: При указании `query` и `changeTrackingColumn` SQL оборачивается с composite checkpoint filter; иначе — только `ORDER BY orderByColumn` (legacy)
+- **Батчинг чтения**: `readBatchSize` ограничивает число строк за запрос в цикле опроса (как у PostgreSQL source)
+- **Периодический опрос**: Table mode использует composite checkpoint `(changeTrackingColumn, orderByColumn) > (lastTime, lastKey)`; legacy `lastReadID` — `WHERE orderByColumn > N` до появления timestamp
+- **Персистенция checkpoint**: `lastReadChangeTime` и `lastReadOrderByValue` в ConfigMap; legacy `lastReadID` мигрируется при загрузке
 - **Метаданные**: Значение колонки `orderByColumn` попадает в metadata `id`
 - **Аутентификация Keycloak**: OAuth2/OIDC аутентификация через Keycloak
   - **Прямой токен**: Использование долгоживущего токена, полученного из Keycloak (рекомендуется для долгоживущих токенов)

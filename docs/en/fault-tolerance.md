@@ -39,13 +39,9 @@ See [nessie-incremental-snapshots-design.md](nessie-incremental-snapshots-design
 
 ### Polling Sources (PostgreSQL, ClickHouse, Trino)
 
-By default, read position (lastReadID, lastReadChangeTime) is stored **only in memory**. On pod crash:
+**Checkpoint persistence** is enabled by default. The read position (`lastReadChangeTime`, `lastReadOrderByValue`) is persisted to ConfigMap `df-<name>-checkpoint`. On restart, the source resumes from the last committed position after sink `Ack`, reducing duplicates. Set `checkpointPersistence: false` in spec to store checkpoint only in memory (lost on pod crash).
 
-- State is lost.
-- On restart, the source re-reads from the beginning (or from a wrong position).
-- **Duplicates** or **gaps** are possible depending on when the crash occurred.
-
-**Checkpoint persistence** is enabled by default. The read position is persisted to a ConfigMap. On restart, the source resumes from the last committed position, reducing duplicates. Set `checkpointPersistence: false` in spec to disable.
+Legacy checkpoint keys (`lastReadID`, `lastReadTime`) are migrated on load; see the migration table below.
 
 !!! warning "Idempotent sink required"
     For polling sources, always configure an **idempotent sink** (UPSERT, ReplacingMergeTree) to handle duplicates safely.
@@ -127,7 +123,26 @@ Ensure `terminationGracePeriodSeconds` is sufficient for large batches to flush 
 !!! note "Enabled by default"
     The `checkpointPersistence` field in the DataFlow spec defaults to `true`. You do not need to set it explicitly — checkpoint persistence is enabled for all DataFlows with polling sources.
 
-Checkpoint persistence is **enabled by default**. The read position (lastReadID, lastReadChangeTime) is persisted to ConfigMap `df-<name>-checkpoint`. On processor restart, polling sources (PostgreSQL, ClickHouse, Trino) resume from the last committed position, reducing duplicates.
+Checkpoint persistence is **enabled by default**. The read position (`lastReadChangeTime`, `lastReadOrderByValue`) is persisted to ConfigMap `df-<name>-checkpoint`. On processor restart, polling sources (PostgreSQL, ClickHouse, Trino) resume from the last committed position, reducing duplicates.
+
+Canonical checkpoint JSON per source type:
+
+```json
+{
+  "lastReadChangeTime": "2024-06-01T12:00:00.123456789Z",
+  "lastReadOrderByValue": 5042
+}
+```
+
+Legacy formats are normalized on load:
+
+| Legacy | Canonical |
+|--------|-----------|
+| Trino: `{"lastReadID": 100}` | `{"lastReadOrderByValue": 100}` |
+| ClickHouse: `{"lastReadID": 100, "lastReadTime": "..."}` | composite fields above |
+| Time-only: `{"lastReadChangeTime": "..."}` | unchanged (single-column WHERE until order key appears) |
+
+After restart, Trino/ClickHouse checkpoints that only had `lastReadID` use order-key filtering (`WHERE orderByColumn > N`) until the first ack with a timestamp; then tuple filtering `(changeTrackingColumn, orderByColumn) > (time, key)` applies.
 
 To disable, set `checkpointPersistence: false`:
 

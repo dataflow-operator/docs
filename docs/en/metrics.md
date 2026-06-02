@@ -197,6 +197,9 @@ The dashboard includes:
 - Connector connection status
 - DataFlow manifest status
 - Transformer statistics
+- SLO panels aligned with PrometheusRule alerts (error rate, p95 processing, p99 E2E, queue, Kafka timeouts)
+- Pipeline health (source poll health, stage error rates, active messages)
+- Stages breakdown and operator reconcile metrics
 
 ### Sentry (Error Monitoring and Tracing)
 
