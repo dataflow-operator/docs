@@ -379,7 +379,8 @@ source:
 
     # CDC-style options (optional)
     readBatchSize: 1000           # Limit rows per poll to reduce DB load (0 = no limit)
-    changeTrackingColumn: updated_at  # Column to track changes (default: updated_at). Not used when query is specified
+    changeTrackingColumn: updated_at  # Column to track changes (default: updated_at). Not used for WHERE when query is specified
+    orderByColumn: id             # Secondary sort key for stable pagination (default: id). Example: price_id
     autoCreateTable: true         # Create table if it doesn't exist before reading
 
     # SecretRef (optional) - use instead of direct values
@@ -398,6 +399,7 @@ source:
 - **Metadata**: Each message contains `table` metadata and `operation` (insert/update)
 - **Read Batch Size**: Limits rows per poll to reduce database load when many new records appear
 - **Change Tracking**: By default tracks changes via `updated_at` column (or `changeTrackingColumn`), captures both INSERTs and UPDATEs
+- **Stable ordering**: Table mode adds `ORDER BY changeTrackingColumn, orderByColumn` (default secondary key: `id`). Query mode wraps your SQL in a subquery and applies the same `ORDER BY`. Row value from `orderByColumn` is stored in message metadata key `id`.
 - **Auto-create Table**: When `autoCreateTable: true`, creates the table with CDC-friendly schema (`id SERIAL PRIMARY KEY`, `created_at`, `updated_at`) if it doesn't exist. Creation happens at Connect time.
 - **Schema notation**: Table name supports `schema.table` format (e.g. `public.products`)
 - **Checkpoint persistence**: By default, read position (lastReadChangeTime) is persisted to ConfigMap; on restart, reading resumes from the last position. Set `checkpointPersistence: false` in spec to store only in memory. For pg→pg flows, enable `upsertMode: true` in sink to update duplicates instead of inserting them again.
@@ -468,14 +470,18 @@ source:
 
     # Poll interval in seconds (optional, default: 5)
     pollInterval: 60
+
+    # Column for incremental pagination and stable ORDER BY (optional, default: id)
+    orderByColumn: price_id
 ```
 
 ### Source Features
 
 - **Polling**: Periodically polls the table for new data (interval set by `pollInterval`)
-- **Incremental Reads**: When `query` is not specified, uses `id` or `created_at` columns to filter already-read rows (`WHERE id > lastReadID` or `WHERE created_at > lastReadTime`), avoiding duplicates on restart
-- **Custom Queries**: When `query` is specified, only that query is used; incremental logic is not applied
-- **Metadata**: Each message contains `table` and `id` (if column exists)
+- **Incremental Reads**: When `query` is not specified, uses `orderByColumn` (default `id`) or `created_at` to filter already-read rows (`WHERE orderByColumn > lastReadID` or `WHERE created_at > lastReadTime`), avoiding duplicates on restart
+- **Custom Queries**: When `query` is specified, the connector wraps it in a subquery and adds `ORDER BY orderByColumn` for stable reads; incremental filters must be in your SQL
+- **Stable ordering**: Table mode uses `ORDER BY created_at, orderByColumn` on first poll and when tracking by time; id-based path uses `ORDER BY orderByColumn`
+- **Metadata**: Each message contains `table` and `id` (value from `orderByColumn` column, if present)
 
 ### Sink
 
@@ -594,6 +600,9 @@ source:
     # Used for periodic reading of new data
     pollInterval: 60
 
+    # Column for incremental pagination and stable ORDER BY (optional, default: id)
+    orderByColumn: price_id
+
     # Keycloak authentication (optional)
     keycloak:
       # Option 1: Use long-lived token directly (recommended for long-lived tokens)
@@ -610,8 +619,9 @@ source:
 
 ### Features
 
-- **SQL Queries**: Support for custom SQL queries with WHERE, JOIN, etc.
-- **Periodic Polling**: Regularly polls tables for new data
+- **SQL Queries**: Support for custom SQL queries with WHERE, JOIN, etc. Custom queries are wrapped in a subquery with `ORDER BY orderByColumn` (default `id`)
+- **Periodic Polling**: Regularly polls tables for new data; table mode uses `WHERE orderByColumn > lastReadID` and `ORDER BY orderByColumn`
+- **Metadata**: Row value from `orderByColumn` is stored in message metadata key `id`
 - **Keycloak Authentication**: OAuth2/OIDC authentication via Keycloak
   - **Direct Token**: Use a long-lived token obtained from Keycloak (recommended for long-lived tokens)
   - **Password Grant**: Use username/password for authentication
