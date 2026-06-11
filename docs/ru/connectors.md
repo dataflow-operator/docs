@@ -285,6 +285,31 @@ source:
 - **Схема таблицы**: Имя таблицы поддерживает формат `schema.table` (напр. `public.products`)
 - **Персистенция checkpoint**: По умолчанию позиция чтения (`lastReadChangeTime`, `lastReadOrderByValue`) сохраняется в ConfigMap и при перезапуске чтение продолжается с последней позиции. Задайте `checkpointPersistence: false` в spec, чтобы хранить только в памяти. Для pg→pg включите `upsertMode: true` в sink, чтобы дубликаты обновлялись, а не вставлялись повторно.
 
+#### Разовая миграция (batch exhaust)
+
+Для **однократного** копирования снимка (например, job `DataFlowCron`, который должен завершиться после чтения всех строк):
+
+1. **Предпочтительно MATERIALIZED VIEW** на source DB для тяжёлого бизнес-SQL: `CREATE MATERIALIZED VIEW` + `REFRESH`, затем `table` указывает на MVIEW.
+2. **`changeTrackingColumn`** и **`orderByColumn`** — одна и та же колонка-ключ без timestamp (например `material_id`), если в результате нет `updated_at`.
+3. **`readBatchSize`** (например `10000`) для батчевого чтения.
+4. В sink: **`upsertMode: true`**, явный **`conflictKey`**, совпадающие типы колонок (например `BIGINT` для числовых ID, не `TEXT`).
+5. Processor останавливается, когда следующий poll возвращает **0 строк** (`source exhausted`). Checkpoint продвигается через `Ack` после успешной записи в sink.
+
+Пример source:
+
+```yaml
+source:
+  type: postgresql
+  config:
+    table: price_calendar.mv_one_p_prices_migration
+    changeTrackingColumn: material_id
+    orderByColumn: material_id
+    readBatchSize: 10000
+    pollInterval: 5
+```
+
+Тот же паттерн применим к инкрементальным source **Trino** и **ClickHouse**. **Kafka** и **Nessie** используют другую модель offset/snapshot.
+
 #### Пример с кастомным запросом
 
 ```yaml

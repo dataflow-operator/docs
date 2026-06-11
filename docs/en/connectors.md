@@ -476,6 +476,31 @@ source:
 - **Schema notation**: Table name supports `schema.table` format (e.g. `public.products`)
 - **Checkpoint persistence**: By default, read position (`lastReadChangeTime`, `lastReadOrderByValue`) is persisted to ConfigMap; on restart, reading resumes from the last position. Set `checkpointPersistence: false` in spec to store only in memory. For pg→pg flows, enable `upsertMode: true` in sink to update duplicates instead of inserting them again.
 
+#### One-time migration (batch exhaust)
+
+For a **single snapshot** copy (e.g. `DataFlowCron` job that must stop after all rows are read), use table mode with explicit pagination and a stable key column:
+
+1. **Prefer a MATERIALIZED VIEW** on the source DB when the business SQL is heavy: run `CREATE MATERIALIZED VIEW` + `REFRESH` once, then point `table` at the MVIEW.
+2. Set **`changeTrackingColumn`** and **`orderByColumn`** to the same non-timestamp key (e.g. `material_id`) when no `updated_at` exists in the result.
+3. Set **`readBatchSize`** (e.g. `10000`) so reads are batched.
+4. On the sink: **`upsertMode: true`**, explicit **`conflictKey`**, matching column types (e.g. `BIGINT` for numeric IDs, not `TEXT`).
+5. The processor stops when the next poll returns **zero rows** (`source exhausted`). Checkpoint must advance via message `Ack` after each successful sink write.
+
+Example source fragment:
+
+```yaml
+source:
+  type: postgresql
+  config:
+    table: price_calendar.mv_one_p_prices_migration
+    changeTrackingColumn: material_id
+    orderByColumn: material_id
+    readBatchSize: 10000
+    pollInterval: 5
+```
+
+The same pattern applies to **Trino** and **ClickHouse** incremental sources (order-by-only checkpoint). **Kafka** and **Nessie** use different offset/snapshot models.
+
 ### Sink
 
 ```yaml
