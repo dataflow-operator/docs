@@ -201,6 +201,20 @@ serviceMonitor:
 - Pipeline health (poll health источников, ошибки по stage, активные сообщения)
 - Секции по этапам (stages) и метрикам reconcile оператора
 
+### Health-пробы processor (`/livez`)
+
+Каждый processor pod отдаёт HTTP-пробы на порту **9090**:
+
+| Путь | Проба | Поведение |
+|------|-------|-----------|
+| `/readyz` | Startup | 200, когда processor подключился к source и начал чтение |
+| `/livez` | Liveness | 200, если ready **и** progress обновлялся в пределах `PROCESSOR_PROGRESS_TIMEOUT_SECONDS` |
+| `/healthz` | — | Всегда 200 (процесс жив) |
+
+**Progress** обновляется после успешного commit batch в sink (все типы sink) и периодически, пока активна сессия Kafka consumer group (idle-топики). Если liveness падает с **503** и в Events есть `stale: no pipeline progress`, pod перезапустили из‑за отсутствия progress в течение timeout — типично для низкочастотных топиков при слишком коротком timeout.
+
+Настройка: Helm `processorProgressTimeoutSeconds` (по умолчанию `3600`). Значение `0` отключает проверку stale progress на `/livez` (не рекомендуется без другого мониторинга зависаний).
+
 ### Sentry (мониторинг ошибок и трейсинг)
 
 DataFlow Operator поддерживает [Sentry](https://sentry.io/) для мониторинга ошибок и распределённого трейсинга. При включении оператор и поды процессоров отправляют ошибки и трейсы производительности в Sentry.

@@ -36,6 +36,11 @@ source:
     # Consumer group (опционально, по умолчанию: dataflow-operator)
     consumerGroup: my-group
 
+    # Протокол безопасности Kafka (опционально)
+    # Значения: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+    # Если не указано — протокол выводится из секций tls/sasl (обратная совместимость)
+    securityProtocol: SASL_PLAINTEXT
+
     # TLS конфигурация (опционально)
     tls:
       # Пропустить проверку сертификата (не рекомендуется для production)
@@ -100,6 +105,7 @@ source:
   - `partition` - номер партиции
   - `offset` - смещение сообщения
   - `key` - ключ сообщения (если есть)
+- **securityProtocol**: Явная настройка Kafka `security.protocol`. Поддерживаемые значения: `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, `SASL_SSL` (регистр и `-`/`_` нормализуются). Если поле не задано, протокол определяется неявно: только `sasl` → `SASL_PLAINTEXT`, `tls` + `sasl` → `SASL_SSL`, только `tls` → `SSL`, без обоих → `PLAINTEXT`. При явном указании webhook проверяет согласованность с секциями `tls`/`sasl` (например, `SASL_PLAINTEXT` требует `sasl` и не допускает `tls`).
 
 #### Пример с TLS и SASL
 
@@ -111,6 +117,7 @@ source:
       - secure-kafka:9093
     topic: secure-topic
     consumerGroup: secure-group
+    securityProtocol: SASL_SSL
     tls:
       caFile: /etc/kafka/ca.crt
       certFile: /etc/kafka/client.crt
@@ -119,6 +126,28 @@ source:
       mechanism: scram-sha-512
       username: kafka-user
       password: ${KAFKA_PASSWORD}  # Используйте Secrets в Kubernetes
+```
+
+#### Пример с SASL_PLAINTEXT (без TLS)
+
+```yaml
+source:
+  type: kafka
+  config:
+    brokers:
+      - kafka1:9092
+      - kafka2:9092
+    topic: input-topic
+    consumerGroup: my-group
+    securityProtocol: SASL_PLAINTEXT
+    sasl:
+      mechanism: scram-sha-256
+      usernameSecretRef:
+        name: kafka-credentials
+        key: username
+      passwordSecretRef:
+        name: kafka-credentials
+        key: password
 ```
 
 #### Пример с Avro и Schema Registry
@@ -183,6 +212,9 @@ sink:
 
     # Топик для записи (обязательно)
     topic: output-topic
+
+    # Протокол безопасности (опционально, см. источник)
+    securityProtocol: SASL_PLAINTEXT
 
     # TLS конфигурация (опционально, аналогично источнику)
     tls:
@@ -1130,6 +1162,7 @@ spec:
       consumerGroupSecretRef:
         name: kafka-credentials
         key: consumerGroup
+      securityProtocol: SASL_PLAINTEXT
       sasl:
         mechanism: "scram-sha-256"
         usernameSecretRef:

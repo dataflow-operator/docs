@@ -201,6 +201,20 @@ The dashboard includes:
 - Pipeline health (source poll health, stage error rates, active messages)
 - Stages breakdown and operator reconcile metrics
 
+### Processor health probes (`/livez`)
+
+Each processor pod exposes HTTP probes on port **9090**:
+
+| Path | Probe | Behavior |
+|------|-------|----------|
+| `/readyz` | Startup | Returns 200 when the processor has connected to source and started reading |
+| `/livez` | Liveness | Returns 200 when ready **and** pipeline progress was recorded within `PROCESSOR_PROGRESS_TIMEOUT_SECONDS` |
+| `/healthz` | — | Always 200 (process alive) |
+
+**Progress** is updated after successful sink batch commits (all sink types) and periodically while a Kafka consumer group session is active (idle topics). If liveness fails with **503** and Events show `stale: no pipeline progress`, the pod was restarted because no progress was recorded within the timeout—common for low-traffic pipelines when the timeout is too short.
+
+Configure via the operator Helm value `processorProgressTimeoutSeconds` (default `3600`). Set to `0` to disable stale-progress checks on `/livez` (not recommended without other deadlock monitoring).
+
 ### Sentry (Error Monitoring and Tracing)
 
 DataFlow Operator supports [Sentry](https://sentry.io/) for error monitoring and distributed tracing. When enabled, the operator and processor pods report errors and performance traces to Sentry.

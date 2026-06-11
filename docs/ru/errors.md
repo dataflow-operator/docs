@@ -37,7 +37,7 @@ spec:
       topic: error-topic
 ```
 
-Для error sink можно использовать те же опции Kafka, что и для основного sink (`brokersSecretRef`, `topicSecretRef`, `sasl`, `tls`). Подробнее в [Коннекторы](connectors.md).
+Для error sink можно использовать те же опции Kafka, что и для основного sink (`brokersSecretRef`, `topicSecretRef`, `securityProtocol`, `sasl`, `tls`). Подробнее в [Коннекторы](connectors.md).
 
 ### PostgreSQL как приёмник ошибок
 

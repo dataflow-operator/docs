@@ -37,7 +37,7 @@ spec:
       topic: error-topic
 ```
 
-You can use the same Kafka options as for the main sink (e.g. `brokersSecretRef`, `topicSecretRef`, `sasl`, `tls`). See [Connectors](connectors.md) for full Kafka sink options.
+You can use the same Kafka options as for the main sink (e.g. `brokersSecretRef`, `topicSecretRef`, `securityProtocol`, `sasl`, `tls`). See [Connectors](connectors.md) for full Kafka sink options.
 
 ### PostgreSQL as error sink
 

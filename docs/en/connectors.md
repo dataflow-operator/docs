@@ -112,6 +112,7 @@ spec:
       consumerGroupSecretRef:
         name: kafka-credentials
         key: consumerGroup
+      securityProtocol: SASL_PLAINTEXT
       sasl:
         mechanism: "scram-sha-256"
         usernameSecretRef:
@@ -301,6 +302,25 @@ source:
     topic: input-topic
     consumerGroup: my-group
 
+    # Kafka security protocol (optional)
+    # Values: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+    # If omitted, protocol is inferred from tls/sasl sections (backward compatible)
+    securityProtocol: SASL_PLAINTEXT
+
+    # TLS configuration (optional)
+    tls:
+      insecureSkipVerify: false
+      caFile: /path/to/ca.crt
+      certFile: /path/to/client.crt
+      keyFile: /path/to/client.key
+
+    # SASL authentication (optional)
+    sasl:
+      # Mechanism: plain, scram-sha-256, scram-sha-512
+      mechanism: scram-sha-256
+      username: kafka-user
+      password: kafka-password
+
     # Message format (optional, default: "json")
     # Supported formats: "json", "avro"
     format: json
@@ -344,6 +364,7 @@ source:
   - `partition` - partition number
   - `offset` - message offset
   - `key` - message key (if present)
+- **securityProtocol**: Explicit Kafka `security.protocol`. Supported values: `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, `SASL_SSL` (case and `-`/`_` are normalized). When omitted, the protocol is inferred: `sasl` only → `SASL_PLAINTEXT`, `tls` + `sasl` → `SASL_SSL`, `tls` only → `SSL`, neither → `PLAINTEXT`. When set explicitly, the webhook validates consistency with `tls`/`sasl` (e.g. `SASL_PLAINTEXT` requires `sasl` and forbids `tls`).
 
 ### Sink
 
@@ -354,7 +375,57 @@ sink:
     brokers:
       - kafka1:9092
     topic: output-topic
+    # Security protocol (optional, same as source)
+    securityProtocol: SASL_PLAINTEXT
     # TLS and SASL configuration similar to source
+    tls:
+      caFile: /path/to/ca.crt
+    sasl:
+      mechanism: scram-sha-256
+      username: kafka-user
+      password: kafka-password
+```
+
+#### Example: SASL_SSL
+
+```yaml
+source:
+  type: kafka
+  config:
+    brokers:
+      - secure-kafka:9093
+    topic: secure-topic
+    consumerGroup: secure-group
+    securityProtocol: SASL_SSL
+    tls:
+      caFile: /etc/kafka/ca.crt
+      certFile: /etc/kafka/client.crt
+      keyFile: /etc/kafka/client.key
+    sasl:
+      mechanism: scram-sha-512
+      username: kafka-user
+      password: kafka-password
+```
+
+#### Example: SASL_PLAINTEXT (no TLS)
+
+```yaml
+source:
+  type: kafka
+  config:
+    brokers:
+      - kafka1:9092
+    topic: input-topic
+    consumerGroup: my-group
+    securityProtocol: SASL_PLAINTEXT
+    sasl:
+      mechanism: scram-sha-256
+      usernameSecretRef:
+        name: kafka-credentials
+        key: username
+      passwordSecretRef:
+        name: kafka-credentials
+        key: password
 ```
 
 ## PostgreSQL

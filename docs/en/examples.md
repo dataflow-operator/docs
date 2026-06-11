@@ -280,6 +280,7 @@ spec:
       consumerGroupSecretRef:
         name: kafka-credentials
         key: consumerGroup
+      securityProtocol: SASL_PLAINTEXT
       sasl:
         mechanism: scram-sha-256
         usernameSecretRef:
