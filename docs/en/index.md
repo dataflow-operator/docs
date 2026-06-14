@@ -70,6 +70,14 @@ Kubernetes operator for streaming and scheduled data pipelines between Kafka, Po
 
     [:octicons-arrow-right-24: Reference](transformations.md)
 
+-   :material-robot:{ .lg .middle } **Agent Skills**
+
+    ---
+
+    Portable AI guides for deploy, config, and fault tolerance (any IDE)
+
+    [:octicons-arrow-right-24: Install skills](agent-skills.md)
+
 </div>
 
 ## Overview
@@ -112,7 +120,7 @@ kubectl get dataflow kafka-to-postgres
 | DataFlow CRD | [Overview](dataflow/index.md) · [Spec](dataflow/spec.md) · [Lifecycle](dataflow/lifecycle.md) |
 | DataFlowCron CRD | [Overview](dataflow-cron/index.md) · [Triggers](dataflow-cron/triggers.md) · [Examples](dataflow-cron/examples.md) |
 | Operations | [Errors](errors.md) · [Fault Tolerance](fault-tolerance.md) · [Metrics](metrics.md) |
-| Tools | [Web GUI](gui.md) · [MCP](mcp.md) |
+| Tools | [Web GUI](gui.md) · [MCP](mcp.md) · [Agent Skills](agent-skills.md) |
 | Development | [Developer Guide](development.md) |
 
 ## License

@@ -47,6 +47,7 @@ plugins:
             Tools: Инструменты
             Web GUI: Web GUI
             MCP: MCP
+            Cursor Agent Skills: Agent Skills
             Development: Разработка
             Developer Guide: Руководство разработчика
             Release Process: Release Process
@@ -137,6 +138,7 @@ nav:
   - Tools:
       - Web GUI: gui.md
       - MCP: mcp.md
+      - Agent Skills: agent-skills.md
   - Development:
       - Developer Guide: development.md
       - Release Process: semver-release.md

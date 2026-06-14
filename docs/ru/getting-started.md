@@ -437,7 +437,8 @@ kubectl get events --sort-by='.lastTimestamp' | grep dataflow
 1. Изучите [Connectors](connectors.md) для понимания всех доступных источников и приемников
 2. Ознакомьтесь с [Transformations](transformations.md) для работы с трансформациями сообщений
 3. Посмотрите [Examples](examples.md) для практических примеров использования
-4. Прочитайте [Development](development.md) для участия в разработке
+4. Установите [Agent Skills](agent-skills.md) для AI-помощи с deploy и манифестами
+5. Прочитайте [Development](development.md) для участия в разработке
 
 ## Устранение неполадок
 

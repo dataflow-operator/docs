@@ -397,7 +397,8 @@ Now that you've installed the operator and created your first data flow:
 1. Study [Connectors](connectors.md) to understand all available sources and sinks
 2. Familiarize yourself with [Transformations](transformations.md) for working with message transformations
 3. Check out [Examples](examples.md) for practical usage examples
-4. Read [Development](development.md) to participate in development
+4. Install [Agent Skills](agent-skills.md) for AI-assisted deploy and manifest authoring
+5. Read [Development](development.md) to participate in development
 
 ## Troubleshooting
 

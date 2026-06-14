@@ -2,6 +2,8 @@
 
 DataFlow MCP server helps generate DataFlow manifests and migrate Kafka Connect configurations to DataFlow. It runs without access to Kubernetes or Prometheus — YAML generation and validation only. Use it in your IDE (e.g. Cursor) to create manifests and migrate connectors.
 
+For operational guidance (Helm, production manifests, fault tolerance), use [Agent Skills](agent-skills.md) alongside MCP.
+
 ## Features
 
 | Tool | Description |
