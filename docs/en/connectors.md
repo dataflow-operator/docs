@@ -995,7 +995,7 @@ Nessie is a **polling** source. The processor Deployment follows `spec.replicas`
 
 `incrementalBySnapshot` on the Nessie source improves restart behavior (checkpoint by Iceberg snapshot) but **does not** replace Kafka-style horizontal scaling.
 
-For higher throughput with Nessie sink, tune `batchSize`, `batchFlushIntervalSeconds`, and `channelBufferSize` instead of increasing `replicas`. Details: [fault tolerance — horizontal scaling](fault-tolerance.md#horizontal-scaling-specreplicas), [architecture — CRD](architecture.md#custom-resource-definition-crd).
+For higher throughput with Nessie sink, tune `batchSize`, `batchFlushIntervalSeconds`, and `channelBufferSize` instead of increasing `replicas`. Details: [fault tolerance — horizontal scaling](fault-tolerance.md#horizontal-scaling-specreplicas), [DataFlow spec — replicas](dataflow/spec.md#field-reference).
 
 ### rawMode and `_metadata` column (sink only)
 

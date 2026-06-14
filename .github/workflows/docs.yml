@@ -32,8 +32,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Verify nav files
+        run: python3 verify_nav_files.py
+
       - name: Build documentation
-        # working-directory: docs
         run: mkdocs build -f mkdocs.yml
 
       - name: Setup Pages

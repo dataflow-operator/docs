@@ -1,34 +1,34 @@
 # DataFlow Operator Documentation
 
-Documentation site for [DataFlow Operator](https://github.com/dataflow-operator/dataflow), built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).
+Documentation site for [DataFlow Operator](https://github.com/dataflow-operator/dataflow), built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) and [mkdocs-static-i18n](https://ultrabug.github.io/mkdocs-static-i18n/).
 
-**Live site**: https://dataflow-operator.github.io/docs/
+**Live site**: https://dataflow-operator.github.io/docs/en/
 
-## Languages
-
-- English ([`docs/docs/en/`](docs/docs/en/)) — primary technical reference
-- Russian ([`docs/docs/ru/`](docs/docs/ru/)) — mirror where maintained; substantive protocol and API details may lag English slightly
+Open `/en/` or `/ru/` after `mkdocs serve`.
 
 ## Local development
 
 ```bash
+cd docs
 pip install -r requirements.txt
 mkdocs serve
 ```
 
-Open http://localhost:8000.
+Open http://127.0.0.1:8000/en/ or http://127.0.0.1:8000/ru/
 
 ## Build
 
 ```bash
+cd docs
 mkdocs build
 ```
 
 Output goes to `site/`.
 
-Quick check (no MkDocs run) that every `nav` target exists on disk:
+Verify nav targets exist in both locales:
 
 ```bash
+cd docs
 python3 verify_nav_files.py
 ```
 
@@ -36,29 +36,30 @@ python3 verify_nav_files.py
 
 ```
 docs/
-├── mkdocs.yml              # MkDocs configuration
-├── requirements.txt        # Python dependencies
+├── mkdocs.yml              # MkDocs + i18n configuration
+├── requirements.txt
+├── verify_nav_files.py
 ├── docs/
-│   ├── en/                 # English pages (MkDocs docs_dir)
-│   ├── ru/                 # Russian pages
-│   ├── images/             # Logo, favicon
-│   ├── stylesheets/        # Custom CSS
-│   └── javascripts/        # Custom JS
+│   ├── en/                 # English pages
+│   │   ├── concepts/       # Workload types, shared concepts
+│   │   ├── dataflow/       # DataFlow CRD reference
+│   │   └── dataflow-cron/  # DataFlowCron CRD reference
+│   ├── ru/                 # Russian mirror (same paths)
+│   ├── images/
+│   ├── stylesheets/
+│   └── javascripts/
 └── .github/workflows/
-    └── docs.yml            # CI: deploy to GitHub Pages
+    └── docs.yml
 ```
 
-## Topics covered
+## Navigation sections
 
-- Getting Started
-- Architecture
-- Connectors (Kafka, PostgreSQL, ClickHouse, Trino, Nessie)
-- Transformations
-- Configuration examples
-- Error handling and fault tolerance
-- Prometheus metrics
-- Web GUI
-- MCP server
-- Development guide
-- Connector development
-- Semantic versioning and releases
+| Section | Contents |
+|---------|----------|
+| Concepts | Architecture, DataFlow vs DataFlowCron |
+| DataFlow | Overview, spec, lifecycle |
+| DataFlowCron | Overview, spec, triggers, examples |
+| Pipeline | Connectors, transformations |
+| Guides | Examples, errors, fault tolerance, metrics |
+| Tools | Web GUI, MCP |
+| Development | Developer guide, releases, connector protocol |

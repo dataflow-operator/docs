@@ -49,7 +49,7 @@ See also the connector setup details in [Connectors — Nessie](connectors.md#ne
 
 Scheduled pipeline: the operator creates a **CronJob** and runs the processor (and optional **post-triggers**) on a cron schedule. The `spec` embeds the same fields as `DataFlow` plus `schedule` and optional `triggers`.
 
-Full reference: [DataFlowCron](dataflow-cron.md).
+Full reference: [DataFlowCron Overview](dataflow-cron/index.md).
 
 **Apply the sample:**
 ```bash

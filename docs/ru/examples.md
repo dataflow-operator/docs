@@ -47,7 +47,7 @@ kubectl apply -f dataflow/config/samples/kafka-to-nessie.yaml
 
 ## DataFlowCron с триггерами после processor {#dataflowcron-example}
 
-Полное описание ресурса и объектов в кластере: [DataFlowCron](dataflow-cron.md).
+Полное описание: [DataFlowCron — обзор](dataflow-cron/index.md).
 
 Пример запуска pipeline по расписанию, где сначала выполняется основной `processor`, а затем запускаются `triggers`.
 

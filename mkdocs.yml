@@ -2,10 +2,56 @@ site_name: DataFlow Operator Documentation
 site_description: Kubernetes operator for data flow between different sources
 site_author: DataFlow Team
 site_url: https://dataflow-operator.github.io/docs/
+repo_url: https://github.com/dataflow-operator/dataflow
+edit_uri: edit/main/docs/docs/
 
 docs_dir: docs
 
 plugins:
+  - i18n:
+      docs_structure: folder
+      fallback_to_default: true
+      reconfigure_material: true
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+          nav_translations:
+            Home: Home
+        - locale: ru
+          name: Русский
+          build: true
+          nav_translations:
+            Home: Главная
+            Getting Started: Начало работы
+            Concepts: Концепции
+            Architecture: Архитектура
+            Workload Types: Типы нагрузки
+            DataFlow: DataFlow
+            Overview: Обзор
+            Spec Reference: Справочник spec
+            Lifecycle & Status: Жизненный цикл и status
+            DataFlowCron: DataFlowCron
+            Spec & Schedule: Spec и расписание
+            Triggers: Триггеры
+            Examples: Примеры
+            Pipeline: Конвейер
+            Connectors: Коннекторы
+            Transformations: Трансформации
+            Guides: Руководства
+            Error Handling: Обработка ошибок
+            Fault Tolerance: Отказоустойчивость
+            Metrics: Метрики
+            Kubernetes Events: События Kubernetes
+            Tools: Инструменты
+            Web GUI: Web GUI
+            MCP: MCP
+            Development: Разработка
+            Developer Guide: Руководство разработчика
+            Release Process: Release Process
+            Connector Development: Разработка коннекторов
+            Connector Protocol (stdin/stdout): Протокол коннекторов (stdin/stdout)
   - search
   - mermaid2
 
@@ -55,54 +101,54 @@ theme:
     - navigation.tabs
     - navigation.tabs.sticky
     - navigation.sections
-    - navigation.instant
-    - navigation.instant.progress
+    - navigation.indexes
     - navigation.top
     - navigation.path
     - navigation.footer
     - toc.integrate
     - toc.follow
+    - content.code.copy
+    - content.action.edit
 
 nav:
-  - Home: en/index.md
-  - Getting Started: en/getting-started.md
-  - Architecture: en/architecture.md
-  - DataFlowCron: en/dataflow-cron.md
-  - Connectors: en/connectors.md
-  - Transformations: en/transformations.md
-  - Examples: en/examples.md
-  - Errors: en/errors.md
-  - Fault Tolerance: en/fault-tolerance.md
-  - Metrics: en/metrics.md
-  - Web GUI: en/gui.md
-  - Kubernetes Events: en/kubernetes-events.md
-  - MCP: en/mcp.md
-  - Development: en/development.md
-  - Release Process: en/semver-release.md
-  - Connector Development: en/connector-development.md
-  - Connector Protocol (stdin/stdout): en/connector-protocol.md
-  - "---"
-  - "Русский":
-    - "Главная": ru/index.md
-    - "Начало работы": ru/getting-started.md
-    - "Архитектура": ru/architecture.md
-    - "DataFlowCron": ru/dataflow-cron.md
-    - "Коннекторы": ru/connectors.md
-    - "Трансформации": ru/transformations.md
-    - "Примеры": ru/examples.md
-    - "Обработка ошибок": ru/errors.md
-    - "Отказоустойчивость": ru/fault-tolerance.md
-    - "Метрики": ru/metrics.md
-    - "Web GUI": ru/gui.md
-    - "События Kubernetes": ru/kubernetes-events.md
-    - "MCP": ru/mcp.md
-    - "Разработка": ru/development.md
-    - "Release Process": ru/semver-release.md
-    - "Разработка коннекторов": ru/connector-development.md
-    - "Протокол коннекторов (stdin/stdout)": ru/connector-protocol.md
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Concepts:
+      - Architecture: architecture.md
+      - Workload Types: concepts/workload-types.md
+  - DataFlow:
+      - Overview: dataflow/index.md
+      - Spec Reference: dataflow/spec.md
+      - Lifecycle & Status: dataflow/lifecycle.md
+  - DataFlowCron:
+      - Overview: dataflow-cron/index.md
+      - Spec & Schedule: dataflow-cron/spec.md
+      - Triggers: dataflow-cron/triggers.md
+      - Examples: dataflow-cron/examples.md
+  - Pipeline:
+      - Connectors: connectors.md
+      - Transformations: transformations.md
+  - Guides:
+      - Examples: examples.md
+      - Error Handling: errors.md
+      - Fault Tolerance: fault-tolerance.md
+      - Metrics: metrics.md
+      - Kubernetes Events: kubernetes-events.md
+  - Tools:
+      - Web GUI: gui.md
+      - MCP: mcp.md
+  - Development:
+      - Developer Guide: development.md
+      - Release Process: semver-release.md
+      - Connector Development: connector-development.md
+      - Connector Protocol (stdin/stdout): connector-protocol.md
 
 markdown_extensions:
   - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight
   - pymdownx.superfences:
       custom_fences:

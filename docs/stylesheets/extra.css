@@ -1,5 +1,4 @@
 /* DataFlow Operator Documentation - Custom Styles */
-/* Soft, friendly design with rounded corners and smooth transitions */
 
 /* === Rounded corners === */
 .md-typeset .admonition,
@@ -70,35 +69,90 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
-/* === Slate theme hue adjustment === */
 [data-md-color-scheme="slate"] {
   --md-hue: 210;
 }
 
-/* === Hero section styling (when used) === */
+/* === Hero section === */
 .md-hero {
-  padding: 2rem 0;
+  padding: 2.5rem 1.5rem;
+  margin: 0 0 2rem;
   text-align: center;
-}
-
-.md-hero h1 {
-  margin-bottom: 0.5em;
-  font-weight: 600;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--md-primary-fg-color--rgb), 0.08) 0%,
+    rgba(var(--md-accent-fg-color--rgb), 0.06) 100%
+  );
+  border: 1px solid rgba(var(--md-primary-fg-color--rgb), 0.12);
 }
 
 .md-hero p {
-  font-size: 1.1em;
-  opacity: 0.9;
+  font-size: 1.15em;
+  opacity: 0.92;
   margin-bottom: 1.5em;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .md-hero .md-button {
-  margin: 0 0.5em 0.5em 0;
+  margin: 0 0.35em 0.5em;
   border-radius: 8px;
 }
 
+/* === Grid cards (Material) === */
+.md-typeset .grid.cards {
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.md-typeset .grid.cards > ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--md-primary-fg-color--rgb), 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.md-typeset .grid.cards .lg.middle {
+  font-size: 2rem;
+  color: var(--md-primary-fg-color);
+}
+
+/* === Compare cards (workload-types) === */
+.compare-cards table {
+  width: 100%;
+}
+
+.compare-cards th:first-child {
+  width: 28%;
+}
+
+/* === CRD badges in prose === */
+.md-typeset code.crd-badge {
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 0.05em 0.4em;
+  background: rgba(var(--md-primary-fg-color--rgb), 0.1);
+}
+
 /* === Content area spacing === */
-.md-typeset .md-content__inner {
+.md-content__inner {
   padding-bottom: 2rem;
 }
 
@@ -110,4 +164,10 @@
 
 .md-typeset .tabbed-labels {
   border-radius: 8px 8px 0 0;
+}
+
+/* === Sidebar top-level sections === */
+.md-nav__item--section > .md-nav__link {
+  font-weight: 600;
+  color: var(--md-default-fg-color);
 }

@@ -1,6 +1,13 @@
 # DataFlow Operator
 
-DataFlow Operator - это Kubernetes оператор для потоковой передачи данных между различными источниками данных с поддержкой трансформаций сообщений.
+<div class="md-hero" markdown="block">
+
+Kubernetes-оператор для потоковых и scheduled-конвейеров между Kafka, PostgreSQL, ClickHouse, Trino и Nessie.
+
+[Начало работы](getting-started.md){ .md-button .md-button--primary }
+[Архитектура](architecture.md){ .md-button }
+
+</div>
 
 ## Текущие версии
 
@@ -11,144 +18,83 @@ DataFlow Operator - это Kubernetes оператор для потоковой
 | DataFlow MCP | <span data-version-repo="dataflow-operator/dataflow-mcp">—</span> |
 | DataFlow Web | <span data-version-repo="dataflow-operator/dataflow-web">—</span> |
 
+## Разделы документации
+
+<div class="grid cards" markdown="block">
+
+-   :material-play-circle:{ .lg .middle } **Начало работы**
+
+    ---
+
+    Установка через Helm и первый конвейер за минуты
+
+    [:octicons-arrow-right-24: Начать](getting-started.md)
+
+-   :material-source-branch:{ .lg .middle } **DataFlow**
+
+    ---
+
+    Непрерывные потоковые конвейеры (Deployment)
+
+    [:octicons-arrow-right-24: Подробнее](dataflow/index.md)
+
+-   :material-clock-outline:{ .lg .middle } **DataFlowCron**
+
+    ---
+
+    Запуск по расписанию с опциональными триггерами
+
+    [:octicons-arrow-right-24: Подробнее](dataflow-cron/index.md)
+
+-   :material-swap-horizontal:{ .lg .middle } **Типы нагрузки**
+
+    ---
+
+    Выбор между DataFlow и DataFlowCron
+
+    [:octicons-arrow-right-24: Сравнить](concepts/workload-types.md)
+
+-   :material-connection:{ .lg .middle } **Коннекторы**
+
+    ---
+
+    Kafka, PostgreSQL, ClickHouse, Trino, Nessie
+
+    [:octicons-arrow-right-24: Справочник](connectors.md)
+
+-   :material-auto-fix:{ .lg .middle } **Трансформации**
+
+    ---
+
+    Filter, mask, route, flatten и др.
+
+    [:octicons-arrow-right-24: Справочник](transformations.md)
+
+</div>
+
 ## Обзор
 
 !!! abstract ""
-    DataFlow Operator позволяет декларативно определять потоки данных между различными источниками и приемниками через Kubernetes Custom Resource Definitions (CRD). Оператор автоматически управляет жизненным циклом потоков данных, обрабатывает сообщения и применяет необходимые трансформации.
-
-## Основные возможности
-
-!!! note "Поддержка множественных источников данных"
-    - **Kafka** — чтение и запись сообщений (TLS, SASL, Avro, Schema Registry)
-    - **PostgreSQL** — кастомные SQL, батч-вставки, UPSERT режим
-    - **ClickHouse** — опрос таблиц, батч-вставки, автосоздание MergeTree
-    - **Trino** — SQL запросы, Keycloak OAuth2, батч-вставки
-    - **Nessie** — таблицы Apache Iceberg через каталог Nessie (ветки, Basic/Bearer auth, опрос, батч-дозапись)
-
-!!! note "Богатый набор трансформаций"
-    - **Timestamp** - добавление временной метки к каждому сообщению
-    - **Flatten** - развертывание массивов в отдельные сообщения с сохранением родительских полей
-    - **Filter** - фильтрация сообщений на основе JSONPath условий
-    - **Mask** - маскирование чувствительных данных с сохранением длины или без
-    - **Router** - маршрутизация сообщений в разные приемники на основе условий
-    - **Select** - выбор определенных полей из сообщений
-    - **Remove** - удаление указанных полей из сообщений
-    - **SnakeCase** - преобразование имен полей в snake_case
-    - **CamelCase** - преобразование имен полей в CamelCase
-
-!!! tip "Гибкая маршрутизация"
-    Оператор поддерживает условную маршрутизацию сообщений в разные приемники на основе JSONPath выражений, что позволяет создавать сложные сценарии обработки данных.
-
-!!! tip "Простое управление"
-    Декларативная конфигурация через Kubernetes CRD позволяет легко управлять потоками данных, версионировать конфигурации и интегрироваться с CI/CD системами.
-
-!!! tip "Безопасная конфигурация"
-    Поддержка конфигурации коннекторов из Kubernetes Secrets через `SecretRef` позволяет безопасно хранить credentials, токены и connection strings без их явного указания в спецификации DataFlow.
+    DataFlow Operator позволяет декларативно определять потоки данных через Kubernetes CRD. Поддерживаются **непрерывные** (`DataFlow`) и **scheduled** (`DataFlowCron`) нагрузки.
 
 ## Быстрый старт
 
-!!! tip "Установка за минуты"
-    Установите оператор через Helm и создайте первый поток данных менее чем за 5 минут.
-
-### Установка оператора
-
 ```bash
-# Установка оператора через Helm из OCI registry
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
-
-# Проверка установки
-kubectl get pods -l app.kubernetes.io/name=dataflow-operator
-
-# Проверка CRD
-kubectl get crd dataflows.dataflow.dataflow.io
-```
-
-### Создание первого потока данных
-
-Создайте простой поток данных из Kafka в PostgreSQL:
-
-```bash
 kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
-```
-
-Проверьте статус:
-
-```bash
 kubectl get dataflow kafka-to-postgres
-kubectl describe dataflow kafka-to-postgres
 ```
 
-### Локальная разработка
+## Карта документации
 
-Для локальной разработки и тестирования:
-
-```bash
-# Запуск зависимостей (Kafka, PostgreSQL)
-docker-compose up -d
-
-# Запуск оператора локально
-make run
-```
-
-## Архитектура
-
-Оператор состоит из следующих компонентов:
-
-### CRD (Custom Resource Definitions)
-
-Описывает **`DataFlow`** (непрерывный процессор) и **`DataFlowCron`** (запуск по расписанию с опциональными пост-триггерами): источник, приёмник, трансформации и поля оркестрации.
-
-### Controller
-
-Kubernetes контроллер, который отслеживает изменения ресурсов `DataFlow` и управляет их жизненным циклом. Контроллер создает и управляет процессорами для каждого активного потока данных.
-
-### Connectors
-
-Модульная система коннекторов для различных источников и приемников данных. Каждый коннектор реализует стандартный интерфейс для чтения или записи данных.
-
-### Transformers
-
-Модули трансформации сообщений, которые применяются последовательно к каждому сообщению в порядке, указанном в конфигурации.
-
-### Processor
-
-Оркестратор обработки сообщений, который координирует работу источника, трансформаций и приемника. Обрабатывает ошибки, ведет статистику и управляет жизненным циклом потока данных.
-
-## Мониторинг и статус
-
-Каждый ресурс `DataFlow` имеет статус, который включает:
-
-- **Phase** - текущая фаза потока данных (Running, Error, etc.)
-- **Message** - дополнительная информация о статусе
-- **LastProcessedTime** - время последнего обработанного сообщения
-- **ProcessedCount** - количество обработанных сообщений
-- **ErrorCount** - количество ошибок
-
-Оператор также экспортирует метрики Prometheus и поддерживает Sentry для детального мониторинга:
-- Количество полученных/отправленных сообщений по каждому манифесту
-- Ошибки в коннекторах и трансформерах
-- Время обработки сообщений и выполнения трансформеров
-- Статус подключения коннекторов
-- Мониторинг ошибок и трейсинг через Sentry (опционально)
-
-Подробнее см. раздел [Метрики](metrics.md).
-
-## Документация
-
-- [Начало работы](getting-started.md) — установка и первый поток данных
-- [DataFlowCron](dataflow-cron.md) — расписание, CronJob, триггеры после успешного прогона
-- [Установка и Helm Configuration](getting-started.md#installation) — Helm charts, values, опции установки
-- [Web GUI](gui.md) — веб-интерфейс: работа и возможности
-- [Коннекторы](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino, Nessie (источники и приёмники)
-- [Трансформации](transformations.md) — трансформации сообщений
-- [Примеры](examples.md) — практические примеры
-- [Обработка ошибок](errors.md) — error sink и обработка ошибок
-- [Метрики](metrics.md) — метрики Prometheus
-- [Разработка](development.md) — руководство для разработчиков
+| Тема | Ссылка |
+|------|--------|
+| Установка | [Начало работы](getting-started.md) |
+| DataFlow | [Обзор](dataflow/index.md) · [Spec](dataflow/spec.md) · [Жизненный цикл](dataflow/lifecycle.md) |
+| DataFlowCron | [Обзор](dataflow-cron/index.md) · [Триггеры](dataflow-cron/triggers.md) · [Примеры](dataflow-cron/examples.md) |
+| Эксплуатация | [Ошибки](errors.md) · [Отказоустойчивость](fault-tolerance.md) · [Метрики](metrics.md) |
+| Инструменты | [Web GUI](gui.md) · [MCP](mcp.md) |
 
 ## Лицензия
 
 Apache License 2.0
-
-
-

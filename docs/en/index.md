@@ -1,6 +1,13 @@
 # DataFlow Operator
 
-DataFlow Operator is a Kubernetes operator for streaming data between different data sources with support for message transformations.
+<div class="md-hero" markdown="block">
+
+Kubernetes operator for streaming and scheduled data pipelines between Kafka, PostgreSQL, ClickHouse, Trino, and Nessie.
+
+[Getting Started](getting-started.md){ .md-button .md-button--primary }
+[Architecture](architecture.md){ .md-button }
+
+</div>
 
 ## Current Versions
 
@@ -11,143 +18,102 @@ DataFlow Operator is a Kubernetes operator for streaming data between different 
 | DataFlow MCP | <span data-version-repo="dataflow-operator/dataflow-mcp">—</span> |
 | DataFlow Web | <span data-version-repo="dataflow-operator/dataflow-web">—</span> |
 
+## Explore the docs
+
+<div class="grid cards" markdown="block">
+
+-   :material-play-circle:{ .lg .middle } **Getting Started**
+
+    ---
+
+    Install via Helm and create your first pipeline in minutes
+
+    [:octicons-arrow-right-24: Start](getting-started.md)
+
+-   :material-source-branch:{ .lg .middle } **DataFlow**
+
+    ---
+
+    Continuous streaming pipelines backed by a Deployment
+
+    [:octicons-arrow-right-24: Learn more](dataflow/index.md)
+
+-   :material-clock-outline:{ .lg .middle } **DataFlowCron**
+
+    ---
+
+    Scheduled batch runs with optional post-run triggers
+
+    [:octicons-arrow-right-24: Learn more](dataflow-cron/index.md)
+
+-   :material-swap-horizontal:{ .lg .middle } **Workload Types**
+
+    ---
+
+    Choose between DataFlow and DataFlowCron
+
+    [:octicons-arrow-right-24: Compare](concepts/workload-types.md)
+
+-   :material-connection:{ .lg .middle } **Connectors**
+
+    ---
+
+    Kafka, PostgreSQL, ClickHouse, Trino, Nessie
+
+    [:octicons-arrow-right-24: Reference](connectors.md)
+
+-   :material-auto-fix:{ .lg .middle } **Transformations**
+
+    ---
+
+    Filter, mask, route, flatten, and more
+
+    [:octicons-arrow-right-24: Reference](transformations.md)
+
+</div>
+
 ## Overview
 
 !!! abstract ""
-    DataFlow Operator allows you to declaratively define data flows between different sources and sinks through Kubernetes Custom Resource Definitions (CRD). The operator automatically manages the lifecycle of data flows, processes messages, and applies necessary transformations.
+    DataFlow Operator lets you declaratively define data flows between sources and sinks through Kubernetes CRDs. The operator manages processor lifecycle, applies transformations, and supports both **continuous** (`DataFlow`) and **scheduled** (`DataFlowCron`) workloads.
 
 ## Key Features
 
 !!! note "Multiple Data Source Support"
-    - **Kafka** — read and write messages from/to Kafka topics (TLS, SASL, Avro, Schema Registry)
-    - **PostgreSQL** — read from tables and write with custom SQL, batch inserts, UPSERT mode
-    - **ClickHouse** — polling, batch inserts, auto-create MergeTree tables
-    - **Trino** — SQL queries, Keycloak OAuth2, batch inserts
-    - **Nessie** — Apache Iceberg tables via Nessie catalog (branches, Basic/Bearer auth, polling, batch appends)
+    - **Kafka** — TLS, SASL, Avro, Schema Registry
+    - **PostgreSQL** — custom SQL, batch inserts, UPSERT
+    - **ClickHouse** — polling, batch inserts, auto-create MergeTree
+    - **Trino** — SQL queries, Keycloak OAuth2
+    - **Nessie** — Apache Iceberg via Nessie catalog
 
 !!! note "Rich Transformation Set"
-    - **Timestamp** - add timestamp to each message
-    - **Flatten** - expand arrays into separate messages while preserving parent fields
-    - **Filter** - filter messages based on JSONPath conditions
-    - **Mask** - mask sensitive data with or without preserving length
-    - **Router** - route messages to different sinks based on conditions
-    - **Select** - select specific fields from messages
-    - **Remove** - remove specified fields from messages
-    - **SnakeCase** - convert field names to snake_case
-    - **CamelCase** - convert field names to CamelCase
+    Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase, DebeziumUnwrap
 
 !!! tip "Flexible Routing"
-    The operator supports conditional routing of messages to different sinks based on JSONPath expressions, enabling complex data processing scenarios.
-
-!!! tip "Simple Management"
-    Declarative configuration through Kubernetes CRD allows easy management of data flows, versioning configurations, and integration with CI/CD systems.
+    Route messages to different sinks using JSONPath conditions.
 
 !!! tip "Secure Configuration"
-    Support for configuring connectors from Kubernetes Secrets through `SecretRef` allows secure storage of credentials, tokens, and connection strings without explicitly specifying them in the DataFlow specification.
+    Configure connectors from Kubernetes Secrets via `SecretRef`.
 
 ## Quick Start
 
-!!! tip "Install in minutes"
-    Install the operator via Helm and create your first data flow in under 5 minutes.
-
-### Installing the Operator
-
 ```bash
-# Install operator via Helm from OCI registry
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
-
-# Verify installation
-kubectl get pods -l app.kubernetes.io/name=dataflow-operator
-
-# Verify CRD
-kubectl get crd dataflows.dataflow.dataflow.io
-```
-
-### Creating Your First Data Flow
-
-Create a simple data flow from Kafka to PostgreSQL:
-
-```bash
 kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
-```
-
-Check status:
-
-```bash
 kubectl get dataflow kafka-to-postgres
-kubectl describe dataflow kafka-to-postgres
 ```
 
-### Local Development
+## Documentation map
 
-For local development and testing:
-
-```bash
-# Start dependencies (Kafka, PostgreSQL)
-docker-compose up -d
-
-# Run operator locally
-make run
-```
-
-## Architecture
-
-The operator consists of the following components:
-
-### CRD (Custom Resource Definitions)
-
-Defines **`DataFlow`** (continuous processor) and **`DataFlowCron`** (scheduled runs with optional post-triggers): source, sink, transformations, and orchestration-specific fields.
-
-### Controller
-
-Kubernetes controller that monitors changes to `DataFlow` resources and manages their lifecycle. The controller creates and manages processors for each active data flow.
-
-### Connectors
-
-Modular connector system for various data sources and sinks. Each connector implements a standard interface for reading or writing data.
-
-### Transformers
-
-Message transformation modules that are applied sequentially to each message in the order specified in the configuration.
-
-### Processor
-
-Message processing orchestrator that coordinates the work of source, transformations, and sink. Handles errors, maintains statistics, and manages the data flow lifecycle.
-
-## Monitoring and Status
-
-Each `DataFlow` resource has a status that includes:
-
-- **Phase** - current phase of the data flow (Running, Error, etc.)
-- **Message** - additional status information
-- **LastProcessedTime** - time of the last processed message
-- **ProcessedCount** - number of processed messages
-- **ErrorCount** - number of errors
-
-The operator also exports Prometheus metrics and supports Sentry for detailed monitoring:
-- Number of messages received/sent per manifest
-- Errors in connectors and transformers
-- Message processing time and transformer execution time
-- Connector connection status
-- Sentry error monitoring and distributed tracing (optional)
-
-See [Metrics](metrics.md) for more details.
-
-## Documentation
-
-- [Getting Started](getting-started.md) — installation and first data flow
-- [DataFlowCron](dataflow-cron.md) — scheduled pipelines, CronJob, triggers after a successful run
-- [Installation & Helm Configuration](getting-started.md#installation) — Helm charts, values, installation options
-- [Web GUI](gui.md) — web interface: how it works and capabilities
-- [Connectors](connectors.md) — Kafka, PostgreSQL, ClickHouse, Trino, Nessie (sources and sinks)
-- [Transformations](transformations.md) — message transformations
-- [Examples](examples.md) — practical examples
-- [Errors](errors.md) — error handling and error sink
-- [Fault Tolerance](fault-tolerance.md) — at-least-once semantics, idempotent sinks, data consistency
-- [Metrics](metrics.md) — Prometheus metrics
-- [Development](development.md) — developer guide
+| Topic | Link |
+|-------|------|
+| Installation | [Getting Started](getting-started.md) |
+| DataFlow CRD | [Overview](dataflow/index.md) · [Spec](dataflow/spec.md) · [Lifecycle](dataflow/lifecycle.md) |
+| DataFlowCron CRD | [Overview](dataflow-cron/index.md) · [Triggers](dataflow-cron/triggers.md) · [Examples](dataflow-cron/examples.md) |
+| Operations | [Errors](errors.md) · [Fault Tolerance](fault-tolerance.md) · [Metrics](metrics.md) |
+| Tools | [Web GUI](gui.md) · [MCP](mcp.md) |
+| Development | [Developer Guide](development.md) |
 
 ## License
 
 Apache License 2.0
-

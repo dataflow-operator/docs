@@ -218,7 +218,7 @@ kubectl set env deployment/dataflow-operator PROCESSOR_LOG_LEVEL=debug -n <names
 
 После этого перезапустите или пересоздайте оператор, чтобы поды процессора пересоздались с новым уровнем.
 
-## Настройка Validating Webhook
+## Настройка Validating Webhook { #настройка-validating-webhook }
 
 Validating Webhook проверяет spec ресурса DataFlow при создании и обновлении и отклоняет невалидные объекты до записи в кластер. Это даёт немедленную обратную связь (ошибка при `kubectl apply` или в GUI) и не создаёт лишние объекты и поды с заведомо нерабочей конфигурацией. Подробнее о роли webhook в архитектуре см. [Admission Webhook (Validating)](architecture.md#admission-webhook-validating).
 
