@@ -684,11 +684,11 @@ go list -u -m all
 
 ## Cursor Agent Skills (maintainer)
 
-Клиентские skills — в [`skills/`](https://github.com/dataflow-operator/dataflow/tree/main/skills) в корне репозитория. Maintainer-расширения — в `.cursor/skills/dataflow-*`. При изменении operational-контента сначала обновляйте `skills/` — см. `.cursor/skills/SYNC.md`. Описано в [Agent Skills](agent-skills.md).
+Клиентские skills разрабатываются в каталоге `skills/` monorepo и публикуются в **[github.com/dataflow-operator/skills](https://github.com/dataflow-operator/skills)**. Maintainer-расширения: `.cursor/skills/dataflow-*`. См. [Agent Skills](agent-skills.md).
 
 ## Ресурсы
 
-- [Agent Skills](agent-skills.md) — AI skills для deploy, config и отказоустойчивости (`skills/` в репозитории)
+- [Agent Skills](agent-skills.md) — публикация в [dataflow-operator/skills](https://github.com/dataflow-operator/skills)
 - [Kubebuilder Book](https://book.kubebuilder.io/) - руководство по созданию Kubernetes операторов
 - [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime) - библиотека для контроллеров
 - [Go Documentation](https://golang.org/doc/) - документация Go

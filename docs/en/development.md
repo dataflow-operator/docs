@@ -684,11 +684,11 @@ go list -u -m all
 
 ## Cursor Agent Skills (maintainer)
 
-Client-facing skills live in [`skills/`](https://github.com/dataflow-operator/dataflow/tree/main/skills) at the repository root. Maintainer extensions are under `.cursor/skills/dataflow-*`. When changing operational guidance, update `skills/` first — see `.cursor/skills/SYNC.md`. Documented in [Agent Skills](agent-skills.md).
+Client-facing skills are developed in the monorepo `skills/` directory and published to **[github.com/dataflow-operator/skills](https://github.com/dataflow-operator/skills)**. Maintainer extensions: `.cursor/skills/dataflow-*`. See [Agent Skills](agent-skills.md).
 
 ## Resources
 
-- [Agent Skills](agent-skills.md) — AI assistant skills for deploy, config, and fault tolerance (`skills/` in repo)
+- [Agent Skills](agent-skills.md) — publish to [dataflow-operator/skills](https://github.com/dataflow-operator/skills)
 - [Kubebuilder Book](https://book.kubebuilder.io/) — guide for building Kubernetes operators
 - [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime) — controller library
 - [Go Documentation](https://golang.org/doc/) — Go documentation
