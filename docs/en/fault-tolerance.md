@@ -13,6 +13,7 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 |--------|---------------|------------|
 | **Kafka** | Consumer group (Kafka) | Resumes from last committed offset. No duplicates if offset was committed after sink write. |
 | **PostgreSQL** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
+| **PostgreSQL CDC** | ConfigMap (`lastAckedLSN`) | Resumes logical replication from last acked LSN after sink write. |
 | **ClickHouse** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **Trino** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **Nessie** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Incremental reads along the Iceberg snapshot chain; without `incrementalBySnapshot`, full scan on every poll (no checkpoint). |
@@ -21,7 +22,7 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 ### Horizontal scaling (`spec.replicas`)
 
 - **Kafka**: you may set `spec.replicas > 1`. All pods share one consumer group; parallelism is capped by the topic **partition** count.
-- **PostgreSQL, ClickHouse, Trino, Nessie**: `replicas` must be `1` (or unset). Multiple pods with a shared checkpoint ConfigMap will **duplicate** data.
+- **PostgreSQL, PostgreSQL CDC, ClickHouse, Trino, Nessie**: `replicas` must be `1` (or unset). Multiple pods with a shared checkpoint ConfigMap will **duplicate** data.
 - **DataFlowCron**: `replicas > 1` is not supported (one processor Job per schedule tick).
 
 ### Kafka Source

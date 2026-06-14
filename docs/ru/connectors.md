@@ -240,6 +240,8 @@ sink:
 
 PostgreSQL коннектор поддерживает чтение из таблиц и запись в таблицы PostgreSQL. Поддерживает кастомные SQL запросы, периодический опрос, батч-вставки, CDC-стиль отслеживания изменений (INSERT и UPDATE), soft delete и SecretRef для учётных данных.
 
+Для **нативного CDC через logical replication** (WAL / pgoutput) используйте отдельный тип источника [`postgresql-cdc`](#postgresql-cdc-logical-replication).
+
 ### Источник (Source)
 
 Конфигурация PostgreSQL источника:
@@ -426,6 +428,75 @@ sink:
 - Это особенно полезно для синхронизации данных, когда источник периодически отправляет обновленные записи
 
 **Важно:** Для работы UPSERT таблица должна иметь PRIMARY KEY или UNIQUE constraint на указанном `conflictKey`.
+
+## PostgreSQL CDC (logical replication)
+
+Нативный Change Data Capture через logical replication PostgreSQL (`pgoutput`). Читает INSERT, UPDATE и DELETE из WAL через replication slot и publication. Пример: `config/samples/postgresql-cdc-to-postgres.yaml`.
+
+### Требования
+
+PostgreSQL должен иметь включённую logical replication:
+
+```sql
+-- postgresql.conf
+wal_level = logical
+max_replication_slots >= 1
+max_wal_senders >= 1
+
+-- pg_hba.conf (пример)
+host replication repl_user 0.0.0.0/0 scram-sha-256
+
+-- privileges
+GRANT REPLICATION ON DATABASE db TO repl_user;
+```
+
+Пользователю нужны права `REPLICATION` и создание publication/slot (или создайте их заранее). Для таблиц без PK: `ALTER TABLE ... REPLICA IDENTITY FULL`.
+
+### Источник (Source)
+
+```yaml
+source:
+  type: postgresql-cdc
+  config:
+    connectionString: "postgres://repl_user:pass@pg:5432/db?sslmode=disable"
+    slotName: dataflow_orders_slot
+    publicationName: dataflow_orders_pub
+    tables:
+      - public.orders
+      - public.customers
+    snapshotMode: initial          # initial | never | always (по умолчанию: initial)
+    createSlotIfNotExists: true
+    createPublicationIfNotExists: true
+    heartbeatIntervalSeconds: 10   # standby status при простое (0 = выключить)
+    primaryKeyColumn: id           # metadata.id (по умолчанию: id)
+    includeColumns: []             # опциональный allow-list колонок
+    excludeColumns: []
+    envelopeFormat: row            # row (по умолчанию) | debezium
+```
+
+### Особенности
+
+- **Streaming WAL** — continuous logical replication (не polling)
+- **Initial snapshot** — `snapshotMode: initial` копирует существующие строки перед streaming
+- **Checkpoint** — LSN в ConfigMap (`postgresql-cdc`), продвигается только после `Ack` sink
+- **Metadata**: `operation` (insert/update/delete), `table`, `lsn`, `id` (при наличии PK)
+- **Multi-table** — одна publication, фильтр через список `tables`
+- **Schema evolution** — relation cache обновляется при каждом `RelationMessageV2` (ALTER ADD/DROP COLUMN)
+- **Debezium envelope** — `envelopeFormat: debezium` для `payload.before/after/op/source` (совместимо с `debeziumUnwrap`)
+- **replicas**: только `1`
+
+!!! tip "Идемпотентный sink"
+    Используйте `ackGranularity: message` и идемпотентный sink (`upsertMode` + `conflictKey`), чтобы минимизировать дубликаты при restart.
+
+### Отличия от Debezium
+
+| Возможность | Debezium | `postgresql-cdc` |
+|-------------|----------|------------------|
+| Initial snapshot | `op: r` | То же при `envelopeFormat: debezium` |
+| UPDATE before/after | В envelope | Оба поля, когда WAL содержит old tuple |
+| Schema history topic | Да | Нет — inline refresh relation cache |
+| DDL events | Отдельные сообщения | Не эмитятся (только refresh схемы) |
+| Kafka Connect | Нужен | Не нужен |
 
 ## ClickHouse
 
@@ -1187,6 +1258,11 @@ secretRef:
 #### PostgreSQL
 - `connectionStringSecretRef` - строка подключения
 - `tableSecretRef` - название таблицы
+
+#### PostgreSQL CDC (source)
+- `connectionStringSecretRef` - строка подключения
+- `slotNameSecretRef` - имя replication slot
+- `publicationNameSecretRef` - имя publication
 
 #### ClickHouse
 - `connectionStringSecretRef` - строка подключения

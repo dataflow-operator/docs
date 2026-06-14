@@ -8,6 +8,7 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 |-----------|--------|------|----------|
 | Kafka | ✅ | ✅ | Consumer groups, TLS, SASL, Avro, Schema Registry |
 | PostgreSQL | ✅ | ✅ | SQL queries, batch inserts, auto-create tables, UPSERT mode |
+| PostgreSQL CDC | ✅ | — | Logical replication (pgoutput), initial snapshot, LSN checkpoint |
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
 | Nessie | ✅ | ✅ | Iceberg via Nessie catalog, polling, batch appends, sink `rawMode` (`data` + `_metadata`); `spec.replicas` must be 1 |
@@ -54,6 +55,11 @@ All connectors support secret references for the following fields:
 #### PostgreSQL
 - `connectionStringSecretRef` - connection string
 - `tableSecretRef` - table name
+
+#### PostgreSQL CDC (source)
+- `connectionStringSecretRef` - connection string
+- `slotNameSecretRef` - replication slot name
+- `publicationNameSecretRef` - publication name
 
 #### ClickHouse
 - `connectionStringSecretRef` - connection string
@@ -433,6 +439,8 @@ source:
 
 The PostgreSQL connector supports reading from and writing to PostgreSQL tables. It supports custom SQL queries, periodic polling, batch inserts, auto-create tables, UPSERT mode, CDC-style change tracking (inserts and updates), soft delete, and SecretRef for credentials.
 
+For **native logical replication CDC** (WAL / pgoutput), use the separate [`postgresql-cdc`](#postgresql-cdc-logical-replication) source type.
+
 ### Source
 
 ```yaml
@@ -546,6 +554,77 @@ sink:
 - **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`). Batch flushes run in an explicit PostgreSQL transaction.
 - **Upsert strategy**: `always` (default) updates on every conflict; `ifNewer` updates only when the incoming `upsertVersionColumn` is greater than the stored value (prevents stale replays from overwriting newer rows).
 - **Soft Delete**: When `softDeleteColumn` is set and message has `metadata.operation=delete`, performs `UPDATE ... SET deleted_at = NOW()` instead of physical DELETE
+
+## PostgreSQL CDC (logical replication)
+
+Native Change Data Capture via PostgreSQL logical replication (`pgoutput`). Reads INSERT, UPDATE, and DELETE from the WAL through a replication slot and publication. Sample: `config/samples/postgresql-cdc-to-postgres.yaml`.
+
+### Requirements
+
+PostgreSQL must have logical replication enabled:
+
+```sql
+-- postgresql.conf
+wal_level = logical
+max_replication_slots >= 1
+max_wal_senders >= 1
+```
+
+The connection user needs `REPLICATION` privilege and permission to create publications/slots (or pre-create them). For tables without a primary key, set `REPLICA IDENTITY FULL` for reliable UPDATE/DELETE events.
+
+```sql
+-- pg_hba.conf (example)
+host replication repl_user 0.0.0.0/0 scram-sha-256
+
+-- privileges
+GRANT REPLICATION ON DATABASE db TO repl_user;
+```
+
+### Source
+
+```yaml
+source:
+  type: postgresql-cdc
+  config:
+    connectionString: "postgres://repl_user:pass@pg:5432/db?sslmode=disable"
+    slotName: dataflow_orders_slot
+    publicationName: dataflow_orders_pub
+    tables:
+      - public.orders
+      - public.customers
+    snapshotMode: initial          # initial | never | always (default: initial)
+    createSlotIfNotExists: true
+    createPublicationIfNotExists: true
+    heartbeatIntervalSeconds: 10 # standby status updates when idle (0 = disable)
+    primaryKeyColumn: id           # metadata.id when column exists (default: id)
+    includeColumns: []             # optional column allow-list
+    excludeColumns: []
+    envelopeFormat: row            # row (default) | debezium
+```
+
+### Source features
+
+- **Streaming WAL**: Continuous logical replication (not polling)
+- **Initial snapshot**: `snapshotMode: initial` copies existing rows before streaming (Debezium-style)
+- **Checkpoint**: LSN stored in ConfigMap under key `postgresql-cdc`; advanced only after sink `Ack`
+- **Message metadata**: `operation` (insert/update/delete), `table`, `lsn`, `id` (when PK column present)
+- **Multi-table**: One publication, filter via `tables` list
+- **Schema evolution**: Relation metadata refreshed on each `RelationMessageV2` from PostgreSQL
+- **Debezium envelope**: `envelopeFormat: debezium` emits `payload.before` / `payload.after` / `payload.op` / `payload.source` (compatible with `debeziumUnwrap` without Kafka Connect)
+- **replicas**: Must be `1` (same as polling sources)
+
+### Debezium parity notes
+
+| Feature | Debezium | `postgresql-cdc` |
+|---------|----------|------------------|
+| Initial snapshot | `op: r` in envelope | Same when `envelopeFormat: debezium` |
+| UPDATE before/after | Both in envelope | Both when old tuple available in WAL |
+| Schema history topic | Yes | No — relation cache refreshed inline on DDL |
+| DDL events | Separate messages | Not emitted (schema refresh only) |
+| Kafka Connect admin | Required | Not required |
+
+!!! tip "Idempotent sink"
+    Use `ackGranularity: message` and an idempotent sink (`upsertMode` + `conflictKey`) to minimize duplicates on restart.
 
 ## ClickHouse
 
