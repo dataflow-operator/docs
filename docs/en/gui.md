@@ -29,15 +29,29 @@ All API requests go through the same host as the UI. The backend talks to the Ku
 
 Namespace can be changed via a dropdown; the URL may include `?namespace=...`.
 
+### Cron jobs (DataFlowCron)
+
+- **List** of DataFlowCron resources in the selected namespace with name, cron schedule, status (phase), last run time, and suspend flag.
+- **Search** by name.
+- **Create** a new DataFlowCron via YAML editor (schedule, source, sink, optional triggers).
+- **Edit** and **delete** with confirmation.
+- **Suspend / Resume** — toggles `spec.suspend` on the underlying CronJob.
+- **Run now** — starts a manual processor Job from the operator-managed CronJob (`dfc-<name>`). After the processor succeeds, the operator runs `spec.triggers` as for a scheduled tick.
+- **Logs** — link to the Logs page with `kind=dataflowcron`.
+
+Manual runs respect `concurrencyPolicy`: when policy is empty or `Forbid` and a Job is already active, the API returns `409 Conflict`.
+
 ### Logs
 
-- Choose namespace and a DataFlow from the list.
+- Choose namespace and a DataFlow or DataFlowCron from the list (resource type selector).
 - Set the number of lines (tail lines) for a one-time load.
 - **Load logs** — single API request, logs shown in a text area.
 - **Follow logs** — stream via Server-Sent Events (SSE), live updates; "Stop following" closes the stream.
 - **Copy** button to copy the current log text to the clipboard.
 
-Logs are read from the DataFlow processor pod (container `processor`), using labels such as `dataflow.dataflow.io/name` or `app=dataflow-processor` when needed.
+For **DataFlow**, logs are read from the processor Deployment pod (container `processor`), using labels such as `dataflow.dataflow.io/name` or `app=dataflow-processor` when needed.
+
+For **DataFlowCron**, logs are read from the latest processor Job pod (`kind=dataflowcron` query param), using label `dataflow.dataflow.io/dataflow-cron=<name>`.
 
 ### Metrics and Status
 
@@ -166,7 +180,14 @@ All endpoints return JSON except logs (plain text or SSE) and metrics (Prometheu
 | POST | `/api/dataflows?namespace=<ns>` | Create DataFlow (body: JSON manifest) |
 | PUT | `/api/dataflows/<name>?namespace=<ns>` | Update DataFlow spec |
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Delete DataFlow |
-| GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false` | Processor pod logs (text or SSE when `follow=true`) |
+| GET | `/api/dataflowcrons?namespace=<ns>` | List DataFlowCron resources |
+| GET | `/api/dataflowcrons/<name>?namespace=<ns>` | Single DataFlowCron |
+| POST | `/api/dataflowcrons?namespace=<ns>` | Create DataFlowCron (body: JSON manifest) |
+| PUT | `/api/dataflowcrons/<name>?namespace=<ns>` | Update DataFlowCron spec |
+| DELETE | `/api/dataflowcrons/<name>?namespace=<ns>` | Delete DataFlowCron |
+| POST | `/api/dataflowcrons/<name>/trigger?namespace=<ns>` | Manual run (creates Job from CronJob `dfc-<name>`) |
+| POST | `/api/dataflowcrons/<name>/suspend?namespace=<ns>` | Set suspend flag (body: `{"suspend": true\|false}`) |
+| GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false&kind=dataflowcron` | Processor pod logs (DataFlow default; DataFlowCron when `kind=dataflowcron`) |
 | GET | `/api/status?namespace=&name=` | DataFlow status (phase, message, processedCount, errorCount, lastProcessedTime) |
 | GET | `/api/metrics?namespace=&name=` | Prometheus metrics (proxied from operator when `OPERATOR_METRICS_URL` is set) |
 

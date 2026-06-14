@@ -29,15 +29,29 @@ GUI состоит из двух частей:
 
 Переключение namespace выполняется через выпадающий список; при необходимости в URL подставляется `?namespace=...`.
 
+### Расписания (DataFlowCron)
+
+- **Список** DataFlowCron в выбранном namespace: имя, cron-расписание, статус (phase), время последнего запуска, флаг приостановки.
+- **Поиск** по имени.
+- **Создание** через YAML-редактор (schedule, source, sink, опционально triggers).
+- **Редактирование** и **удаление** с подтверждением.
+- **Приостановить / возобновить** — переключает `spec.suspend` на CronJob.
+- **Запустить сейчас** — создаёт processor Job из CronJob `dfc-<name>`. После успешного processor оператор запускает цепочку `spec.triggers`, как при срабатывании расписания.
+- **Логи** — переход на страницу логов с `kind=dataflowcron`.
+
+При `concurrencyPolicy` пустом или `Forbid` и уже активном Job API возвращает `409 Conflict`.
+
 ### Логи
 
-- Выбор namespace и конкретного DataFlow из списка.
+- Выбор namespace и DataFlow или DataFlowCron (переключатель типа ресурса).
 - Настройка количества строк (tail lines) для однократной загрузки.
 - **Загрузка логов** — разовый запрос к API, отображение логов в текстовом блоке.
 - **Подписка на логи (follow)** — поток логов через Server-Sent Events (SSE), обновление в реальном времени; кнопка «Остановить» отключает подписку.
 - Кнопка **Копировать** для копирования текущего текста логов в буфер обмена.
 
-Логи читаются из пода процессора DataFlow (контейнер `processor`), при необходимости — по label'ам `dataflow.dataflow.io/name` или `app=dataflow-processor`.
+Для **DataFlow** логи читаются из пода Deployment процессора (контейнер `processor`), по label'ам `dataflow.dataflow.io/name` или `app=dataflow-processor`.
+
+Для **DataFlowCron** — из последнего pod processor Job (`kind=dataflowcron`), по label `dataflow.dataflow.io/dataflow-cron=<name>`.
 
 ### Метрики и статус
 
@@ -166,7 +180,14 @@ kubectl port-forward svc/dataflow-operator-gui 8080:8080 -n <namespace>
 | POST | `/api/dataflows?namespace=<ns>` | Создать DataFlow (тело — JSON манифест) |
 | PUT | `/api/dataflows/<name>?namespace=<ns>` | Обновить spec DataFlow |
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Удалить DataFlow |
-| GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false` | Логи пода процессора (текст или SSE при `follow=true`) |
+| GET | `/api/dataflowcrons?namespace=<ns>` | Список DataFlowCron |
+| GET | `/api/dataflowcrons/<name>?namespace=<ns>` | Один DataFlowCron |
+| POST | `/api/dataflowcrons?namespace=<ns>` | Создать DataFlowCron (тело — JSON манифест) |
+| PUT | `/api/dataflowcrons/<name>?namespace=<ns>` | Обновить spec DataFlowCron |
+| DELETE | `/api/dataflowcrons/<name>?namespace=<ns>` | Удалить DataFlowCron |
+| POST | `/api/dataflowcrons/<name>/trigger?namespace=<ns>` | Ручной запуск (Job из CronJob `dfc-<name>`) |
+| POST | `/api/dataflowcrons/<name>/suspend?namespace=<ns>` | Приостановка (тело: `{"suspend": true\|false}`) |
+| GET | `/api/logs?namespace=&name=&tailLines=&follow=true\|false&kind=dataflowcron` | Логи processor (DataFlow по умолчанию; DataFlowCron при `kind=dataflowcron`) |
 | GET | `/api/status?namespace=&name=` | Статус DataFlow (phase, message, processedCount, errorCount, lastProcessedTime) |
 | GET | `/api/metrics?namespace=&name=` | Prometheus-метрики (проксируются с оператора при заданном `OPERATOR_METRICS_URL`) |
 
