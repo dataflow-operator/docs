@@ -16,6 +16,7 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 | **ClickHouse** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **Trino** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **Nessie** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Incremental reads along the Iceberg snapshot chain; without `incrementalBySnapshot`, full scan on every poll (no checkpoint). |
+| **Iceberg** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Same as Nessie; checkpoint store key is `iceberg`. |
 
 ### Horizontal scaling (`spec.replicas`)
 

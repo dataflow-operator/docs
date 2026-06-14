@@ -58,7 +58,7 @@ Kubernetes operator for streaming and scheduled data pipelines between Kafka, Po
 
     ---
 
-    Kafka, PostgreSQL, ClickHouse, Trino, Nessie
+    Kafka, PostgreSQL, ClickHouse, Trino, Nessie, Iceberg
 
     [:octicons-arrow-right-24: Reference](connectors.md)
 
@@ -85,6 +85,7 @@ Kubernetes operator for streaming and scheduled data pipelines between Kafka, Po
     - **ClickHouse** — polling, batch inserts, auto-create MergeTree
     - **Trino** — SQL queries, Keycloak OAuth2
     - **Nessie** — Apache Iceberg via Nessie catalog
+    - **Iceberg** — Apache Iceberg via REST Catalog API
 
 !!! note "Rich Transformation Set"
     Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase, DebeziumUnwrap

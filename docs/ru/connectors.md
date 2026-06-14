@@ -11,6 +11,7 @@ DataFlow Operator поддерживает различные коннектор
 | Trino | ✅ | ✅ | SQL запросы, аутентификация Keycloak OAuth2, батч-вставки |
 | ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
 | Nessie | ✅ | ✅ | Iceberg через каталог Nessie, опрос, батч-дозапись, sink `rawMode` (`data` + `_metadata`); `spec.replicas` только 1 |
+| Iceberg | ✅ | ✅ | Apache Iceberg через официальный REST Catalog API; опрос, батч-дозапись, Bearer/Basic/OAuth2, опционально S3; `spec.replicas` только 1 |
 
 ## Kafka
 
@@ -1098,9 +1099,51 @@ spec:
       flattenMetadataColumnsPrefix: kafka_  # kafka_offset, kafka_partition, ...
 ```
 
+## Iceberg (REST Catalog)
+
+Коннектор Iceberg читает и записывает таблицы Apache Iceberg через [официальный REST Catalog API](https://github.com/apache/iceberg/blob/main/open-api/rest-catalog-open-api.yaml). Используйте его для универсальных REST-каталогов (Polaris, Lakekeeper, Tabular, `iceberg-rest` и т.д.). Для веток Nessie используйте коннектор `nessie`.
+
+### Source
+
+```yaml
+source:
+  type: iceberg
+  config:
+    catalogURI: "https://iceberg-catalog.example.com"
+    # prefix: production
+    # warehouse: main
+    namespace: my_schema
+    table: my_table
+    pollInterval: 10
+    authenticationType: BEARER
+    bearerToken: "your-token"
+    # oauth2ClientID / oauth2ClientSecret — альтернатива bearerToken
+```
+
+### Sink
+
+```yaml
+sink:
+  type: iceberg
+  config:
+    catalogURI: "https://iceberg-catalog.example.com"
+    namespace: my_schema
+    table: my_table
+    batchSize: 100
+    autoCreateTable: true
+    rawMode: true
+    authenticationType: BEARER
+    bearerToken: "your-token"
+    # s3Endpoint, s3Region, accessKeySecretRef, secretAccessKeySecretRef — для S3 warehouse
+```
+
+Поведение совпадает с Nessie: опрос, инкрементальные snapshot, батч-дозапись, `rawMode`, `flattenMetadataColumns`. Ключ checkpoint — `iceberg`. Для Iceberg source `spec.replicas` должен быть 1.
+
+Пример: `dataflow/config/samples/kafka-to-iceberg.yaml`.
+
 ## Error Sink
 
-DataFlow Operator поддерживает настройку отдельного приёмника для сообщений, которые не удалось записать в основной sink. Секция `errors` использует те же типы коннекторов (Kafka, PostgreSQL, Trino, ClickHouse, Nessie), что и основной sink.
+DataFlow Operator поддерживает настройку отдельного приёмника для сообщений, которые не удалось записать в основной sink. Секция `errors` использует те же типы коннекторов (Kafka, PostgreSQL, Trino, ClickHouse, Nessie, Iceberg), что и основной sink.
 
 Конфигурация, структура сообщений об ошибках и типы ошибок описаны в разделе [Обработка ошибок](errors.md).
 

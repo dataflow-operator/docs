@@ -11,6 +11,7 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 | Trino | ✅ | ✅ | SQL queries, Keycloak OAuth2 authentication, batch inserts |
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
 | Nessie | ✅ | ✅ | Iceberg via Nessie catalog, polling, batch appends, sink `rawMode` (`data` + `_metadata`); `spec.replicas` must be 1 |
+| Iceberg | ✅ | ✅ | Apache Iceberg via official REST Catalog API; polling, batch appends, Bearer/Basic/OAuth2, optional S3 credentials; `spec.replicas` must be 1 |
 
 
 ## Using Kubernetes Secrets
@@ -1089,9 +1090,80 @@ spec:
       flattenMetadataColumnsPrefix: kafka_
 ```
 
+## Iceberg (REST Catalog)
+
+The Iceberg connector reads from and writes to Apache Iceberg tables via the [official REST Catalog API](https://github.com/apache/iceberg/blob/main/open-api/rest-catalog-open-api.yaml). Use this connector for generic REST catalog implementations (Polaris, Lakekeeper, Tabular, `iceberg-rest`, etc.). For [Nessie](https://projectnessie.org/) branch semantics, use the `nessie` connector instead.
+
+### Source
+
+```yaml
+source:
+  type: iceberg
+  config:
+    # REST catalog base URL (required), e.g. https://catalog:8181
+    catalogURI: "https://iceberg-catalog.example.com"
+
+    # Optional REST path prefix (multi-tenant /v1/{prefix}/...)
+    # prefix: production
+
+    # Optional warehouse identifier (passed to GET /v1/config and catalog client)
+    # warehouse: main
+
+    namespace: my_schema
+    table: my_table
+    pollInterval: 10
+
+    # Incremental read by Iceberg snapshot (optional)
+    # incrementalBySnapshot: true
+    # startSnapshotID: "1234567890123456789"
+    # snapshotCheckpoints: true
+
+    # Authentication (optional)
+    authenticationType: BEARER
+    bearerToken: "your-token"
+    # OAuth2 client credentials (alternative to bearerToken):
+    # oauth2ClientID: client-id
+    # oauth2ClientSecret: client-secret
+    # oauth2ServerURI: https://auth.example.com/oauth/token
+    # oauth2Scope: catalog
+```
+
+### Sink
+
+```yaml
+sink:
+  type: iceberg
+  config:
+    catalogURI: "https://iceberg-catalog.example.com"
+    namespace: my_schema
+    table: my_table
+    batchSize: 100
+    autoCreateTable: true
+    rawMode: true
+
+    authenticationType: BEARER
+    bearerToken: "your-token"
+
+    # Optional S3-compatible warehouse credentials (injected as pod env)
+    # s3Endpoint: https://storage.example.com
+    # s3Region: us-east-1
+    # accessKeySecretRef:
+    #   name: iceberg-s3-creds
+    #   key: AWS_ACCESS_KEY_ID
+    # secretAccessKeySecretRef:
+    #   name: iceberg-s3-creds
+    #   key: AWS_SECRET_ACCESS_KEY
+```
+
+Behavior matches the Nessie connector for polling, incremental snapshots, batch appends, `rawMode`, and `flattenMetadataColumns`. Checkpoint store key is `iceberg`. `spec.replicas` must be 1 for Iceberg sources (same as Nessie polling sources).
+
+### Example: Kafka to Iceberg
+
+See sample manifest: `dataflow/config/samples/kafka-to-iceberg.yaml`.
+
 ## Error Sink
 
-DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse, Nessie) as the main sink.
+DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse, Nessie, Iceberg) as the main sink.
 
 For configuration, error message structure, and error types, see [Error Handling](errors.md).
 
