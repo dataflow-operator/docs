@@ -13,6 +13,28 @@ DataFlow Operator позволяет отправлять сообщения, к
 
 Добавьте блок `errors` в спецификацию DataFlow с полем `type` и конфигурацией выбранного коннектора.
 
+### Политика ack (`errors.ackPolicy`)
+
+Управляет моментом коммита offset / checkpoint для сообщений, отправленных в error sink:
+
+| Значение | Поведение |
+|----------|-----------|
+| `afterWrite` (по умолчанию) | Коммит после успешной записи в error sink |
+| `never` | Не коммитить; сообщения могут быть перечитаны при перезапуске |
+| `afterMainSinkSuccess` | На error path — как `never` (коммит только после успеха main sink) |
+
+```yaml
+  errors:
+    type: kafka
+    ackPolicy: never
+    config:
+      brokers:
+        - localhost:9092
+      topic: error-topic
+```
+
+Используйте `never` или `afterMainSinkSuccess`, если после исправления main sink нужно повторно обработать неудачные сообщения.
+
 ### Kafka как приёмник ошибок
 
 ```yaml

@@ -247,6 +247,29 @@ spec:
       conflictKey: material_id
 ```
 
+## Checkpoint reset
+
+To re-run a migration or cron job from the beginning without manually editing `df-<name>-checkpoint`:
+
+```yaml
+spec:
+  checkpointReset: true   # one-shot; cleared by the controller after the next reconcile
+```
+
+Or set an annotation on the DataFlow:
+
+```yaml
+metadata:
+  annotations:
+    dataflow.dataflow.io/reset-checkpoint: "true"
+```
+
+The processor clears the persisted checkpoint for the source type on startup, then reads from the beginning.
+
+## Strict idempotency (`spec.strictIdempotency`)
+
+When `strictIdempotency: true`, admission rejects polling sources paired with a main sink that does not have `upsertMode` enabled. When `false` (default), a warning is emitted instead.
+
 ## Summary Checklist
 
 | Scenario | Recommendation |

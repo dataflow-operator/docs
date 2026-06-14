@@ -13,6 +13,28 @@ The `errors` section in the DataFlow spec defines the error sink. When a message
 
 Add an `errors` block to your DataFlow spec with `type` and the connector-specific configuration.
 
+### Ack policy (`errors.ackPolicy`)
+
+Controls when source offsets or polling checkpoints are committed for messages routed to the error sink:
+
+| Value | Behavior |
+|-------|----------|
+| `afterWrite` (default) | Commit after the error sink successfully writes the message |
+| `never` | Do not commit; failed messages may be re-read on restart |
+| `afterMainSinkSuccess` | Same as `never` on the error path (offsets commit only after main sink success) |
+
+```yaml
+  errors:
+    type: kafka
+    ackPolicy: never
+    config:
+      brokers:
+        - localhost:9092
+      topic: error-topic
+```
+
+Use `never` or `afterMainSinkSuccess` when you want to replay failed messages after fixing the main sink, instead of skipping them via offset commit.
+
 ### Kafka as error sink
 
 ```yaml

@@ -253,6 +253,29 @@ spec:
       conflictKey: material_id
 ```
 
+## Сброс checkpoint
+
+Для повторного полного прогона migration/cron без ручного редактирования `df-<name>-checkpoint`:
+
+```yaml
+spec:
+  checkpointReset: true   # one-shot; контроллер сбрасывает флаг после reconcile
+```
+
+Или annotation на DataFlow:
+
+```yaml
+metadata:
+  annotations:
+    dataflow.dataflow.io/reset-checkpoint: "true"
+```
+
+Процессор очищает checkpoint для типа источника при старте и читает с начала.
+
+## Strict idempotency (`spec.strictIdempotency`)
+
+При `strictIdempotency: true` admission отклоняет polling-источники с неидемпотентным main sink (без `upsertMode`). По умолчанию (`false`) выдаётся warning.
+
 ## Чеклист
 
 | Сценарий | Рекомендация |
