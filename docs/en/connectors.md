@@ -525,6 +525,8 @@ sink:
     # UPSERT mode (optional, default: false)
     upsertMode: true
     conflictKey: "id"
+    upsertStrategy: ifNewer       # always (default) | ifNewer
+    upsertVersionColumn: updated_at  # required when upsertStrategy is ifNewer
     # Soft delete column (optional). When set, DELETE operations UPDATE this column instead of physical delete
     softDeleteColumn: "deleted_at"
 
@@ -540,7 +542,8 @@ sink:
   - **rawMode: true** — table is created at Connect time. Schema: `id SERIAL PRIMARY KEY`, `data` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN index on `data`
   - **rawMode: false** — table is created at first write from the first message structure (replicates source schema). Column types are inferred automatically (TEXT, BIGINT, NUMERIC, JSONB, etc.)
 - **Raw Mode**: When true, stores message body in `data` and metadata in `_metadata` (or flattened columns). When false, uses columnar format from message.
-- **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`)
+- **UPSERT Mode**: Updates existing records on conflict (PRIMARY KEY or `conflictKey`). Batch flushes run in an explicit PostgreSQL transaction.
+- **Upsert strategy**: `always` (default) updates on every conflict; `ifNewer` updates only when the incoming `upsertVersionColumn` is greater than the stored value (prevents stale replays from overwriting newer rows).
 - **Soft Delete**: When `softDeleteColumn` is set and message has `metadata.operation=delete`, performs `UPDATE ... SET deleted_at = NOW()` instead of physical DELETE
 
 ## ClickHouse
@@ -608,11 +611,18 @@ sink:
     # rawMode: false (default) — creates table from first message structure (columnar, replicates source schema)
     # rawMode: true — creates MergeTree table with data String, created_at columns (JSON storage)
     rawMode: false
+
+    # Idempotent writes (optional)
+    upsertMode: true
+    conflictKey: id
+    replacingVersionColumn: updated_at
+    tableEngine: ReplacingMergeTree  # default when upsertMode is true and unset
 ```
 
 ### Sink Features
 
 - **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
+- **Upsert mode**: With `upsertMode: true`, auto-created tables use `ReplacingMergeTree`; duplicates are resolved on background merge. See [Fault Tolerance](fault-tolerance.md).
 - **Retry on Transient Errors**: Batch writes automatically retry on connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503, and similar transient errors (up to 5 attempts with exponential backoff)
 
 ### Resilience and Fault Tolerance
@@ -802,6 +812,11 @@ sink:
     # When false, uses columnar format matching message keys to table columns
     rawMode: true
 
+    # MERGE upsert for Iceberg catalogs (catalog name must contain "iceberg")
+    upsertMode: true
+    conflictKey: id
+    queryTimeoutSeconds: 600
+
     # Keycloak authentication (optional)
     keycloak:
       serverURL: "https://keycloak.example.com"
@@ -815,6 +830,7 @@ sink:
 ### Features
 
 - **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
+- **Upsert mode**: `upsertMode: true` uses `MERGE INTO` for Iceberg tables (`conflictKey` required). See [Fault Tolerance](fault-tolerance.md).
 - **Auto-create Tables**: Automatically creates tables if they don't exist
 - **Raw Mode**: When `rawMode: true`, creates table with `data VARCHAR` column; messages stored as JSON string. When `false` (default), uses columnar format matching message keys to table columns
 - **Keycloak Authentication**: OAuth2/OIDC authentication via Keycloak
@@ -1086,6 +1102,14 @@ For configuration, error message structure, and error types, see [Error Handling
 #### channelBufferSize
 
 Buffer size for message channels between source, processor, and sink (default 100). For high Kafka throughput (tens of thousands msg/s), increase to 500–1000 to reduce blocking when the sink is slower than the source.
+
+#### ackGranularity
+
+When source offsets / checkpoints are committed relative to sink writes: `batch` (default) or `message`. With `message`, batch sinks flush one row at a time and Kafka source commits offsets immediately after each ack. See [Fault Tolerance — Ack granularity](fault-tolerance.md#ack-granularity-specackgranularity).
+
+#### checkpointSyncOnAck and checkpointSaveInterval
+
+`checkpointSyncOnAck: true` flushes polling checkpoints to the ConfigMap after each sink ack (coalesced by `checkpointSaveInterval`, default `30s`). Recommended for migration and cron workloads. Details: [Fault Tolerance](fault-tolerance.md#sync-checkpoint-on-ack-speccheckpointsynconack).
 
 ### Kafka
 

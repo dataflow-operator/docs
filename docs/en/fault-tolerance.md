@@ -25,11 +25,13 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 
 ### Kafka Source
 
-The Kafka consumer commits offset **only after** the message is successfully written to the sink (via `msg.Ack()`). If the processor crashes:
+The Kafka consumer marks offset **only after** the message is successfully written to the sink (via `msg.Ack()`). With `ackGranularity: message` (see below), offsets are also committed to the consumer group immediately after each mark.
+
+If the processor crashes:
 
 - **Before sink write**: Offset not committed. On restart, message is re-read. No duplicate in sink.
 - **After sink write, before Ack**: Data may be in sink, offset not committed. On restart, re-read → duplicate in sink.
-- **After Ack**: Offset committed. On restart, resume from next message. No duplicate.
+- **After Ack**: Offset marked (and committed when `ackGranularity: message`). On restart, resume from next message. No duplicate.
 
 ### Nessie source (incremental mode)
 
@@ -50,18 +52,41 @@ Legacy checkpoint keys (`lastReadID`, `lastReadTime`) are migrated on load; see 
 
 PostgreSQL, ClickHouse, and Trino sinks write in batches. The flow is:
 
-1. Accumulate messages in batch
-2. Execute `Commit` (transaction)
-3. Call `Ack()` for each message (commits Kafka offset, if applicable)
+1. Accumulate messages in a batch
+2. Execute the batch write (PostgreSQL wraps all statements in a single transaction and commits atomically)
+3. Call `Ack()` for each message in the batch (commits Kafka offset / advances polling checkpoint)
 
-If the processor crashes **between Commit and the last Ack**:
+If the processor crashes **after a successful batch commit but before Ack**:
 
 - Data is already in the sink
-- Kafka offset may not be committed
-- On restart: re-read from Kafka → **duplicate writes to sink**
+- Source offset / checkpoint may not be advanced
+- On restart: re-read → **duplicate writes to sink** (safe with an idempotent sink)
 
 !!! tip "Reduce duplicate window"
-    Use a smaller `batchSize` to reduce the number of messages at risk of duplication on crash.
+    Set `ackGranularity: message` to ack after each message (effective `batchSize: 1` for batch sinks), or use a smaller `batchSize` with `ackGranularity: batch` (default).
+
+## Ack Granularity (`spec.ackGranularity`)
+
+Controls when source offsets are committed relative to sink writes:
+
+| Value | Behavior |
+|-------|----------|
+| `batch` (default) | Batch sinks ack all messages after a successful batch flush. Kafka source relies on consumer auto-commit interval after `MarkMessage`. |
+| `message` | Each message is acked immediately after a successful write. Batch sinks flush one message at a time. Kafka source calls `Commit()` after each mark for faster offset persistence. |
+
+Recommended for **Kafka → batch sink** pipelines where you want a smaller re-read window without tuning `batchSize` manually:
+
+```yaml
+spec:
+  ackGranularity: message
+  sink:
+    type: postgresql
+    config:
+      upsertMode: true
+      conflictKey: material_id
+```
+
+Kafka sink always acks per message regardless of this setting.
 
 !!! tip "Trino long-running INSERTs"
     For large JSON payloads and Iceberg/Nessie tables, keep `batchSize` low (often `1`) and set `sink.config.queryTimeoutSeconds` to cover the full Trino execution window (including `nextUri` polling).
@@ -71,7 +96,7 @@ If the processor crashes **between Commit and the last Ack**:
 
 ### PostgreSQL Sink
 
-Enable UPSERT mode so that duplicate inserts update existing rows instead of failing:
+Enable UPSERT mode so that duplicate inserts update existing rows instead of failing. Batch writes run inside an explicit transaction (all-or-nothing per flush).
 
 ```yaml
 sink:
@@ -80,14 +105,31 @@ sink:
     connectionString: "postgres://..."
     table: output_table
     upsertMode: true
-    conflictKey: ["id"]  # Optional; defaults to PRIMARY KEY
+    conflictKey: id  # Optional; defaults to PRIMARY KEY
+    # Optional: skip stale replays when a version column exists in the payload
+    upsertStrategy: ifNewer   # always (default) | ifNewer
+    upsertVersionColumn: updated_at  # required when upsertStrategy is ifNewer
 ```
 
-Requires the table to have a PRIMARY KEY or UNIQUE constraint on the conflict columns.
+Requires the table to have a PRIMARY KEY or UNIQUE constraint on the conflict columns. With `upsertStrategy: ifNewer`, updates apply only when `EXCLUDED.<version> > target.<version>`.
 
 ### ClickHouse Sink
 
-Use `ReplacingMergeTree` engine for automatic deduplication by a version column:
+Enable `upsertMode` for idempotent writes via `ReplacingMergeTree` (auto-created tables use this engine when `upsertMode: true`):
+
+```yaml
+sink:
+  type: clickhouse
+  config:
+    connectionString: "clickhouse://..."
+    table: output_table
+    upsertMode: true
+    conflictKey: id
+    replacingVersionColumn: updated_at  # optional version column for ReplacingMergeTree
+    tableEngine: ReplacingMergeTree     # optional; default when upsertMode is true
+```
+
+Or create the table manually:
 
 ```sql
 CREATE TABLE output_table (
@@ -98,7 +140,25 @@ CREATE TABLE output_table (
 ORDER BY id;
 ```
 
-Or create the table with `autoCreateTable: true` and `rawMode: false` — the connector infers column types. For deduplication, create the table manually with `ReplacingMergeTree(version_column)` and `ORDER BY` on the deduplication key.
+Duplicates may be visible until background merge; use `FINAL` or rely on merge for read-time deduplication.
+
+### Trino Sink
+
+For Iceberg catalogs, enable MERGE-based upsert:
+
+```yaml
+sink:
+  type: trino
+  config:
+    serverURL: "http://trino:8080"
+    catalog: iceberg   # catalog name must contain "iceberg"
+    schema: default
+    table: output_table
+    upsertMode: true
+    conflictKey: id
+```
+
+On match, rows are updated; there is no `ifNewer` version guard for Trino yet.
 
 ### Kafka Sink
 
@@ -106,12 +166,13 @@ The Kafka producer uses `RequiredAcks = WaitForAll` and `Producer.Idempotent = t
 
 ## Best Practices
 
-1. **Use idempotent sinks** for PostgreSQL (UPSERT) and ClickHouse (ReplacingMergeTree) when using polling sources or when duplicates are possible.
-2. **Kafka source**: Consumer group stores offset; at-least-once is preserved. Idempotent sink recommended for batch sinks.
-3. **batchSize**: Smaller batches reduce the duplicate window on crash. Balance with throughput.
-4. **Trino `queryTimeoutSeconds`**: Use a timeout large enough for peak load; too low values increase false failures on long INSERTs.
-5. **batchFlushIntervalSeconds**: Shorter intervals flush more frequently, reducing in-flight data at risk.
-6. **Error sink**: Configure `spec.errors` to capture failed messages for replay or analysis.
+1. **Use idempotent sinks** for PostgreSQL (UPSERT), ClickHouse (`upsertMode` / ReplacingMergeTree), and Trino Iceberg (MERGE) when using polling sources or when duplicates are possible.
+2. **Kafka source**: Consumer group stores offset; at-least-once is preserved. Idempotent sink recommended for batch sinks. Use `ackGranularity: message` to shrink the re-read window.
+3. **batchSize** / **ackGranularity**: Smaller batches or `ackGranularity: message` reduce the duplicate window on crash. Balance with throughput.
+4. **Migration / cron workloads**: combine `checkpointSyncOnAck: true`, idempotent sink, and optionally `upsertStrategy: ifNewer` when a version column exists.
+5. **Trino `queryTimeoutSeconds`**: Use a timeout large enough for peak load; too low values increase false failures on long INSERTs.
+6. **batchFlushIntervalSeconds**: Shorter intervals flush more frequently, reducing in-flight data at risk.
+7. **Error sink**: Configure `spec.errors` to capture failed messages for replay or analysis.
 
 ## Graceful Shutdown
 
@@ -163,14 +224,36 @@ spec:
     # ...
 ```
 
-The controller creates the ConfigMap and RBAC (ServiceAccount, Role, RoleBinding) for the processor. Checkpoint is saved with debounce (every 30 seconds) and on graceful shutdown.
+The controller creates the ConfigMap and RBAC (ServiceAccount, Role, RoleBinding) for the processor. Checkpoint is saved with debounce (every 30 seconds by default) and on graceful shutdown.
+
+### Sync checkpoint on ack (`spec.checkpointSyncOnAck`)
+
+By default, pending checkpoints are flushed to the ConfigMap on a debounce timer (`checkpointSaveInterval`, default `30s`) and on graceful shutdown. After a pod crash, polling sources may re-read up to one debounce interval of data.
+
+Set `checkpointSyncOnAck: true` to flush the checkpoint immediately after each sink batch ack (coalesced, not more often than `checkpointSaveInterval`). Recommended for migration and cron workloads:
+
+```yaml
+spec:
+  checkpointSyncOnAck: true
+  checkpointSaveInterval: 5s
+  source:
+    type: postgresql
+    # ...
+  sink:
+    type: postgresql
+    config:
+      upsertMode: true
+      conflictKey: material_id
+```
 
 ## Summary Checklist
 
 | Scenario | Recommendation |
 |----------|-----------------|
-| PostgreSQL sink | Enable `upsertMode: true` with PRIMARY KEY or `conflictKey` |
-| ClickHouse sink | Use `ReplacingMergeTree` with `ORDER BY` on deduplication key |
-| Kafka source | Consumer group persists offset; idempotent sink recommended |
-| Polling sources | **Always** use idempotent sink; checkpoint persistence enabled by default |
-| batchSize | Consider smaller values to reduce duplicate window |
+| PostgreSQL sink | `upsertMode: true` + `conflictKey`; `upsertStrategy: ifNewer` when version column exists |
+| ClickHouse sink | `upsertMode: true` or manual `ReplacingMergeTree` + `ORDER BY` dedup key |
+| Trino sink (Iceberg) | `upsertMode: true` + `conflictKey` |
+| Kafka → batch sink | `ackGranularity: message` or smaller `batchSize` + idempotent sink |
+| Kafka source | Idempotent sink; `ackGranularity: message` for faster offset commit |
+| Polling sources | Idempotent sink; `checkpointSyncOnAck: true` for migration/cron |
+| batchSize | Smaller values or `ackGranularity: message` to reduce duplicate window |

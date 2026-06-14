@@ -355,6 +355,8 @@ sink:
     # Режим UPSERT (опционально, по умолчанию: false)
     upsertMode: true
     conflictKey: "id"
+    upsertStrategy: ifNewer       # always (по умолчанию) | ifNewer
+    upsertVersionColumn: updated_at  # обязательно при upsertStrategy: ifNewer
     # Колонка для soft delete (опционально)
     softDeleteColumn: "deleted_at"
 
@@ -371,7 +373,8 @@ sink:
   - **rawMode: false** — таблица создаётся при первой записи из структуры первого сообщения (реплицирует схему источника). Типы колонок выводятся автоматически (TEXT, BIGINT, NUMERIC, JSONB и т.д.)
 - **Режим rawMode**: При true тело сообщения пишется в колонку `data`, metadata — в `_metadata` (или в отдельные колонки с `flattenMetadataColumns`). При false использует колоночный формат из сообщения
 - **flattenMetadataColumns**: при `rawMode: true` можно развернуть metadata в отдельные колонки (см. [flattenMetadataColumns](#flattenmetadatacolumns--плоские-колонки-метаданных-sink))
-- **UPSERT режим**: Обновляет существующие записи при конфликте по PRIMARY KEY или указанному `conflictKey`
+- **UPSERT режим**: Обновляет существующие записи при конфликте по PRIMARY KEY или `conflictKey`. Batch flush выполняется в явной транзакции PostgreSQL.
+- **Стратегия upsert**: `always` (по умолчанию) — обновление при каждом конфликте; `ifNewer` — только если входящее значение `upsertVersionColumn` больше сохранённого (защита от устаревших replay).
 - **Soft delete**: При заданном `softDeleteColumn` и `metadata.operation=delete` выполняет `UPDATE ... SET deleted_at = NOW()` вместо физического DELETE
 
 #### Пример с автосозданием таблицы (rawMode)
@@ -488,11 +491,18 @@ sink:
     # rawMode: false (по умолчанию) — создаёт таблицу по структуре первого сообщения (колоночный формат, репликация схемы источника)
     # rawMode: true — создаёт MergeTree таблицу с колонками data String, created_at (JSON-хранилище)
     rawMode: false
+
+    # Идемпотентная запись (опционально)
+    upsertMode: true
+    conflictKey: id
+    replacingVersionColumn: updated_at
+    tableEngine: ReplacingMergeTree
 ```
 
 #### Особенности ClickHouse приемника
 
 - **Батч-вставки**: Группирует сообщения; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
+- **Upsert mode**: При `upsertMode: true` автосозданные таблицы используют `ReplacingMergeTree`; дедупликация при background merge. См. [Отказоустойчивость](fault-tolerance.md).
 - **Retry при транзиентных ошибках**: Batch-запись автоматически повторяется при connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503 и подобных ошибках (до 5 попыток с экспоненциальным backoff)
 - **Автосоздание таблиц** (при `autoCreateTable: true`):
   - **rawMode: true** — таблица создаётся при подключении (Connect). Схема: `data String`, `created_at DateTime DEFAULT now()`, движок MergeTree, ORDER BY created_at. Сообщения сохраняются как JSON-строка в колонке `data`. С `flattenMetadataColumns: true` — `data` + отдельные колонки metadata (см. ниже)
@@ -715,6 +725,11 @@ sink:
     # При false используется колоночный формат из сообщения
     rawMode: true
 
+    # MERGE upsert для Iceberg-каталогов (имя catalog должно содержать "iceberg")
+    upsertMode: true
+    conflictKey: id
+    queryTimeoutSeconds: 600
+
     # Аутентификация Keycloak (опционально)
     keycloak:
       serverURL: "https://keycloak.example.com"
@@ -728,6 +743,7 @@ sink:
 #### Особенности Trino приемника
 
 - **Батч-вставки**: Группирует сообщения; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
+- **Upsert mode**: `upsertMode: true` использует `MERGE INTO` для Iceberg-таблиц (`conflictKey` обязателен). См. [Отказоустойчивость](fault-tolerance.md).
 - **Автосоздание таблиц**: Автоматически создает таблицы, если они не существуют
 - **Режим rawMode**: При `rawMode: true` создает таблицу с колонкой `data VARCHAR`; сообщения сохраняются как JSON-строка. При `false` (по умолчанию) — колоночный формат из сообщения
 - **Аутентификация Keycloak**: OAuth2/OIDC аутентификация через Keycloak
@@ -1446,6 +1462,14 @@ kubectl logs -l app.kubernetes.io/name=dataflow-operator | grep -i secret
 #### channelBufferSize
 
 Размер буфера каналов между source, processor и sink (по умолчанию 100). При высокой нагрузке Kafka (десятки тысяч msg/s) увеличьте до 500–1000, чтобы снизить блокировки, когда sink медленнее source.
+
+#### ackGranularity
+
+Момент коммита offset / checkpoint относительно записи в sink: `batch` (по умолчанию) или `message`. При `message` batch sink сбрасывает по одному сообщению, Kafka source сразу коммитит offset. См. [Отказоустойчивость — гранулярность ack](fault-tolerance.md#гранулярность-ack-specackgranularity).
+
+#### checkpointSyncOnAck и checkpointSaveInterval
+
+`checkpointSyncOnAck: true` сбрасывает checkpoint polling-источников в ConfigMap после ack sink (с coalescing по `checkpointSaveInterval`, по умолчанию `30s`). Рекомендуется для migration и cron. Подробнее: [Отказоустойчивость](fault-tolerance.md#синхронизация-checkpoint-при-ack-speccheckpointsynconack).
 
 ### Kafka
 
