@@ -30,9 +30,10 @@ For each DataFlow, **DataFlowReconciler** runs:
 2. **Resolve secrets** — substitute all `SecretRef` fields via **SecretResolver**.
 3. **ConfigMap** — create/update `df-<name>-spec` with `spec.json`.
 4. **Checkpoint & RBAC** (when `checkpointPersistence` is not `false`) — create checkpoint ConfigMap and processor RBAC.
-5. **Deployment** — create/update `df-<name>` with processor image, volume, resources, affinity.
-6. **Deployment status** — map Deployment readiness to DataFlow **Phase** / **Message**.
-7. **Update status** — write status back to the DataFlow resource.
+5. **Maintenance** — evaluate `spec.maintenance`, update `status.maintenanceStatus`; scale Deployment to **0** replicas when a window is active or `suspended: true`.
+6. **Deployment** — create/update `df-<name>` with processor image, volume, resources, affinity.
+7. **Deployment status** — map Deployment readiness to DataFlow **Phase** / **Message**.
+8. **Update status** — write status back to the DataFlow resource.
 
 ```mermaid
 flowchart TD
@@ -44,8 +45,9 @@ flowchart TD
   F --> F2{CheckpointPersistence?}
   F2 -->|Yes| F3[Create Checkpoint ConfigMap and RBAC]
   F2 -->|No| G
-  F3 --> G[Create or Update Deployment]
-  G --> H[Read Deployment Status]
+  F3 --> G[Evaluate Maintenance]
+  G --> G2[Create or Update Deployment]
+  G2 --> H[Read Deployment Status]
   H --> I[Update DataFlow Status]
 ```
 
@@ -60,6 +62,18 @@ Each `DataFlow` resource exposes status including:
 | **LastProcessedTime** | Time of last processed message |
 | **ProcessedCount** | Messages processed |
 | **ErrorCount** | Processing errors |
+| **maintenanceStatus** | Maintenance state (see below) |
+
+### maintenanceStatus
+
+| Field | Description |
+|-------|-------------|
+| **inMaintenance** | `true` when the processor is paused due to an active scheduled window |
+| **nextMaintenanceTime** | Start time of the next scheduled window |
+| **lastMaintenanceTime** | Start time of the current or most recent window |
+| **suspended** | `true` when `spec.maintenance.suspended` is set (manual stop) |
+
+When `inMaintenance` or `suspended` is true, the processor Deployment is scaled to 0 replicas. **Message** may read `Processor paused for scheduled maintenance window` or `Processor suspended manually`.
 
 ```bash
 kubectl get dataflow

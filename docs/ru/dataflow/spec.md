@@ -22,6 +22,7 @@ flowchart TB
     ChannelBuffer["channelBufferSize (опционально)"]
     Replicas["replicas (опционально, Kafka)"]
     Image["processorImage / processorVersion (опционально)"]
+    Maintenance["maintenance (опционально)"]
   end
 
   Source --> SourceTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
@@ -38,6 +39,7 @@ flowchart TB
   Spec --> ChannelBuffer
   Spec --> Replicas
   Spec --> Image
+  Spec --> Maintenance
 ```
 
 ## Поля spec { #поля-spec }
@@ -55,6 +57,42 @@ flowchart TB
 | **`replicas`** | Нет | По умолчанию `1`. **> 1** только для Kafka. |
 | **`processorImage`** / **`processorVersion`** | Нет | Образ процессора. |
 | **`imagePullSecrets`** | Нет | Pull secrets для пода. |
+| **`maintenance`** | Нет | Окна обслуживания и ручная приостановка процессора. См. [ниже](#окна-обслуживания-maintenance). |
+
+## Окна обслуживания (maintenance) { #окна-обслуживания-maintenance }
+
+Секция **`spec.maintenance`** задаёт расписание окон обслуживания и ручную приостановку. Пока окно активно или `suspended: true`, оператор масштабирует Deployment процессора до **0** реплик. Состояние отражается в `status.maintenanceStatus` — см. [Жизненный цикл и status](lifecycle.md#поля-status).
+
+| Поле | Обязательность | Описание |
+|------|----------------|----------|
+| **`startTime`** | При расписании | Начало окна в формате RFC3339 (напр. `2024-01-01T02:00:00Z`). |
+| **`duration`** | При расписании | Длительность окна в формате Go duration (напр. `2h`, `30m`). |
+| **`repeat`** | Нет | Повтор: `daily`, `weekly`, `monthly`. Пустое значение — одноразовое окно. |
+| **`timezone`** | Нет | IANA timezone (напр. `Europe/Moscow`). По умолчанию UTC. |
+| **`description`** | Нет | Текстовое описание окна. |
+| **`suspended`** | Нет | `true` — ручная остановка процессора (аналог кнопки «Остановить» в GUI). |
+
+Поля **`startTime`** и **`duration`** задаются вместе. Validating webhook проверяет формат RFC3339, корректность duration и timezone.
+
+```yaml
+spec:
+  maintenance:
+    startTime: "2024-01-01T02:00:00Z"
+    duration: "2h"
+    repeat: daily
+    timezone: Europe/Moscow
+    description: "Ночное обслуживание БД"
+```
+
+Ручная приостановка без расписания:
+
+```yaml
+spec:
+  maintenance:
+    suspended: true
+```
+
+Управление через [Web GUI](../gui.md): кнопки Stop/Start для отдельного потока, Stop all / Start all для namespace.
 
 ## Секреты
 

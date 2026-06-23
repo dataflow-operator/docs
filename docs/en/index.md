@@ -78,6 +78,14 @@ Kubernetes operator for streaming and scheduled data pipelines between Kafka, Po
 
     [:octicons-arrow-right-24: Install skills](agent-skills.md)
 
+-   :material-help-circle:{ .lg .middle } **FAQ & Best Practices**
+
+    ---
+
+    Common questions, troubleshooting, and operational guidelines
+
+    [:octicons-arrow-right-24: FAQ](faq.md) · [:octicons-arrow-right-24: Best Practices](best-practices.md)
+
 </div>
 
 ## Overview
@@ -121,6 +129,7 @@ kubectl get dataflow kafka-to-postgres
 | DataFlowCron CRD | [Overview](dataflow-cron/index.md) · [Triggers](dataflow-cron/triggers.md) · [Examples](dataflow-cron/examples.md) |
 | Operations | [Errors](errors.md) · [Fault Tolerance](fault-tolerance.md) · [Metrics](metrics.md) |
 | Tools | [Web GUI](gui.md) · [MCP](mcp.md) · [Agent Skills](agent-skills.md) |
+| Guides | [FAQ](faq.md) · [Best Practices](best-practices.md) · [Examples](examples.md) |
 | Development | [Developer Guide](development.md) |
 
 ## License

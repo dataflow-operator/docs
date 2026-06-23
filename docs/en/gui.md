@@ -26,6 +26,10 @@ All API requests go through the same host as the UI. The backend talks to the Ku
 - **Create** a new DataFlow: "Create new" opens a modal with a YAML editor and a template (source, sink, transformations).
 - **Edit**: view and change an existing DataFlow as YAML (saved via PUT to the API).
 - **Delete** a DataFlow with confirmation.
+- **Stop / Start** — sets `spec.maintenance.suspended` for a single flow (scales the processor to 0 replicas).
+- **Stop all / Start all** — bulk suspend or resume all DataFlow resources in the selected namespace.
+- **Status badges** — in addition to phase, shows **Maintenance** (`status.maintenanceStatus.inMaintenance`) and **Suspended** (`suspended`) labels.
+- **Flow constructor** — the pipeline settings panel includes a **Maintenance** section for `startTime`, `duration`, `repeat`, `timezone`, and `description` (see [Spec Reference](../dataflow/spec.md#maintenance-windows)).
 
 Namespace can be changed via a dropdown; the URL may include `?namespace=...`.
 
@@ -180,6 +184,11 @@ All endpoints return JSON except logs (plain text or SSE) and metrics (Prometheu
 | POST | `/api/dataflows?namespace=<ns>` | Create DataFlow (body: JSON manifest) |
 | PUT | `/api/dataflows/<name>?namespace=<ns>` | Update DataFlow spec |
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Delete DataFlow |
+| POST | `/api/dataflows/<name>/stop?namespace=<ns>` | Stop processor (`spec.maintenance.suspended: true`) |
+| POST | `/api/dataflows/<name>/start?namespace=<ns>` | Start processor (`spec.maintenance.suspended: false`) |
+| GET | `/api/dataflows/<name>/maintenance?namespace=<ns>` | Maintenance status (`maintenanceConfigured`, `inMaintenance`, `nextMaintenanceTime`, `lastMaintenanceTime`, `suspended`) |
+| POST | `/api/dataflows/stop-all?namespace=<ns>` | Stop all DataFlow resources in namespace (response: `stopped`, `failed`) |
+| POST | `/api/dataflows/start-all?namespace=<ns>` | Start all suspended DataFlow resources (response: `started`, `failed`) |
 | GET | `/api/dataflowcrons?namespace=<ns>` | List DataFlowCron resources |
 | GET | `/api/dataflowcrons/<name>?namespace=<ns>` | Single DataFlowCron |
 | POST | `/api/dataflowcrons?namespace=<ns>` | Create DataFlowCron (body: JSON manifest) |

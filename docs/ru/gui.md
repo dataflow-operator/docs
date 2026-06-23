@@ -26,6 +26,10 @@ GUI состоит из двух частей:
 - **Создание** нового DataFlow: кнопка «Создать новый» открывает модальное окно с YAML-редактором и шаблоном манифеста (source, sink, transformations).
 - **Редактирование**: просмотр и изменение существующего DataFlow в YAML (сохранение через PUT в API).
 - **Удаление** DataFlow с подтверждением.
+- **Остановить / Запустить** — устанавливает `spec.maintenance.suspended` для отдельного потока (масштабирует процессор до 0 реплик).
+- **Остановить все / Запустить все** — массовая приостановка или возобновление всех DataFlow в выбранном namespace.
+- **Бейджи статуса** — помимо phase отображаются метки «Обслуживание» (`status.maintenanceStatus.inMaintenance`) и «Приостановлен» (`suspended`).
+- **Конструктор потока** — в панели настроек pipeline секция «Обслуживание» для полей `startTime`, `duration`, `repeat`, `timezone`, `description` (см. [Справочник spec](../dataflow/spec.md#окна-обслуживания-maintenance)).
 
 Переключение namespace выполняется через выпадающий список; при необходимости в URL подставляется `?namespace=...`.
 
@@ -180,6 +184,11 @@ kubectl port-forward svc/dataflow-operator-gui 8080:8080 -n <namespace>
 | POST | `/api/dataflows?namespace=<ns>` | Создать DataFlow (тело — JSON манифест) |
 | PUT | `/api/dataflows/<name>?namespace=<ns>` | Обновить spec DataFlow |
 | DELETE | `/api/dataflows/<name>?namespace=<ns>` | Удалить DataFlow |
+| POST | `/api/dataflows/<name>/stop?namespace=<ns>` | Остановить процессор (`spec.maintenance.suspended: true`) |
+| POST | `/api/dataflows/<name>/start?namespace=<ns>` | Запустить процессор (`spec.maintenance.suspended: false`) |
+| GET | `/api/dataflows/<name>/maintenance?namespace=<ns>` | Статус обслуживания (`maintenanceConfigured`, `inMaintenance`, `nextMaintenanceTime`, `lastMaintenanceTime`, `suspended`) |
+| POST | `/api/dataflows/stop-all?namespace=<ns>` | Остановить все DataFlow в namespace (ответ: `stopped`, `failed`) |
+| POST | `/api/dataflows/start-all?namespace=<ns>` | Запустить все приостановленные DataFlow (ответ: `started`, `failed`) |
 | GET | `/api/dataflowcrons?namespace=<ns>` | Список DataFlowCron |
 | GET | `/api/dataflowcrons/<name>?namespace=<ns>` | Один DataFlowCron |
 | POST | `/api/dataflowcrons?namespace=<ns>` | Создать DataFlowCron (тело — JSON манифест) |

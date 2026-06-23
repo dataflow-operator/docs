@@ -459,11 +459,296 @@ kubectl describe pod df-<name>-<hash>
 kubectl top pod df-<name>-<hash>
 ```
 
-Additional examples are available in `dataflow/config/samples/` directory:
+## High-Volume Kafka → ClickHouse
 
-- `kafka-to-postgres.yaml` - basic Kafka -> PostgreSQL
-- `kafka-debezium-to-postgres.yaml` - Kafka (Debezium envelope) -> PostgreSQL via `debeziumUnwrap`
-- `kafka-to-postgres-with-resources.yaml` - example with custom resources and scheduling
-- `flatten-example.yaml` - example with Flatten transformation
-- `router-example.yaml` - example with Router transformation
+Example for handling high throughput from Kafka to ClickHouse with performance-optimized settings.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-to-clickhouse-high-volume
+spec:
+  channelBufferSize: 1000
+  ackGranularity: message
+  source:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: high-volume-events
+      consumerGroup: dataflow-high-volume-group
+  sink:
+    type: clickhouse
+    config:
+      connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=30s"
+      table: events_high_volume
+      batchSize: 1000
+      batchFlushIntervalSeconds: 5
+      autoCreateTable: true
+      upsertMode: true
+      conflictKey: event_id
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+```
+
+**Apply:**
+```bash
+kubectl apply -f dataflow/config/samples/kafka-to-clickhouse-high-volume.yaml
+```
+
+**Key settings for high load:**
+- `channelBufferSize: 1000` — increased buffer between source and sink
+- `batchSize: 1000` — large batches for efficient ClickHouse writes
+- `ackGranularity: message` — fast offset commit to reduce duplicates
+- Increased CPU/memory limits for processing large batches
+
+## Dead Letter Queue (DLQ) Pattern
+
+Example implementing the Dead Letter Queue pattern for handling invalid or error messages. Failed messages are routed to a separate Kafka topic for later analysis.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: pipeline-with-dlq
+spec:
+  ackGranularity: message
+  source:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: main-events
+      consumerGroup: dataflow-dlq-group
+  sink:
+    type: postgresql
+    config:
+      connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
+      table: processed_events
+      upsertMode: true
+      conflictKey: event_id
+      batchSize: 100
+  errors:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: dead-letter-queue
+    ackPolicy: afterWrite
+  transformations:
+    - type: filter
+      config:
+        condition: "$.event_id && $.user_id && $.timestamp"
+    - type: timestamp
+      config:
+        fieldName: processed_at
+```
+
+**Apply:**
+```bash
+kubectl apply -f dataflow/config/samples/dead-letter-queue-example.yaml
+```
+
+## PostgreSQL CDC → Kafka
+
+Example of streaming database changes from PostgreSQL to Kafka using logical replication (CDC). Supports INSERT, UPDATE, DELETE events with routing by table.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: postgres-cdc-to-kafka
+spec:
+  ackGranularity: message
+  checkpointPersistence: true
+  source:
+    type: postgresql-cdc
+    config:
+      connectionString: "postgres://repl_user:repl_pass@postgres:5432/production?sslmode=disable"
+      slotName: cdc_to_kafka_slot
+      publicationName: cdc_to_kafka_pub
+      tables:
+        - public.users
+        - public.orders
+        - public.products
+      snapshotMode: initial
+      createSlotIfNotExists: true
+      createPublicationIfNotExists: true
+      heartbeatIntervalSeconds: 30
+  sink:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: cdc-events-default
+  transformations:
+    - type: timestamp
+      config:
+        fieldName: cdc_processed_at
+    - type: router
+      config:
+        routes:
+          - condition: "$.source.table == 'users'"
+            sink:
+              type: kafka
+              config:
+                brokers: [kafka:9092]
+                topic: cdc.users
+          - condition: "$.source.table == 'orders'"
+            sink:
+              type: kafka
+              config:
+                brokers: [kafka:9092]
+                topic: cdc.orders
+          - condition: "$.source.table == 'products'"
+            sink:
+              type: kafka
+              config:
+                brokers: [kafka:9092]
+                topic: cdc.products
+```
+
+**Apply:**
+```bash
+kubectl apply -f dataflow/config/samples/postgres-cdc-to-kafka.yaml
+```
+
+## Schema Evolution Migration
+
+Example of gradual data migration from a legacy system to a new schema with field transformation, flattening nested structures, and adding metadata.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: schema-evolution-pipeline
+spec:
+  ackGranularity: message
+  checkpointPersistence: true
+  source:
+    type: postgresql
+    config:
+      connectionString: "postgres://dataflow:dataflow@source-postgres:5432/legacy?sslmode=disable"
+      table: legacy_events
+      query: "SELECT id, old_data, created_at, version FROM legacy_events WHERE migrated = false"
+      pollInterval: 10
+      changeTrackingColumn: created_at
+      orderByColumn: id
+  sink:
+    type: postgresql
+    config:
+      connectionString: "postgres://dataflow:dataflow@target-postgres:5432/modern?sslmode=disable"
+      table: modern_events
+      autoCreateTable: true
+      upsertMode: true
+      conflictKey: legacy_id
+      batchSize: 200
+  transformations:
+    - type: select
+      config:
+        fields:
+          - id
+          - old_data
+          - created_at
+          - version
+    - type: flatten
+      config:
+        field: old_data.items
+    - type: camelCase
+    - type: timestamp
+      config:
+        fieldName: migrated_at
+    - type: filter
+      config:
+        condition: "$.eventType && $.userId"
+```
+
+**Apply:**
+```bash
+kubectl apply -f dataflow/config/samples/schema-evolution-migration.yaml
+```
+
+## Multi-Source Aggregation Pattern
+
+Example pattern for aggregating data from multiple sources. In production, use separate DataFlows for each source with a common sink or Kafka as intermediate buffer.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: multi-source-aggregator
+spec:
+  source:
+    type: kafka
+    config:
+      brokers:
+        - kafka:9092
+      topic: aggregated-events
+      consumerGroup: aggregator-group
+  sink:
+    type: postgresql
+    config:
+      connectionString: "postgres://dataflow:dataflow@postgres:5432/dataflow?sslmode=disable"
+      table: aggregated_metrics
+      upsertMode: true
+      conflictKey: metric_id
+      batchSize: 500
+  transformations:
+    - type: select
+      config:
+        fields:
+          - metric_id
+          - source_system
+          - metric_value
+          - timestamp
+          - metadata
+    - type: snakeCase
+    - type: timestamp
+      config:
+        fieldName: aggregated_at
+```
+
+**Apply:**
+```bash
+kubectl apply -f dataflow/config/samples/multi-source-aggregation.yaml
+```
+
+## Additional Examples
+
+More examples available in `dataflow/config/samples/` directory:
+
+| Example | Description |
+|---------|-------------|
+| `kafka-to-postgres.yaml` | Basic Kafka → PostgreSQL |
+| `kafka-to-clickhouse.yaml` | Basic Kafka → ClickHouse |
+| `kafka-to-clickhouse-high-volume.yaml` | High-throughput Kafka → ClickHouse |
+| `kafka-to-postgres-secrets.yaml` | Using Kubernetes Secrets |
+| `kafka-debezium-to-postgres.yaml` | Kafka (Debezium envelope) → PostgreSQL via `debeziumUnwrap` |
+| `kafka-to-postgres-with-resources.yaml` | Custom resources and scheduling |
+| `kafka-to-postgres-with-errors.yaml` | Error handling with error sink |
+| `kafka-to-postgres-raw.yaml` | Kafka with rawMode for metadata preservation |
+| `kafka-to-nessie.yaml` | Kafka → Nessie/Iceberg |
+| `kafka-to-trino.yaml` | Kafka → Trino |
+| `kafka-to-trino-secrets.yaml` | Kafka → Trino with Secrets |
+| `kafka-to-iceberg.yaml` | Kafka → Iceberg REST Catalog |
+| `nessie-to-kafka.yaml` | Nessie → Kafka |
+| `flatten-example.yaml` | Flatten transformation |
+| `router-example.yaml` | Router transformation |
+| `postgres-to-kafka-router.yaml` | PostgreSQL → Kafka with routing |
+| `postgresql-cdc-to-postgres.yaml` | PostgreSQL CDC → PostgreSQL |
+| `postgres-cdc-to-kafka.yaml` | PostgreSQL CDC → Kafka |
+| `clickhouse-to-clickhouse.yaml` | ClickHouse → ClickHouse |
+| `clickhouse-to-clickhouse2.yaml` | ClickHouse → ClickHouse (variant) |
+| `dataflowcron-example.yaml` | DataFlowCron with triggers |
+| `pg-to-pg-test.yaml` | PostgreSQL → PostgreSQL |
+| `pg-to-pg-test2.yaml` | PostgreSQL → PostgreSQL (variant) |
+| `dead-letter-queue-example.yaml` | Dead Letter Queue pattern |
+| `schema-evolution-migration.yaml` | Schema evolution migration |
+| `multi-source-aggregation.yaml` | Multi-source aggregation |
 

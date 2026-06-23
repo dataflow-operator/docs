@@ -23,9 +23,10 @@
 2. Подставить секреты через **SecretResolver**.
 3. Создать/обновить `df-<name>-spec`.
 4. При включённом checkpoint — ConfigMap checkpoint и RBAC.
-5. Создать/обновить Deployment `df-<name>`.
-6. Отразить статус Deployment в Phase/Message DataFlow.
-7. Записать status в ресурс.
+5. Оценить **`spec.maintenance`** — обновить `status.maintenanceStatus`; при активном окне или `suspended: true` задать Deployment с **0** реплик.
+6. Создать/обновить Deployment `df-<name>`.
+7. Отразить статус Deployment в Phase/Message DataFlow.
+8. Записать status в ресурс.
 
 ```mermaid
 flowchart TD
@@ -37,12 +38,13 @@ flowchart TD
   F --> F2{CheckpointPersistence?}
   F2 -->|Yes| F3[Create Checkpoint ConfigMap and RBAC]
   F2 -->|No| G
-  F3 --> G[Create or Update Deployment]
-  G --> H[Read Deployment Status]
+  F3 --> G[Evaluate Maintenance]
+  G --> G2[Create or Update Deployment]
+  G2 --> H[Read Deployment Status]
   H --> I[Update DataFlow Status]
 ```
 
-## Поля status
+## Поля status { #поля-status }
 
 | Поле | Описание |
 |------|----------|
@@ -51,6 +53,18 @@ flowchart TD
 | **LastProcessedTime** | Время последнего сообщения |
 | **ProcessedCount** | Обработано сообщений |
 | **ErrorCount** | Ошибки |
+| **maintenanceStatus** | Состояние обслуживания (см. ниже) |
+
+### maintenanceStatus
+
+| Поле | Описание |
+|------|----------|
+| **inMaintenance** | `true`, если процессор приостановлен из-за активного окна по расписанию |
+| **nextMaintenanceTime** | Время начала следующего запланированного окна |
+| **lastMaintenanceTime** | Время начала текущего или последнего окна |
+| **suspended** | `true`, если `spec.maintenance.suspended` (ручная остановка) |
+
+При `inMaintenance` или `suspended` Deployment процессора масштабируется до 0. **Message** может содержать `Processor paused for scheduled maintenance window` или `Processor suspended manually`.
 
 ```bash
 kubectl get dataflow
