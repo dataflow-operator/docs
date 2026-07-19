@@ -18,6 +18,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 | DebeziumUnwrap | Unwraps Debezium envelope into row payload | 1 message | 0 or 1 message |
 | ReplaceField | Renames fields; optional include/exclude without flattening | 1 message | 1 message |
 | HeadersToPayload | Copies Kafka/message headers into JSON payload fields | 1 message | 1 message |
+| StructFlatten | Flattens nested JSON objects into a single-level map | 1 message | 1 message |
 
 ## Timestamp
 
@@ -1315,11 +1316,82 @@ transformations:
 }
 ```
 
+## StructFlatten
+
+Flattens nested JSON **objects** into a single-level map (1→1). Unlike `flatten` (which expands an **array** into N messages), `structFlatten` keeps one message and joins nested key paths with a delimiter. Arrays are preserved as values and are not indexed. Compatible with Kafka Connect [`Flatten`](https://docs.confluent.io/platform/current/connect/transforms/flatten.html) migration patterns.
+
+Non-object roots (arrays, primitives) and non-JSON payloads pass through unchanged. Empty nested objects `{}` produce no keys. Nesting deeper than 64 levels returns a transform error.
+
+### Configuration
+
+```yaml
+transformations:
+  - type: structFlatten
+    config:
+      # Delimiter between nested key segments (optional, default: ".")
+      delimiter: "."
+```
+
+An empty `config: {}` is valid and uses `"."`. An explicitly empty `delimiter: ""` is rejected.
+
+### Examples
+
+#### Dot delimiter (default)
+
+```yaml
+transformations:
+  - type: structFlatten
+    config:
+      delimiter: "."
+```
+
+**Input message:**
+```json
+{
+  "content": {
+    "id": 42,
+    "name": {
+      "first": "David",
+      "middle": null,
+      "last": "Wong"
+    },
+    "tags": ["a", "b"]
+  },
+  "active": true
+}
+```
+
+**Output message:**
+```json
+{
+  "content.id": 42,
+  "content.name.first": "David",
+  "content.name.middle": null,
+  "content.name.last": "Wong",
+  "content.tags": ["a", "b"],
+  "active": true
+}
+```
+
+#### Underscore delimiter (JDBC / Avro-friendly names)
+
+```yaml
+transformations:
+  - type: structFlatten
+    config:
+      delimiter: "_"
+```
+
+**Output keys:** `content_id`, `content_name_first`, `content_name_middle`, `content_name_last`, `content_tags`, `active`.
+
+Typical CDC chain: `debeziumUnwrap` → `structFlatten` → `snakeCase`.
+
 ## Limitations
 
 - **Filter**: supports truthiness (`$.field`), equality (`$.field == 'value'`), and inequality (`$.field != 'value'`). Missing fields fail the condition. Scripted expressions (AND/OR/Groovy/JS) are not supported.
 - **Router**: conditions are checked in order; the first match determines the route. Same condition syntax as Filter (`$.field`, `==`, `!=`).
-- **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects.
+- **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects. For nested-object flattening use `structFlatten`.
+- **StructFlatten**: 1→1 object flatten; arrays are kept as values (use array `flatten` first to explode). Max nesting depth is 64.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
 - **HeadersToPayload**: requires headers in `Metadata["headers"]` (Kafka source sets this); missing headers are skipped; non-JSON payloads are unchanged.

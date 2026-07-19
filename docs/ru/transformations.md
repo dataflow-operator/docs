@@ -18,6 +18,7 @@ DataFlow Operator поддерживает трансформации сообщ
 | DebeziumUnwrap | Распаковывает Debezium envelope в строку таблицы | 1 сообщение | 0 или 1 сообщение |
 | ReplaceField | Переименовывает поля; опционально include/exclude без сплющивания | 1 сообщение | 1 сообщение |
 | HeadersToPayload | Копирует заголовки Kafka/сообщения в поля JSON payload | 1 сообщение | 1 сообщение |
+| StructFlatten | Сплющивает вложенные JSON-объекты в одноуровневую карту | 1 сообщение | 1 сообщение |
 
 ## Timestamp
 
@@ -1321,11 +1322,82 @@ transformations:
 }
 ```
 
+## StructFlatten
+
+Сплющивает вложенные JSON-**объекты** в одноуровневую карту (1→1). В отличие от `flatten` (который разворачивает **массив** в N сообщений), `structFlatten` оставляет одно сообщение и склеивает пути ключей разделителем. Массивы сохраняются как значения и не индексируются. Удобно при миграции с Kafka Connect [`Flatten`](https://docs.confluent.io/platform/current/connect/transforms/flatten.html).
+
+Корень не-объект (массив, примитив) и не-JSON payload проходят без изменений. Пустые вложенные объекты `{}` не порождают ключей. Вложенность глубже 64 уровней возвращает ошибку трансформации.
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: structFlatten
+    config:
+      # Разделитель сегментов вложенных ключей (опционально, по умолчанию ".")
+      delimiter: "."
+```
+
+Пустой `config: {}` валиден и использует `"."`. Явно пустой `delimiter: ""` отклоняется.
+
+### Примеры
+
+#### Разделитель «точка» (по умолчанию)
+
+```yaml
+transformations:
+  - type: structFlatten
+    config:
+      delimiter: "."
+```
+
+**Входное сообщение:**
+```json
+{
+  "content": {
+    "id": 42,
+    "name": {
+      "first": "David",
+      "middle": null,
+      "last": "Wong"
+    },
+    "tags": ["a", "b"]
+  },
+  "active": true
+}
+```
+
+**Выходное сообщение:**
+```json
+{
+  "content.id": 42,
+  "content.name.first": "David",
+  "content.name.middle": null,
+  "content.name.last": "Wong",
+  "content.tags": ["a", "b"],
+  "active": true
+}
+```
+
+#### Разделитель «подчёркивание» (имена для JDBC / Avro)
+
+```yaml
+transformations:
+  - type: structFlatten
+    config:
+      delimiter: "_"
+```
+
+**Ключи на выходе:** `content_id`, `content_name_first`, `content_name_middle`, `content_name_last`, `content_tags`, `active`.
+
+Типичная CDC-цепочка: `debeziumUnwrap` → `structFlatten` → `snakeCase`.
+
 ## Ограничения
 
 - **Filter**: поддерживает истинность (`$.field`), равенство (`$.field == 'value'`) и неравенство (`$.field != 'value'`). Отсутствующее поле не проходит условие. Скриптовые выражения (AND/OR/Groovy/JS) не поддерживаются.
 - **Router**: условия проверяются по порядку; первое совпадение задаёт маршрут. Тот же синтаксис условий, что у Filter (`$.field`, `==`, `!=`).
-- **Flatten**: работает только с массивами (в т.ч. в обёртке Avro с ключом `array`), не с произвольными объектами.
+- **Flatten**: работает только с массивами (в т.ч. в обёртке Avro с ключом `array`), не с произвольными объектами. Для сплющивания вложенных объектов используйте `structFlatten`.
+- **StructFlatten**: сплющивание объектов 1→1; массивы сохраняются как значения (сначала array-`flatten`, если нужен explode). Максимальная глубина вложенности — 64.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
 - **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
 - **HeadersToPayload**: нужны headers в `Metadata["headers"]` (Kafka source их выставляет); отсутствующие headers пропускаются; не-JSON payload не меняется.
