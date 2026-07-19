@@ -1135,6 +1135,8 @@ transformations:
 
 Converts Debezium Kafka events (`payload.before/after/op`) into a flat row-style message that can be processed by regular transformations and sinks.
 
+Rough analogue of Debezium SMT [ExtractNewRecordState (NRSE)](https://debezium.io/documentation/reference/stable/transformations/event-flattening.html) for JSON envelopes (not schema-aware Connect records).
+
 ### Configuration
 
 ```yaml
@@ -1149,6 +1151,12 @@ transformations:
 
       # Operation for Debezium snapshot records (op="r"): insert (default) or update
       snapshotOperation: insert
+
+      # Write NRSE-style __op / __deleted into the row payload (optional, default: false)
+      addOperationFields: true
+
+      # Copy selected payload.source keys into the row as source_<key> (optional, default: off)
+      addSourceFields: [table, lsn, ts_ms]
 ```
 
 ### Behavior
@@ -1158,12 +1166,38 @@ transformations:
 - `op=r` -> body from `payload.after`, `metadata.operation=insert` (or `update` if `snapshotOperation: update`)
 - `op=d` -> body from `payload.before`, `metadata.operation=delete`
 - If a message does not contain Debezium envelope (`payload.op`), it is passed through unchanged.
+- `metadata.operation` remains `insert` / `update` / `delete` even when `addOperationFields` is enabled (soft-delete sinks keep reading metadata).
+
+When `addOperationFields: true`:
+
+- row gets `__op` = original Debezium op (`c` / `u` / `d` / `r`)
+- row gets `__deleted` = `"true"` for deletes (including tombstone-inferred), otherwise `"false"` (string form, JDBC-friendly)
+
+When `addSourceFields` is non-empty:
+
+- for each listed key `k`, if `payload.source[k]` exists, write `source_<k>` into the row
+- missing keys are skipped; this is independent of `includeSourceInMetadata`
+
+### Parity vs Debezium ExtractNewRecordState
+
+| Feature | Debezium NRSE | DataFlow `debeziumUnwrap` |
+|---------|---------------|---------------------------|
+| Flatten envelope to row | Yes | Yes (`after` / `before` by op) |
+| `__op` / `__deleted` in payload | Yes (adds) | Opt-in via `addOperationFields` |
+| Source fields in payload | `add.source.fields` | Opt-in via `addSourceFields` |
+| Source in message headers/metadata | Headers | Opt-in via `includeSourceInMetadata` |
+| Drop tombstones | `drop.tombstones` | Default drop; keep via `inferDeleteFromTombstone` (+ optional filter) |
+| MongoDB unwrap | Separate SMT | Not supported |
+| Schema-aware Connect records | Yes | JSON envelope only |
+| Soft-delete column rewrite | Config flags | Use sink `softDeleteColumn` + `metadata.operation` |
 
 ### Kafka tombstones
 
 When `inferDeleteFromTombstone: true` and message value is empty, the transformer tries to parse `metadata.key` as JSON (typically Debezium key) and produce a delete message.
 
 If key parsing fails or key is missing, the message is dropped (without error).
+
+With `addOperationFields: true`, inferred tombstones get `__op: "d"` and `__deleted: "true"`.
 
 ### PostgreSQL sink compatibility
 
@@ -1178,6 +1212,8 @@ transformations:
       inferDeleteFromTombstone: true
       includeSourceInMetadata: true
       snapshotOperation: insert
+      addOperationFields: true
+      addSourceFields: [table, lsn]
 ```
 
 ## ReplaceField

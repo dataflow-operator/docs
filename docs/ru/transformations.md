@@ -1141,6 +1141,8 @@ transformations:
 
 Преобразует событие Debezium из Kafka (`payload.before/after/op`) в «плоское» сообщение строки, удобное для обычных трансформаций и приёмников.
 
+Упрощённый аналог SMT Debezium [ExtractNewRecordState (NRSE)](https://debezium.io/documentation/reference/stable/transformations/event-flattening.html) для JSON-envelope (без schema-aware Connect records).
+
 ### Конфигурация
 
 ```yaml
@@ -1155,6 +1157,12 @@ transformations:
 
       # Операция для snapshot-событий Debezium (op="r"): insert (по умолчанию) или update
       snapshotOperation: insert
+
+      # Записать NRSE-поля __op / __deleted в payload строки (опционально, по умолчанию: false)
+      addOperationFields: true
+
+      # Скопировать выбранные ключи payload.source в строку как source_<key> (опционально, по умолчанию: выкл.)
+      addSourceFields: [table, lsn, ts_ms]
 ```
 
 ### Поведение
@@ -1164,12 +1172,38 @@ transformations:
 - `op=r` -> тело из `payload.after`, `metadata.operation=insert` (или `update`, если `snapshotOperation: update`)
 - `op=d` -> тело из `payload.before`, `metadata.operation=delete`
 - Если в сообщении нет Debezium envelope (`payload.op`) — сообщение проходит без изменений.
+- `metadata.operation` остаётся `insert` / `update` / `delete` даже при `addOperationFields` (soft-delete sinks продолжают читать metadata).
+
+При `addOperationFields: true`:
+
+- в строку добавляется `__op` = исходный Debezium op (`c` / `u` / `d` / `r`)
+- добавляется `__deleted` = `"true"` на delete (включая tombstone-inferred), иначе `"false"` (строки, удобно для JDBC)
+
+При непустом `addSourceFields`:
+
+- для каждого ключа `k`, если есть `payload.source[k]`, пишется `source_<k>` в строку
+- отсутствующие ключи пропускаются; независимо от `includeSourceInMetadata`
+
+### Паритет с Debezium ExtractNewRecordState
+
+| Возможность | Debezium NRSE | DataFlow `debeziumUnwrap` |
+|-------------|---------------|---------------------------|
+| Flatten envelope → row | Да | Да (`after` / `before` по op) |
+| `__op` / `__deleted` в payload | Да | Opt-in через `addOperationFields` |
+| Source-поля в payload | `add.source.fields` | Opt-in через `addSourceFields` |
+| Source в headers/metadata | Headers | Opt-in через `includeSourceInMetadata` |
+| Drop tombstones | `drop.tombstones` | По умолчанию drop; сохранить через `inferDeleteFromTombstone` (+ filter) |
+| MongoDB unwrap | Отдельный SMT | Не поддерживается |
+| Schema-aware Connect records | Да | Только JSON envelope |
+| Soft-delete column rewrite | Config flags | Sink `softDeleteColumn` + `metadata.operation` |
 
 ### Tombstone Kafka
 
 Если `inferDeleteFromTombstone: true` и value сообщения пустой, трансформация пытается разобрать `metadata.key` как JSON (обычно ключ Debezium) и сформировать delete-сообщение.
 
 Если ключ отсутствует или невалиден, сообщение отбрасывается (без ошибки).
+
+При `addOperationFields: true` inferred tombstone получает `__op: "d"` и `__deleted: "true"`.
 
 ### Совместимость с PostgreSQL sink
 
@@ -1184,6 +1218,8 @@ transformations:
       inferDeleteFromTombstone: true
       includeSourceInMetadata: true
       snapshotOperation: insert
+      addOperationFields: true
+      addSourceFields: [table, lsn]
 ```
 
 ## ReplaceField
