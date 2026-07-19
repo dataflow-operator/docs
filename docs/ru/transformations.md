@@ -16,6 +16,7 @@ DataFlow Operator поддерживает трансформации сообщ
 | SnakeCase | Преобразует ключи в snake_case | 1 сообщение | 1 сообщение |
 | CamelCase | Преобразует ключи в CamelCase | 1 сообщение | 1 сообщение |
 | DebeziumUnwrap | Распаковывает Debezium envelope в строку таблицы | 1 сообщение | 0 или 1 сообщение |
+| ReplaceField | Переименовывает поля; опционально include/exclude без сплющивания | 1 сообщение | 1 сообщение |
 
 ## Timestamp
 
@@ -1168,12 +1169,98 @@ transformations:
       snapshotOperation: insert
 ```
 
+## ReplaceField
+
+Переименовывает поля и опционально фильтрует payload через `include` / `exclude`. В отличие от `select`, `include` сохраняет вложенную структуру (без сплющивания ключей). Удобно при миграции с Kafka Connect `ReplaceField`.
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: replaceField
+    config:
+      # Переименования oldPath:newPath (опционально)
+      renames:
+        - oldName:newName
+        - key.sku:sku
+
+      # Оставить только эти пути, сохраняя вложенность (опционально; взаимоисключающе с exclude)
+      include:
+        - user.id
+        - status
+
+      # Удалить эти пути (опционально; взаимоисключающе с include)
+      # exclude:
+      #   - password
+```
+
+Нужен хотя бы один из `renames`, `include` или `exclude`. `include` и `exclude` нельзя задавать вместе.
+
+### Примеры
+
+#### Переименование полей
+
+```yaml
+transformations:
+  - type: replaceField
+    config:
+      renames:
+        - oldName:newName
+        - key.sku:sku
+```
+
+**Входное сообщение:**
+```json
+{
+  "oldName": "value",
+  "key": { "sku": "12345" },
+  "other": "keep"
+}
+```
+
+**Выходное сообщение:**
+```json
+{
+  "newName": "value",
+  "sku": "12345",
+  "other": "keep"
+}
+```
+
+#### Include без сплющивания
+
+```yaml
+transformations:
+  - type: replaceField
+    config:
+      include:
+        - user.id
+        - user.name
+        - status
+```
+
+**Входное сообщение:**
+```json
+{
+  "user": { "id": 1, "name": "John", "email": "john@example.com" },
+  "status": "active",
+  "extra": "drop-me"
+}
+```
+
+**Выходное сообщение:**
+```json
+{
+  "user": { "id": 1, "name": "John" },
+  "status": "active"
+}
+```
+
 ## Планируемые трансформации
 
 В API (CRD) пока недоступны:
 
-- **ReplaceField** — переименование полей (например, `старый.путь` → `новый.путь`)
-- **HeaderFrom** — копирование заголовков Kafka в тело сообщения
+- **HeaderFrom** / **headersToPayload** — копирование заголовков Kafka в тело сообщения
 
 Актуальные возможности см. в [Коннекторы](connectors.md) и [Примеры](examples.md).
 
@@ -1183,5 +1270,6 @@ transformations:
 - **Router**: условия проверяются по порядку; первое совпадение задаёт маршрут. Поддерживаются форматы `$.field` (истинность) и `$.field == 'value'`.
 - **Flatten**: работает только с массивами (в т.ч. в обёртке Avro с ключом `array`), не с произвольными объектами.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
+- **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
 - **SnakeCase** и **CamelCase**: работают только с валидным JSON; бинарные данные возвращаются без изменений.
 - **DebeziumUnwrap**: поддерживает Debezium JSON envelope (`payload.op/before/after`). Для `operation=delete` в PostgreSQL sink требуется `softDeleteColumn`, иначе событие может быть обработано как обычная вставка/апдейт.

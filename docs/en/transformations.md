@@ -16,6 +16,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 | SnakeCase | Converts keys to snake_case | 1 message | 1 message |
 | CamelCase | Converts keys to CamelCase | 1 message | 1 message |
 | DebeziumUnwrap | Unwraps Debezium envelope into row payload | 1 message | 0 or 1 message |
+| ReplaceField | Renames fields; optional include/exclude without flattening | 1 message | 1 message |
 
 ## Timestamp
 
@@ -1162,12 +1163,98 @@ transformations:
       snapshotOperation: insert
 ```
 
+## ReplaceField
+
+Renames fields and optionally filters the payload via `include` / `exclude`. Unlike `select`, `include` preserves nested structure (no key flattening). Compatible with Kafka Connect `ReplaceField` migration patterns.
+
+### Configuration
+
+```yaml
+transformations:
+  - type: replaceField
+    config:
+      # Rename mappings oldPath:newPath (optional)
+      renames:
+        - oldName:newName
+        - key.sku:sku
+
+      # Keep only these paths, preserving nesting (optional; mutually exclusive with exclude)
+      include:
+        - user.id
+        - status
+
+      # Remove these paths (optional; mutually exclusive with include)
+      # exclude:
+      #   - password
+```
+
+At least one of `renames`, `include`, or `exclude` is required. `include` and `exclude` cannot be set together.
+
+### Examples
+
+#### Rename fields
+
+```yaml
+transformations:
+  - type: replaceField
+    config:
+      renames:
+        - oldName:newName
+        - key.sku:sku
+```
+
+**Input message:**
+```json
+{
+  "oldName": "value",
+  "key": { "sku": "12345" },
+  "other": "keep"
+}
+```
+
+**Output message:**
+```json
+{
+  "newName": "value",
+  "sku": "12345",
+  "other": "keep"
+}
+```
+
+#### Include without flattening
+
+```yaml
+transformations:
+  - type: replaceField
+    config:
+      include:
+        - user.id
+        - user.name
+        - status
+```
+
+**Input message:**
+```json
+{
+  "user": { "id": 1, "name": "John", "email": "john@example.com" },
+  "status": "active",
+  "extra": "drop-me"
+}
+```
+
+**Output message:**
+```json
+{
+  "user": { "id": 1, "name": "John" },
+  "status": "active"
+}
+```
+
 ## Planned transformations
 
 The following are not yet available in the API (CRD):
 
-- **ReplaceField** — rename fields (e.g. `old.path` → `new.path`)
-- **HeaderFrom** — copy Kafka message headers into the message body
+- **HeaderFrom** / **headersToPayload** — copy Kafka message headers into the message body
 
 Use the [Connectors](connectors.md) and [Examples](examples.md) for current capabilities.
 
@@ -1177,6 +1264,7 @@ Use the [Connectors](connectors.md) and [Examples](examples.md) for current capa
 - **Router**: conditions are checked in order; the first match determines the route. Supported formats: `$.field` (truthiness) and `$.field == 'value'`.
 - **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects.
 - **Select**: result is always flat; the key is the last JSONPath segment.
+- **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
 - **SnakeCase** and **CamelCase**: work only with valid JSON; binary data is returned unchanged.
 - **DebeziumUnwrap**: supports Debezium JSON envelope (`payload.op/before/after`). For `operation=delete` in PostgreSQL sink, `softDeleteColumn` is required; otherwise delete events can be treated as regular insert/update writes.
 

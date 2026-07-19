@@ -43,6 +43,7 @@ Types:
 - `snakeCase`
 - `camelCase`
 - `debeziumUnwrap`
+- `replaceField`
 
 ## 2) Admission validation (Kubernetes webhook / CRD validation)
 
@@ -93,7 +94,7 @@ At runtime, **`dataflow/internal/processor/options.go`** (`buildSourceConnectorO
 File: **`dataflow-mcp/src/tools/reference.rs`**
 
 - `default_connectors_raw()` — documented fields for **list_dataflow_connectors** (sources/sinks).
-- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`).
+- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`, `replaceField`).
 
 ### Manifest tools
 
