@@ -19,6 +19,8 @@ DataFlow Operator поддерживает трансформации сообщ
 | ReplaceField | Переименовывает поля; опционально include/exclude без сплющивания | 1 сообщение | 1 сообщение |
 | HeadersToPayload | Копирует заголовки Kafka/сообщения в поля JSON payload | 1 сообщение | 1 сообщение |
 | StructFlatten | Сплющивает вложенные JSON-объекты в одноуровневую карту | 1 сообщение | 1 сообщение |
+| ExtractField | Заменяет payload значением одного поля | 1 сообщение | 1 сообщение |
+| HoistField | Оборачивает весь payload под одним ключом верхнего уровня | 1 сообщение | 1 сообщение |
 
 ## Timestamp
 
@@ -1392,12 +1394,111 @@ transformations:
 
 Типичная CDC-цепочка: `debeziumUnwrap` → `structFlatten` → `snakeCase`.
 
+## ExtractField
+
+Заменяет payload сообщения значением одного поля (аналог Kafka Connect [`ExtractField$Value`](https://docs.confluent.io/platform/current/connect/transforms/extractfield.html)). Кардинальность всегда 1→1. Metadata сохраняется. Не-JSON и отсутствующий путь проходят без изменений. Новый корень может быть объектом, массивом, примитивом или JSON `null`.
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: extractField
+    config:
+      # JSONPath к полю, которое становится новым корнем (обязательно)
+      field: payload.after   # или $.payload.after
+```
+
+### Примеры
+
+#### Распаковка вложенного payload
+
+```yaml
+transformations:
+  - type: extractField
+    config:
+      field: payload.after
+```
+
+**Входное сообщение:**
+```json
+{"payload":{"after":{"id":1}}}
+```
+
+**Выходное сообщение:**
+```json
+{"id":1}
+```
+
+#### Извлечение примитива или массива
+
+```yaml
+transformations:
+  - type: extractField
+    config:
+      field: items
+```
+
+`{"items":[1,2,3]}` → `[1,2,3]`
+
+Типичная цепочка перед flatten/cast: `extractField` → `structFlatten` → `cast`.
+
+## HoistField
+
+Оборачивает весь JSON payload под одним ключом верхнего уровня (обратно к `extractField`). Удобно для нормализации обёрток до/после CDC. Не-JSON не меняется. Имя ключа — простое, без точек (не JSONPath).
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: hoistField
+    config:
+      # Ключ-обёртка верхнего уровня (обязательно; без точек)
+      field: record
+```
+
+### Примеры
+
+#### Обернуть строку
+
+```yaml
+transformations:
+  - type: hoistField
+    config:
+      field: record
+```
+
+**Входное сообщение:**
+```json
+{"id":1}
+```
+
+**Выходное сообщение:**
+```json
+{"record":{"id":1}}
+```
+
+#### Round-trip с extractField
+
+```yaml
+transformations:
+  - type: hoistField
+    config:
+      field: record
+  - type: extractField
+    config:
+      field: record
+```
+
+Восстанавливает исходный payload.
+
 ## Ограничения
 
 - **Filter**: поддерживает истинность (`$.field`), равенство (`$.field == 'value'`) и неравенство (`$.field != 'value'`). Отсутствующее поле не проходит условие. Скриптовые выражения (AND/OR/Groovy/JS) не поддерживаются.
 - **Router**: условия проверяются по порядку; первое совпадение задаёт маршрут. Тот же синтаксис условий, что у Filter (`$.field`, `==`, `!=`).
 - **Flatten**: работает только с массивами (в т.ч. в обёртке Avro с ключом `array`), не с произвольными объектами. Для сплющивания вложенных объектов используйте `structFlatten`.
 - **StructFlatten**: сплющивание объектов 1→1; массивы сохраняются как значения (сначала array-`flatten`, если нужен explode). Максимальная глубина вложенности — 64.
+- **ExtractField**: отсутствующий путь и не-JSON → passthrough; корень может стать не-объектом (следующие object-only transforms сделают passthrough).
+- **HoistField**: ключ-обёртка — простое имя верхнего уровня (без точек); оборачивает любой JSON, включая массивы и примитивы.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
 - **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
 - **HeadersToPayload**: нужны headers в `Metadata["headers"]` (Kafka source их выставляет); отсутствующие headers пропускаются; не-JSON payload не меняется.

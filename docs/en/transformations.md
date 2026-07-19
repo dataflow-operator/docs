@@ -19,6 +19,8 @@ DataFlow Operator supports message transformations that are applied sequentially
 | ReplaceField | Renames fields; optional include/exclude without flattening | 1 message | 1 message |
 | HeadersToPayload | Copies Kafka/message headers into JSON payload fields | 1 message | 1 message |
 | StructFlatten | Flattens nested JSON objects into a single-level map | 1 message | 1 message |
+| ExtractField | Replaces the payload with the value of one field | 1 message | 1 message |
+| HoistField | Wraps the entire payload under a single top-level key | 1 message | 1 message |
 
 ## Timestamp
 
@@ -1386,12 +1388,111 @@ transformations:
 
 Typical CDC chain: `debeziumUnwrap` → `structFlatten` → `snakeCase`.
 
+## ExtractField
+
+Replaces the message payload with the value of a single field (Kafka Connect [`ExtractField$Value`](https://docs.confluent.io/platform/current/connect/transforms/extractfield.html) style). Cardinality is always 1→1. Metadata is preserved. Non-JSON payloads and missing paths are passed through unchanged. The new root may be an object, array, primitive, or JSON `null`.
+
+### Configuration
+
+```yaml
+transformations:
+  - type: extractField
+    config:
+      # JSONPath to the field that becomes the new root (required)
+      field: payload.after   # or $.payload.after
+```
+
+### Examples
+
+#### Unwrap nested payload
+
+```yaml
+transformations:
+  - type: extractField
+    config:
+      field: payload.after
+```
+
+**Input message:**
+```json
+{"payload":{"after":{"id":1}}}
+```
+
+**Output message:**
+```json
+{"id":1}
+```
+
+#### Extract a primitive or array
+
+```yaml
+transformations:
+  - type: extractField
+    config:
+      field: items
+```
+
+`{"items":[1,2,3]}` → `[1,2,3]`
+
+Typical chain before flattening/casting: `extractField` → `structFlatten` → `cast`.
+
+## HoistField
+
+Wraps the entire JSON payload under a single top-level key (inverse of `extractField`). Useful for normalizing envelopes before/after CDC transforms. Non-JSON payloads are unchanged. The wrapper key must be a simple name without dots (not a JSONPath).
+
+### Configuration
+
+```yaml
+transformations:
+  - type: hoistField
+    config:
+      # Top-level wrapper key (required; no dots)
+      field: record
+```
+
+### Examples
+
+#### Wrap a row
+
+```yaml
+transformations:
+  - type: hoistField
+    config:
+      field: record
+```
+
+**Input message:**
+```json
+{"id":1}
+```
+
+**Output message:**
+```json
+{"record":{"id":1}}
+```
+
+#### Round-trip with extractField
+
+```yaml
+transformations:
+  - type: hoistField
+    config:
+      field: record
+  - type: extractField
+    config:
+      field: record
+```
+
+Restores the original payload.
+
 ## Limitations
 
 - **Filter**: supports truthiness (`$.field`), equality (`$.field == 'value'`), and inequality (`$.field != 'value'`). Missing fields fail the condition. Scripted expressions (AND/OR/Groovy/JS) are not supported.
 - **Router**: conditions are checked in order; the first match determines the route. Same condition syntax as Filter (`$.field`, `==`, `!=`).
 - **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects. For nested-object flattening use `structFlatten`.
 - **StructFlatten**: 1→1 object flatten; arrays are kept as values (use array `flatten` first to explode). Max nesting depth is 64.
+- **ExtractField**: missing path and non-JSON → passthrough; root may become a non-object (later object-only transforms will passthrough).
+- **HoistField**: wrapper key must be a simple top-level name (no dots); wraps any JSON value including arrays and primitives.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
 - **HeadersToPayload**: requires headers in `Metadata["headers"]` (Kafka source sets this); missing headers are skipped; non-JSON payloads are unchanged.
