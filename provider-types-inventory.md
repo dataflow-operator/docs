@@ -115,6 +115,10 @@ Primary connector matrix docs:
 - `docs/docs/en/connectors.md`
 - `docs/docs/ru/connectors.md`
 
+Transformation reference (Wave 1 + Wave 2 types):
+- `docs/docs/en/transformations.md`
+- `docs/docs/ru/transformations.md`
+
 Current docs connector set:
 - `kafka`
 - `postgresql`
@@ -124,6 +128,22 @@ Current docs connector set:
 
 Related API commentary:
 - `dataflow/api/v1/dataflow_types.go` comments mention `kafka`, `postgresql`, `trino`, `clickhouse`, `nessie`, "or plugin type".
+
+## 6) Web UI flow constructor
+
+File: **`dataflow-web/web/src/composables/useFlowManifest.js`** (`TRANSFORM_TYPES`)
+
+Must stay aligned with `transformtypes.All()` / MCP `default_transformations_raw()`:
+
+- `timestamp`, `flatten`, `filter`, `mask`, `router`, `select`, `remove`, `snakeCase`, `camelCase`
+- `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`
+- `extractField`, `hoistField`, `cast`, `timezone`
+
+Related UI surfaces (forms + locales):
+
+- `dataflow-web/web/src/components/config-forms/TransformationConfigForm.vue`
+- `dataflow-web/web/src/components/config-forms/useConfigForm.js`
+- `dataflow-web/web/src/locales/en.js` / `ru.js`
 
 ## Current drift (confirmed)
 
