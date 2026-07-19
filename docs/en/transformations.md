@@ -8,7 +8,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 |----------------|------------|-------|--------|
 | Timestamp | Adds a timestamp field | 1 message | 1 message |
 | Flatten | Expands an array into separate messages | 1 message | N messages |
-| Filter | Keeps messages where a field is truthy | 1 message | 0 or 1 message |
+| Filter | Keeps messages matching a condition (truthy / `==` / `!=`) | 1 message | 0 or 1 message |
 | Mask | Masks sensitive fields | 1 message | 1 message |
 | Router | Sends matching messages to alternate sinks | 1 message | 0 or 1 message |
 | Select | Keeps only specified fields | 1 message | 1 message |
@@ -207,7 +207,17 @@ This creates a separate message for each array element, each with an added times
 
 ## Filter
 
-Keeps only messages where the field at the given JSONPath exists and is *truthy* (boolean `true`, non-empty string, non-zero number). Other messages are dropped. Comparison expressions (e.g. `==`) are not supported; use Router for value-based routing.
+Keeps only messages that match the condition. Others are dropped.
+
+### Condition syntax
+
+Same as [Router](#router):
+
+- **Truthiness**: `$.field` — passes if the field exists and is truthy (boolean `true`, non-empty string, non-zero number).
+- **Equality**: `$.field == 'value'` or `$.field == "value"` — passes when the field equals the given value (unquoted literals like `true` / `5` are also accepted).
+- **Inequality**: `$.field != 'value'` — passes when the field exists and is not equal to the given value.
+
+Missing fields fail both truthiness and comparison checks.
 
 ### Configuration
 
@@ -215,17 +225,17 @@ Keeps only messages where the field at the given JSONPath exists and is *truthy*
 transformations:
   - type: filter
     config:
-      # JSONPath to a field; message passes if field exists and is truthy (required)
-      condition: "$.active"
+      # JSONPath truthiness, or comparison with == / != (required)
+      condition: "$.status == 'active'"
 ```
 
 ### JSONPath
 
-Uses the `gjson` library: `$.field`, `$.nested.field`, `$.array[0]`, etc.
+Uses the `gjson` library: `$.field`, `$.nested.field`, `$.array[0]`, etc. The `$.` prefix is optional.
 
 ### Examples
 
-#### Simple filtering
+#### Simple filtering (truthiness)
 
 ```yaml
 transformations:
@@ -241,46 +251,46 @@ transformations:
 {"id": 3}                   // ❌ Filtered out (no field)
 ```
 
-#### Filtering by value
+#### Filtering by equality
 
 ```yaml
 transformations:
   - type: filter
     config:
-      condition: "$.level"
+      condition: "$.status == 'active'"
 ```
 
 **Input messages:**
 ```json
-{"level": "error"}    // ✅ Passes (non-empty string)
-{"level": "warning"}  // ✅ Passes
-{"level": ""}         // ❌ Filtered out
-{"level": null}       // ❌ Filtered out
+{"status": "active"}    // ✅ Passes
+{"status": "inactive"}  // ❌ Filtered out
+{"status": ""}          // ❌ Filtered out
+{}                      // ❌ Filtered out (missing field)
 ```
 
-#### Filtering by numeric value
+#### Filtering by inequality
 
 ```yaml
 transformations:
   - type: filter
     config:
-      condition: "$.amount"
+      condition: "$.status != 'deleted'"
 ```
 
 **Input messages:**
 ```json
-{"amount": 100}  // ✅ Passes (non-zero)
-{"amount": 0}    // ❌ Filtered out
-{"amount": -5}   // ✅ Passes (non-zero)
+{"status": "active"}   // ✅ Passes
+{"status": "deleted"}  // ❌ Filtered out
+{}                     // ❌ Filtered out (missing field)
 ```
 
-#### Complex filtering
+#### Filtering by nested path
 
 ```yaml
 transformations:
   - type: filter
     config:
-      condition: "$.user.status"
+      condition: "$.user.status == 'active'"
 ```
 
 **Input message:**
@@ -292,7 +302,7 @@ transformations:
 }
 ```
 
-**Result:** Message passes if `user.status` exists and is non-empty.
+**Result:** Message passes when `user.status` equals `active`.
 
 ## Mask
 
@@ -417,7 +427,8 @@ Routes messages to different sinks based on conditions. The first matching route
 ### Condition syntax
 
 - **Truthiness**: `$.field` — the message matches if the field exists and is truthy (non-empty string, non-zero number, `true`).
-- **Comparison**: `$.field == 'value'` or `$.field == "value"` — matches when the field equals the given string.
+- **Equality**: `$.field == 'value'` or `$.field == "value"` — matches when the field equals the given value (unquoted literals like `true` / `5` are also accepted).
+- **Inequality**: `$.field != 'value'` — matches when the field exists and is not equal to the given value.
 
 Conditions are evaluated in order; the first match wins.
 
@@ -762,7 +773,7 @@ transformations:
   # Filter paid orders only
   - type: filter
     config:
-      condition: "$.status"
+      condition: "$.status == 'paid'"
 
   # Remove sensitive data
   - type: remove
@@ -1306,8 +1317,8 @@ transformations:
 
 ## Limitations
 
-- **Filter**: only field existence and truthiness are checked; comparisons (e.g. `==`) are not supported — use Router for value-based routing.
-- **Router**: conditions are checked in order; the first match determines the route. Supported formats: `$.field` (truthiness) and `$.field == 'value'`.
+- **Filter**: supports truthiness (`$.field`), equality (`$.field == 'value'`), and inequality (`$.field != 'value'`). Missing fields fail the condition. Scripted expressions (AND/OR/Groovy/JS) are not supported.
+- **Router**: conditions are checked in order; the first match determines the route. Same condition syntax as Filter (`$.field`, `==`, `!=`).
 - **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
