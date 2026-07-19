@@ -22,6 +22,7 @@ DataFlow Operator поддерживает трансформации сообщ
 | ExtractField | Заменяет payload значением одного поля | 1 сообщение | 1 сообщение |
 | HoistField | Оборачивает весь payload под одним ключом верхнего уровня | 1 сообщение | 1 сообщение |
 | Cast | Приводит значения полей к целевым типам (`string` / `int64` / `float64` / `bool` / `null`) | 1 сообщение | 1 сообщение (или skip при ошибке cast) |
+| Timezone | Конвертирует temporal-поля в целевую IANA-зону или UTC offset | 1 сообщение | 1 сообщение (или skip при ошибке парсинга) |
 
 ## Timestamp
 
@@ -1551,6 +1552,67 @@ transformations:
 
 Типичная цепочка: `debeziumUnwrap` → `timezone` → `cast` или `extractField` → `structFlatten` → `cast`.
 
+## Timezone
+
+Конвертирует перечисленные temporal-поля в целевую IANA-зону или фиксированный UTC offset (`±HH:MM`). Полезно после `debeziumUnwrap` перед JDBC sinks. Кардинальность 1→1. Metadata не меняется. Не-JSON проходит без изменений.
+
+**Не** связана с `spec.maintenance.timezone` и отличается от transform `timestamp` (вставка текущего wall-clock времени).
+
+**Отсутствующие поля и JSON `null`** пропускаются. **Непарсабельные значения** — ошибка transform: processor логирует, инкрементирует `dataflow_transformer_errors_total` и **пропускает** сообщение (те же skip-on-error семантики, что у `cast`).
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: timezone
+    config:
+      # Целевая IANA TZ или UTC offset (обязательно)
+      timezone: Europe/Moscow
+      # Поля для конвертации (обязательно, непустой список JSONPath)
+      fields: [created_at, updated_at]
+      # Исходная TZ, если у значения нет offset (опционально, по умолчанию: UTC)
+      sourceTimezone: UTC
+      # Формат вывода (опционально, по умолчанию: RFC3339Nano). Также: RFC3339, UnixMilli
+      format: RFC3339
+```
+
+### Формы входа
+
+| Вход | Поведение |
+|------|-----------|
+| Строка RFC3339 / RFC3339Nano (с offset или без) | Парсится; без offset — в `sourceTimezone` |
+| Epoch (число или numeric string) | Миллисекунды если `\|n\| >= 1e12`, иначе секунды |
+| Отсутствующий путь / JSON `null` | Skip |
+| Прочее | Ошибка transform |
+
+### Примеры
+
+#### После debeziumUnwrap
+
+```yaml
+transformations:
+  - type: debeziumUnwrap
+  - type: timezone
+    config:
+      timezone: Europe/Moscow
+      fields: [created_at, updated_at]
+      format: RFC3339
+  - type: cast
+    config:
+      spec:
+        id: int64
+```
+
+**Входное сообщение:**
+```json
+{"id":1,"created_at":"2024-01-15T12:00:00Z"}
+```
+
+**Выход после timezone (Europe/Moscow):**
+```json
+{"id":1,"created_at":"2024-01-15T15:00:00+03:00"}
+```
+
 ## Ограничения
 
 - **Filter**: поддерживает истинность (`$.field`), равенство (`$.field == 'value'`) и неравенство (`$.field != 'value'`). Отсутствующее поле не проходит условие. Скриптовые выражения (AND/OR/Groovy/JS) не поддерживаются.
@@ -1560,6 +1622,7 @@ transformations:
 - **ExtractField**: отсутствующий путь и не-JSON → passthrough; корень может стать не-объектом (следующие object-only transforms сделают passthrough).
 - **HoistField**: ключ-обёртка — простое имя верхнего уровня (без точек); оборачивает любой JSON, включая массивы и примитивы.
 - **Cast**: отсутствующий путь → skip; неуспешный cast существующего значения → ошибка transform (сообщение пропускается, в sink не пишется; Kafka offset может уйти вперёд при следующем успехе). Типы: `string`, `int64`, `float64`, `bool`, `null`.
+- **Timezone**: только перечисленные `fields`; отсутствующее/null → skip; непарсабельное → ошибка transform (те же skip-on-error, что у cast). Форматы: `RFC3339`, `RFC3339Nano` (по умолчанию), `UnixMilli`. Не связана с `maintenance.timezone` и transform `timestamp`.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
 - **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
 - **HeadersToPayload**: нужны headers в `Metadata["headers"]` (Kafka source их выставляет); отсутствующие headers пропускаются; не-JSON payload не меняется.

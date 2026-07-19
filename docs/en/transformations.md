@@ -22,6 +22,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 | ExtractField | Replaces the payload with the value of one field | 1 message | 1 message |
 | HoistField | Wraps the entire payload under a single top-level key | 1 message | 1 message |
 | Cast | Converts field values to target types (`string` / `int64` / `float64` / `bool` / `null`) | 1 message | 1 message (or skip on cast error) |
+| Timezone | Converts temporal fields to a target IANA timezone or UTC offset | 1 message | 1 message (or skip on parse error) |
 
 ## Timestamp
 
@@ -1545,6 +1546,67 @@ transformations:
 
 Typical chain: `debeziumUnwrap` → `timezone` → `cast`, or `extractField` → `structFlatten` → `cast`.
 
+## Timezone
+
+Converts listed temporal fields to a target IANA timezone or fixed UTC offset (`±HH:MM`). Useful after `debeziumUnwrap` before JDBC sinks. Cardinality is 1→1. Metadata is unchanged. Non-JSON payloads are passed through.
+
+Does **not** interact with `spec.maintenance.timezone` and is distinct from the `timestamp` transform (which inserts wall-clock time).
+
+**Missing fields and JSON `null`** are skipped. **Unparseable values** return a transform error: the processor logs it, increments `dataflow_transformer_errors_total`, and **skips** the message (same skip-on-error semantics as `cast`).
+
+### Configuration
+
+```yaml
+transformations:
+  - type: timezone
+    config:
+      # Target IANA TZ or UTC offset (required)
+      timezone: Europe/Moscow
+      # Fields to convert (required, non-empty JSONPaths)
+      fields: [created_at, updated_at]
+      # Assumed source TZ when value has no offset (optional, default: UTC)
+      sourceTimezone: UTC
+      # Output layout (optional, default: RFC3339Nano). Also: RFC3339, UnixMilli
+      format: RFC3339
+```
+
+### Input forms
+
+| Input | Behavior |
+|-------|----------|
+| RFC3339 / RFC3339Nano string (with or without offset) | Parsed; offsetless values use `sourceTimezone` |
+| Epoch number or numeric string | Milliseconds if `\|n\| >= 1e12`, otherwise seconds |
+| Missing path / JSON `null` | Skipped |
+| Other values | Transform error |
+
+### Examples
+
+#### After debeziumUnwrap
+
+```yaml
+transformations:
+  - type: debeziumUnwrap
+  - type: timezone
+    config:
+      timezone: Europe/Moscow
+      fields: [created_at, updated_at]
+      format: RFC3339
+  - type: cast
+    config:
+      spec:
+        id: int64
+```
+
+**Input message:**
+```json
+{"id":1,"created_at":"2024-01-15T12:00:00Z"}
+```
+
+**Output after timezone (Europe/Moscow):**
+```json
+{"id":1,"created_at":"2024-01-15T15:00:00+03:00"}
+```
+
 ## Limitations
 
 - **Filter**: supports truthiness (`$.field`), equality (`$.field == 'value'`), and inequality (`$.field != 'value'`). Missing fields fail the condition. Scripted expressions (AND/OR/Groovy/JS) are not supported.
@@ -1554,6 +1616,7 @@ Typical chain: `debeziumUnwrap` → `timezone` → `cast`, or `extractField` →
 - **ExtractField**: missing path and non-JSON → passthrough; root may become a non-object (later object-only transforms will passthrough).
 - **HoistField**: wrapper key must be a simple top-level name (no dots); wraps any JSON value including arrays and primitives.
 - **Cast**: missing path → skip; failed conversion of an existing value → transform error (message skipped, not written to sink; Kafka offset may advance past it on later success). Types: `string`, `int64`, `float64`, `bool`, `null`.
+- **Timezone**: only listed `fields`; missing/null → skip; unparseable → transform error (same skip-on-error as cast). Formats: `RFC3339`, `RFC3339Nano` (default), `UnixMilli`. Not related to `maintenance.timezone` or the `timestamp` transform.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
 - **HeadersToPayload**: requires headers in `Metadata["headers"]` (Kafka source sets this); missing headers are skipped; non-JSON payloads are unchanged.
