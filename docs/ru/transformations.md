@@ -21,6 +21,7 @@ DataFlow Operator поддерживает трансформации сообщ
 | StructFlatten | Сплющивает вложенные JSON-объекты в одноуровневую карту | 1 сообщение | 1 сообщение |
 | ExtractField | Заменяет payload значением одного поля | 1 сообщение | 1 сообщение |
 | HoistField | Оборачивает весь payload под одним ключом верхнего уровня | 1 сообщение | 1 сообщение |
+| Cast | Приводит значения полей к целевым типам (`string` / `int64` / `float64` / `bool` / `null`) | 1 сообщение | 1 сообщение (или skip при ошибке cast) |
 
 ## Timestamp
 
@@ -1491,6 +1492,65 @@ transformations:
 
 Восстанавливает исходный payload.
 
+## Cast
+
+Приводит значения полей к заданным типам по JSONPath. Удобно после `debeziumUnwrap` / `structFlatten` перед JDBC и другими sinks со строгой схемой. Кардинальность 1→1. Metadata не меняется. Не-JSON проходит без изменений.
+
+**Отсутствующий путь** пропускается (не ошибка). **Неуспешный cast существующего значения** — ошибка transform: processor логирует, инкрементирует `dataflow_transformer_errors_total` и **пропускает** сообщение (в sink не пишется). Оператор не перезапускается. В Kafka failed offset этим сообщением не ack'ается; последующая успешная запись может продвинуть commit дальше (skip-on-error, не бесконечный retry на том же offset).
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: cast
+    config:
+      # Карта JSONPath → целевой тип (обязательна, непустая)
+      # Типы: string | int64 | float64 | bool | null
+      spec:
+        id: int64
+        amount: float64
+        active: bool
+        note: string
+        deleted_at: null    # принудительно JSON null
+```
+
+### Правила конверсии
+
+| Цель | Принимает | Ошибка на |
+|------|-----------|-----------|
+| `string` | скаляры (числа, bool, строки) | object, array, JSON `null` |
+| `int64` | целые, целые float, числовые строки | дробные числа, нечисловые значения |
+| `float64` | числа, числовые строки | нечисловые значения |
+| `bool` | bool; строки `true`/`false` (без учёта регистра); числа `0`/`1` | прочие значения |
+| `null` | любое существующее значение → JSON `null` | — |
+
+### Примеры
+
+#### После unwrap / flatten
+
+```yaml
+transformations:
+  - type: debeziumUnwrap
+  - type: cast
+    config:
+      spec:
+        id: int64
+        amount: float64
+        active: bool
+```
+
+**Входное сообщение:**
+```json
+{"id":"1","amount":"9.99","active":"true"}
+```
+
+**Выходное сообщение:**
+```json
+{"id":1,"amount":9.99,"active":true}
+```
+
+Типичная цепочка: `debeziumUnwrap` → `timezone` → `cast` или `extractField` → `structFlatten` → `cast`.
+
 ## Ограничения
 
 - **Filter**: поддерживает истинность (`$.field`), равенство (`$.field == 'value'`) и неравенство (`$.field != 'value'`). Отсутствующее поле не проходит условие. Скриптовые выражения (AND/OR/Groovy/JS) не поддерживаются.
@@ -1499,6 +1559,7 @@ transformations:
 - **StructFlatten**: сплющивание объектов 1→1; массивы сохраняются как значения (сначала array-`flatten`, если нужен explode). Максимальная глубина вложенности — 64.
 - **ExtractField**: отсутствующий путь и не-JSON → passthrough; корень может стать не-объектом (следующие object-only transforms сделают passthrough).
 - **HoistField**: ключ-обёртка — простое имя верхнего уровня (без точек); оборачивает любой JSON, включая массивы и примитивы.
+- **Cast**: отсутствующий путь → skip; неуспешный cast существующего значения → ошибка transform (сообщение пропускается, в sink не пишется; Kafka offset может уйти вперёд при следующем успехе). Типы: `string`, `int64`, `float64`, `bool`, `null`.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
 - **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
 - **HeadersToPayload**: нужны headers в `Metadata["headers"]` (Kafka source их выставляет); отсутствующие headers пропускаются; не-JSON payload не меняется.

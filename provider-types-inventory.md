@@ -48,6 +48,7 @@ Types:
 - `structFlatten`
 - `extractField`
 - `hoistField`
+- `cast`
 
 ## 2) Admission validation (Kubernetes webhook / CRD validation)
 
@@ -98,7 +99,7 @@ At runtime, **`dataflow/internal/processor/options.go`** (`buildSourceConnectorO
 File: **`dataflow-mcp/src/tools/reference.rs`**
 
 - `default_connectors_raw()` — documented fields for **list_dataflow_connectors** (sources/sinks).
-- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`, `extractField`, `hoistField`).
+- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`, `extractField`, `hoistField`, `cast`).
 
 ### Manifest tools
 
