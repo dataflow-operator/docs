@@ -17,6 +17,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 | CamelCase | Converts keys to CamelCase | 1 message | 1 message |
 | DebeziumUnwrap | Unwraps Debezium envelope into row payload | 1 message | 0 or 1 message |
 | ReplaceField | Renames fields; optional include/exclude without flattening | 1 message | 1 message |
+| HeadersToPayload | Copies Kafka/message headers into JSON payload fields | 1 message | 1 message |
 
 ## Timestamp
 
@@ -1250,13 +1251,58 @@ transformations:
 }
 ```
 
-## Planned transformations
+## HeadersToPayload
 
-The following are not yet available in the API (CRD):
+Copies Kafka (or other source) message headers from `Metadata["headers"]` into JSON payload fields. Useful for propagating tracing IDs, tenant keys, and other header values into the body before sinks that do not preserve Kafka headers.
 
-- **HeaderFrom** / **headersToPayload** — copy Kafka message headers into the message body
+The Kafka source populates `Metadata["headers"]` as a `map[string]string` when records have headers.
 
-Use the [Connectors](connectors.md) and [Examples](examples.md) for current capabilities.
+### Configuration
+
+```yaml
+transformations:
+  - type: headersToPayload
+    config:
+      # headerName:fieldPath mappings (required; at least one)
+      mappings:
+        - X-Request-Id:requestId
+        - X-Language:metadata.language
+```
+
+Missing headers are skipped (payload left unchanged for that mapping). Field paths support nested keys and optional `$.` prefix.
+
+### Examples
+
+#### Copy headers into payload
+
+```yaml
+transformations:
+  - type: headersToPayload
+    config:
+      mappings:
+        - X-Request-Id:requestId
+        - X-Language:metadata.language
+```
+
+**Input message:**
+```json
+{
+  "data": "value"
+}
+```
+
+**Headers:** `X-Request-Id=req-123`, `X-Language=en`
+
+**Output message:**
+```json
+{
+  "data": "value",
+  "requestId": "req-123",
+  "metadata": {
+    "language": "en"
+  }
+}
+```
 
 ## Limitations
 
@@ -1265,6 +1311,7 @@ Use the [Connectors](connectors.md) and [Examples](examples.md) for current capa
 - **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
+- **HeadersToPayload**: requires headers in `Metadata["headers"]` (Kafka source sets this); missing headers are skipped; non-JSON payloads are unchanged.
 - **SnakeCase** and **CamelCase**: work only with valid JSON; binary data is returned unchanged.
 - **DebeziumUnwrap**: supports Debezium JSON envelope (`payload.op/before/after`). For `operation=delete` in PostgreSQL sink, `softDeleteColumn` is required; otherwise delete events can be treated as regular insert/update writes.
 

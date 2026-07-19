@@ -17,6 +17,7 @@ DataFlow Operator поддерживает трансформации сообщ
 | CamelCase | Преобразует ключи в CamelCase | 1 сообщение | 1 сообщение |
 | DebeziumUnwrap | Распаковывает Debezium envelope в строку таблицы | 1 сообщение | 0 или 1 сообщение |
 | ReplaceField | Переименовывает поля; опционально include/exclude без сплющивания | 1 сообщение | 1 сообщение |
+| HeadersToPayload | Копирует заголовки Kafka/сообщения в поля JSON payload | 1 сообщение | 1 сообщение |
 
 ## Timestamp
 
@@ -1256,13 +1257,58 @@ transformations:
 }
 ```
 
-## Планируемые трансформации
+## HeadersToPayload
 
-В API (CRD) пока недоступны:
+Копирует заголовки Kafka (или другого source) из `Metadata["headers"]` в поля JSON payload. Удобно для проброса tracing ID, tenant-ключей и других header-значений в тело сообщения перед sinks, которые не сохраняют Kafka headers.
 
-- **HeaderFrom** / **headersToPayload** — копирование заголовков Kafka в тело сообщения
+Kafka source заполняет `Metadata["headers"]` как `map[string]string`, если у записи есть headers.
 
-Актуальные возможности см. в [Коннекторы](connectors.md) и [Примеры](examples.md).
+### Конфигурация
+
+```yaml
+transformations:
+  - type: headersToPayload
+    config:
+      # маппинги headerName:fieldPath (обязательно; минимум один)
+      mappings:
+        - X-Request-Id:requestId
+        - X-Language:metadata.language
+```
+
+Отсутствующие headers пропускаются (payload для этого маппинга не меняется). Пути полей поддерживают вложенность и опциональный префикс `$.`.
+
+### Примеры
+
+#### Копирование headers в payload
+
+```yaml
+transformations:
+  - type: headersToPayload
+    config:
+      mappings:
+        - X-Request-Id:requestId
+        - X-Language:metadata.language
+```
+
+**Входное сообщение:**
+```json
+{
+  "data": "value"
+}
+```
+
+**Headers:** `X-Request-Id=req-123`, `X-Language=en`
+
+**Выходное сообщение:**
+```json
+{
+  "data": "value",
+  "requestId": "req-123",
+  "metadata": {
+    "language": "en"
+  }
+}
+```
 
 ## Ограничения
 
@@ -1271,5 +1317,6 @@ transformations:
 - **Flatten**: работает только с массивами (в т.ч. в обёртке Avro с ключом `array`), не с произвольными объектами.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
 - **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
+- **HeadersToPayload**: нужны headers в `Metadata["headers"]` (Kafka source их выставляет); отсутствующие headers пропускаются; не-JSON payload не меняется.
 - **SnakeCase** и **CamelCase**: работают только с валидным JSON; бинарные данные возвращаются без изменений.
 - **DebeziumUnwrap**: поддерживает Debezium JSON envelope (`payload.op/before/after`). Для `operation=delete` в PostgreSQL sink требуется `softDeleteColumn`, иначе событие может быть обработано как обычная вставка/апдейт.
