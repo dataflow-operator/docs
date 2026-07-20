@@ -23,6 +23,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 | HoistField | Wraps the entire payload under a single top-level key | 1 message | 1 message |
 | Cast | Converts field values to target types (`string` / `int64` / `float64` / `bool` / `null`) | 1 message | 1 message (or skip on cast error) |
 | Timezone | Converts temporal fields to a target IANA timezone or UTC offset | 1 message | 1 message (or skip on parse error) |
+| InsertField | Inserts or overwrites fields with literals, `${metadata.*}`, `${now}`, or `json:<raw>` | 1 message | 1 message |
 
 ## Timestamp
 
@@ -1643,6 +1644,61 @@ transformations:
 {"id":1,"created_at":"2024-01-15T15:00:00+03:00"}
 ```
 
+## InsertField
+
+Inserts or overwrites JSON fields with static literals, Kafka/record metadata placeholders, wall-clock time, or raw JSON values. Analogous to Kafka Connect `InsertField$Value`, but with DataFlow metadata and `json:` literals. Cardinality is 1→1. Metadata is unchanged. Non-JSON payloads are passed through.
+
+Distinct from `timestamp` (single configurable now field) and `headersToPayload` (headers → body only).
+
+### Configuration
+
+```yaml
+transformations:
+  - type: insertField
+    config:
+      fields:
+        pipeline: "orders-cdc"                 # literal string
+        source_topic: "${metadata.topic}"      # metadata placeholder
+        source_partition: "${metadata.partition}"
+        source_offset: "${metadata.offset}"
+        source_timestamp: "${metadata.timestamp}"
+        ingested_at: "${now}"                  # wall-clock RFC3339
+        "flags.reprocessed": "json:false"      # raw JSON value
+```
+
+### Value syntax
+
+| Value | Result |
+|-------|--------|
+| any other string | written as a JSON string literal |
+| `${metadata.<key>}` | string form of `Metadata[key]`; missing/nil → `""` |
+| `${now}` | `time.Now()` formatted as RFC3339 |
+| `json:<raw>` | parsed JSON written as a native value (`false`, `42`, objects, arrays) |
+
+Common metadata keys from Kafka source: `topic`, `partition`, `offset`, `timestamp`. Invalid `json:` content is a transform error (message skipped).
+
+### Examples
+
+#### Enrich with pipeline context
+
+```yaml
+transformations:
+  - type: insertField
+    config:
+      fields:
+        pipeline: "orders-cdc"
+        source_topic: "${metadata.topic}"
+        ingested_at: "${now}"
+        "flags.reprocessed": "json:false"
+  - type: snakeCase
+    config:
+      deep: true
+```
+
+**Input:** `{"id":1,"Name":"A"}` with metadata `topic=raw.events`  
+**After insertField:** fields `pipeline`, `source_topic`, `ingested_at`, `flags.reprocessed` added  
+**After snakeCase:** keys converted to snake_case
+
 ## Limitations
 
 - **Filter**: supports truthiness (`$.field`), equality (`$.field == 'value'`), and inequality (`$.field != 'value'`). Missing fields fail the condition. Scripted expressions (AND/OR/Groovy/JS) are not supported.
@@ -1653,6 +1709,7 @@ transformations:
 - **HoistField**: wrapper key must be a simple top-level name (no dots); wraps any JSON value including arrays and primitives.
 - **Cast**: missing path → skip; failed conversion of an existing value → transform error (message skipped, not written to sink; Kafka offset may advance past it on later success). Types: `string`, `int64`, `float64`, `bool`, `null`.
 - **Timezone**: only listed `fields`; missing/null → skip; unparseable → transform error (same skip-on-error as cast). Formats: `RFC3339`, `RFC3339Nano` (default), `UnixMilli`. Not related to `maintenance.timezone` or the `timestamp` transform.
+- **InsertField**: non-JSON → passthrough; missing metadata → empty string; invalid `json:` → transform error. Distinct from `timestamp` and `headersToPayload`.
 - **Select**: result is always flat; the key is the last JSONPath segment.
 - **ReplaceField**: `include` preserves nesting (unlike `select`); `include` and `exclude` are mutually exclusive.
 - **HeadersToPayload**: requires headers in `Metadata["headers"]` (Kafka source sets this); missing headers are skipped; non-JSON payloads are unchanged.

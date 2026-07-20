@@ -23,6 +23,7 @@ DataFlow Operator поддерживает трансформации сообщ
 | HoistField | Оборачивает весь payload под одним ключом верхнего уровня | 1 сообщение | 1 сообщение |
 | Cast | Приводит значения полей к целевым типам (`string` / `int64` / `float64` / `bool` / `null`) | 1 сообщение | 1 сообщение (или skip при ошибке cast) |
 | Timezone | Конвертирует temporal-поля в целевую IANA-зону или UTC offset | 1 сообщение | 1 сообщение (или skip при ошибке парсинга) |
+| InsertField | Вставляет или перезаписывает поля: литералы, `${metadata.*}`, `${now}`, `json:<raw>` | 1 сообщение | 1 сообщение |
 
 ## Timestamp
 
@@ -1649,6 +1650,61 @@ transformations:
 {"id":1,"created_at":"2024-01-15T15:00:00+03:00"}
 ```
 
+## InsertField
+
+Вставляет или перезаписывает JSON-поля литералами, плейсхолдерами metadata записи, текущим временем или сырым JSON. Аналог Kafka Connect `InsertField$Value` с metadata DataFlow и префиксом `json:`. Кардинальность 1→1. Metadata не меняется. Не-JSON проходит без изменений.
+
+Не путать с `timestamp` (одно поле now) и `headersToPayload` (только headers → body).
+
+### Конфигурация
+
+```yaml
+transformations:
+  - type: insertField
+    config:
+      fields:
+        pipeline: "orders-cdc"                 # литерал
+        source_topic: "${metadata.topic}"      # плейсхолдер metadata
+        source_partition: "${metadata.partition}"
+        source_offset: "${metadata.offset}"
+        source_timestamp: "${metadata.timestamp}"
+        ingested_at: "${now}"                  # wall-clock RFC3339
+        "flags.reprocessed": "json:false"      # сырое JSON-значение
+```
+
+### Синтаксис значений
+
+| Значение | Результат |
+|----------|-----------|
+| любая другая строка | JSON-строка |
+| `${metadata.<key>}` | строковое представление `Metadata[key]`; нет/nil → `""` |
+| `${now}` | `time.Now()` в формате RFC3339 |
+| `json:<raw>` | распарсенный JSON как нативное значение (`false`, `42`, объекты, массивы) |
+
+Типичные ключи metadata у Kafka source: `topic`, `partition`, `offset`, `timestamp`. Невалидный `json:` — ошибка transform (сообщение пропускается).
+
+### Примеры
+
+#### Обогащение контекстом пайплайна
+
+```yaml
+transformations:
+  - type: insertField
+    config:
+      fields:
+        pipeline: "orders-cdc"
+        source_topic: "${metadata.topic}"
+        ingested_at: "${now}"
+        "flags.reprocessed": "json:false"
+  - type: snakeCase
+    config:
+      deep: true
+```
+
+**Вход:** `{"id":1,"Name":"A"}` с metadata `topic=raw.events`  
+**После insertField:** добавлены `pipeline`, `source_topic`, `ingested_at`, `flags.reprocessed`  
+**После snakeCase:** ключи в snake_case
+
 ## Ограничения
 
 - **Filter**: поддерживает истинность (`$.field`), равенство (`$.field == 'value'`) и неравенство (`$.field != 'value'`). Отсутствующее поле не проходит условие. Скриптовые выражения (AND/OR/Groovy/JS) не поддерживаются.
@@ -1659,6 +1715,7 @@ transformations:
 - **HoistField**: ключ-обёртка — простое имя верхнего уровня (без точек); оборачивает любой JSON, включая массивы и примитивы.
 - **Cast**: отсутствующий путь → skip; неуспешный cast существующего значения → ошибка transform (сообщение пропускается, в sink не пишется; Kafka offset может уйти вперёд при следующем успехе). Типы: `string`, `int64`, `float64`, `bool`, `null`.
 - **Timezone**: только перечисленные `fields`; отсутствующее/null → skip; непарсабельное → ошибка transform (те же skip-on-error, что у cast). Форматы: `RFC3339`, `RFC3339Nano` (по умолчанию), `UnixMilli`. Не связана с `maintenance.timezone` и transform `timestamp`.
+- **InsertField**: не-JSON → passthrough; нет metadata → пустая строка; невалидный `json:` → ошибка transform. Отличается от `timestamp` и `headersToPayload`.
 - **Select**: результат всегда плоский; ключом становится последний сегмент JSONPath.
 - **ReplaceField**: `include` сохраняет вложенность (в отличие от `select`); `include` и `exclude` взаимоисключающие.
 - **HeadersToPayload**: нужны headers в `Metadata["headers"]` (Kafka source их выставляет); отсутствующие headers пропускаются; не-JSON payload не меняется.

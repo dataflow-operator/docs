@@ -50,6 +50,7 @@ Types:
 - `hoistField`
 - `cast`
 - `timezone`
+- `insertField`
 
 ## 2) Admission validation (Kubernetes webhook / CRD validation)
 
@@ -100,7 +101,7 @@ At runtime, **`dataflow/internal/processor/options.go`** (`buildSourceConnectorO
 File: **`dataflow-mcp/src/tools/reference.rs`**
 
 - `default_connectors_raw()` — documented fields for **list_dataflow_connectors** (sources/sinks).
-- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`, `extractField`, `hoistField`, `cast`, `timezone`).
+- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`, `extractField`, `hoistField`, `cast`, `timezone`, `insertField`).
 
 ### Manifest tools
 
@@ -137,7 +138,7 @@ Must stay aligned with `transformtypes.All()` / MCP `default_transformations_raw
 
 - `timestamp`, `flatten`, `filter`, `mask`, `router`, `select`, `remove`, `snakeCase`, `camelCase`
 - `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`
-- `extractField`, `hoistField`, `cast`, `timezone`
+- `extractField`, `hoistField`, `cast`, `timezone`, `insertField`
 
 Related UI surfaces (forms + locales):
 
