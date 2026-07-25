@@ -321,8 +321,11 @@ spec:
 spec:
   # checkpointPersistence not needed for Kafka
   # uses consumer group offset
-  ackGranularity: message  # for minimal duplicates
+  ackGranularity: message              # faster offset commit
+  collapseBatchOnMessageAck: false     # keep sink.config.batchSize for throughput
 ```
+
+Details: [Fault Tolerance — decoupling ack and sink batch](fault-tolerance.md#decoupling-ack-and-sink-batch-speccollapsebatchonmessageack).
 
 ### Graceful Shutdown
 
@@ -562,7 +565,7 @@ watch kubectl top pods -l app=dataflow-processor
 - [ ] For CPU-heavy transforms: `transformWorkers` tuned (keep `1` if transforms are cheap)
 - [ ] Error sink configured
 - [ ] Resources (requests/limits) set
-- [ ] `batchSize` / `ackGranularity` balanced
+- [ ] `batchSize` / `ackGranularity` / `collapseBatchOnMessageAck` balanced (message ack does not have to mean `batchSize: 1`)
 - [ ] For Trino: `queryTimeoutSeconds` with margin
 
 ### Post-Deployment

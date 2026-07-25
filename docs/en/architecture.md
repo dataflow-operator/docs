@@ -182,6 +182,8 @@ flowchart LR
 
 **Ack / ordering.** Source ack is a **barrier**: the parent message is marked done only after every derived output is acked (1→N fan-out). Filter drops (0 outputs) ack immediately. With `transformWorkers > 1`, a reorder buffer ensures sink writes and ack eligibility still follow input sequence.
 
+**Ack vs sink batch size.** `spec.ackGranularity` controls *when* source progress is committed (`batch` vs `message`). Separately, `spec.collapseBatchOnMessageAck` (default `true`) decides whether `message` ack also forces sink `MaxBatchSize = 1`. Set it to `false` to keep bulk sink writes while still acking each message after a successful flush. Details: [Fault Tolerance — decoupling ack and sink batch](fault-tolerance.md#decoupling-ack-and-sink-batch-speccollapsebatchonmessageack).
+
 **Double-buffer flush.** While batch N is flushing, the loop continues reading into batch N+1 (memory bounded to one in-flight flush + one active batch). Flush/ack order is preserved. Connectors that use a custom write loop (e.g. PostgreSQL) are unchanged until they adopt the same pattern.
 
 **Horizontal scale (`replicas`).** Admission allows `replicas > 1` **only for Kafka** sources. Polling, CDC, Iceberg/Nessie, and plugin sources must stay at **1** replica — scale via `resources`, `channelBufferSize`, `transformWorkers`, and `readBatchSize` / `batchSize`. `DataFlowCron` always rejects `replicas > 1`.

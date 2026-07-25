@@ -75,34 +75,170 @@ PostgreSQL, ClickHouse и Trino sink пишут батчами. Последов
 - При перезапуске: перечитывание → **дублирование записей в sink** (безопасно с идемпотентным sink)
 
 !!! tip "Уменьшение окна дубликатов"
-    Задайте `ackGranularity: message` для ack после каждого сообщения (эффективный `batchSize: 1` для batch sink) или уменьшите `batchSize` при `ackGranularity: batch` (по умолчанию).
+    Предпочтительнее меньший sink `batchSize` при `ackGranularity: batch`, либо `ackGranularity: message`.
+    При message-ack решите, сохранять ли bulk-запись через [`collapseBatchOnMessageAck`](#развязка-ack-и-sink-batch-speccollapsebatchonmessageack).
 
 ## Гранулярность ack (`spec.ackGranularity`)
 
-Управляет моментом коммита offset источника относительно записи в sink:
+Управляет **моментом**, когда offset / checkpoint источника считаются зафиксированными относительно записи в sink.
+Это *watermark доставки* для источника — не физический размер write-batch sink.
 
 | Значение | Поведение |
 |----------|-----------|
-| `batch` (по умолчанию) | Batch sink ack'ает все сообщения после успешного flush. Kafka source полагается на auto-commit consumer group после `MarkMessage`. |
-| `message` | Каждое сообщение ack'ается сразу после успешной записи. Batch sink сбрасывает по одному сообщению. Kafka source вызывает `Commit()` после каждого mark для быстрой фиксации offset. |
+| `batch` (по умолчанию) | После успешного flush batch sink все сообщения батча ack'аются вместе. Kafka source полагается на auto-commit consumer group после `MarkMessage`. |
+| `message` | После успешной записи каждое сообщение ack'ается отдельно. Для Kafka source после каждого mark вызывается `Commit()`, чтобы offset consumer group продвигался быстрее. |
 
-Рекомендуется для **Kafka → batch sink**, когда нужно сузить окно re-read без ручной настройки `batchSize`:
+Kafka **sink** всегда ack'ает по сообщению на produce-пути, независимо от `ackGranularity`.
+
+!!! tip "Длительные INSERT в Trino"
+    Для крупных JSON и таблиц Iceberg/Nessie держите `batchSize` небольшим (часто `1`) и задавайте `sink.config.queryTimeoutSeconds` так, чтобы покрыть всё время выполнения запроса (включая polling `nextUri`).
+    Таймаут на этапе `nextUri` может произойти уже после старта INSERT в Trino, поэтому повторный запуск может дать дубликаты.
+
+## Развязка ack и sink batch (`spec.collapseBatchOnMessageAck`) { #развязка-ack-и-sink-batch-speccollapsebatchonmessageack }
+
+Исторически `ackGranularity: message` также **принудительно** заставлял batch sink сбрасывать по одной строке
+(`MaxBatchSize = 1`). Это сужает окно дубликатов, но убивает throughput sink
+(N round-trip / N statement вместо одной bulk-записи).
+
+`collapseBatchOnMessageAck` делает эту связь **опциональной**:
+
+| Значение | Поведение |
+|----------|-----------|
+| `true` (по умолчанию) | Legacy-связь. При `ackGranularity: message` sink принудительно ставит `MaxBatchSize = 1`, игнорируя `sink.config.batchSize`. |
+| `false` | Развязка. Sink сохраняет `sink.config.batchSize` (и flush interval). После **успешного bulk flush** процессор всё равно делает **per-message** source ack (mark / `Commit()` / checkpoint notify). |
+| *(игнорируется)* | При `ackGranularity: batch` поле не влияет на размер батча. |
+
+### Что контролирует каждый параметр
+
+```mermaid
+flowchart LR
+  subgraph semantic["Семантика доставки"]
+    AG["ackGranularity\nbatch | message"]
+  end
+  subgraph physical["Физический IO sink"]
+    BS["sink.config.batchSize\n+ flush interval"]
+    CB["collapseBatchOnMessageAck\ntrue → force size 1"]
+  end
+  AG -->|"когда Ack / Commit"| SourceState["Kafka offset /\ncheckpoint progress"]
+  BS --> Flush["Bulk или single-row write"]
+  CB -->|"только если ack=message"| Flush
+  Flush -->|"OnAck после успеха"| AG
+```
+
+| Параметр | Контролирует | **Не** контролирует |
+|----------|--------------|---------------------|
+| `ackGranularity` | Когда фиксируется прогресс источника (на батч vs на сообщение после успешной записи) | Сколько строк уходит в один INSERT/Append |
+| `sink.config.batchSize` | Целевой размер физического write-batch (и часто таймер flush) | Вызывается ли Kafka `Commit()` на каждый mark |
+| `collapseBatchOnMessageAck` | Переопределяет ли message-ack `batchSize` в `1` | Сам debounce checkpoint / факт включения `checkpointSyncOnAck` |
+
+### Матрица режимов
+
+| `ackGranularity` | `collapseBatchOnMessageAck` | Эффективный sink batch | Source ack после flush | Типичный кейс |
+|------------------|----------------------------|------------------------|------------------------|---------------|
+| `batch` | любое | `batchSize` | Один проход ack на весь батч | Default / высокий throughput |
+| `message` | `true` (по умолчанию) | **Принудительно `1`** | На каждое сообщение (и Kafka `Commit` на mark) | Минимальное окно re-read; небольшой объём |
+| `message` | `false` | `batchSize` | На каждое сообщение **после** успеха bulk | Высокий throughput + более быстрый offset commit |
+
+### Последовательность в runtime (`message` + `collapseBatchOnMessageAck: false`)
+
+1. Sink накапливает до `batchSize` (или срабатывает flush interval).
+2. Один bulk `OnFlush` пишет батч (транзакция / multi-VALUES / columnar insert — зависит от коннектора).
+3. При успехе `AckAfterSuccessfulWrite` проходит по батчу и ack'ает **каждое** сообщение.
+4. Для Kafka source: каждый ack → `MarkMessage` + `Commit()` (message granularity).
+5. При `checkpointSyncOnAck: true` каждый ack может инициировать flush ConfigMap (с coalescing по `checkpointSaveInterval`).
+
+Если шаг 2 падает, **ни одно** сообщение батча не ack'ается → at-least-once перечитывание всего батча при рестарте (нужен идемпотентный sink).
+
+```mermaid
+sequenceDiagram
+  participant Src as Source
+  participant Sink as Batch sink
+  participant Ack as Ack / Commit
+  Src->>Sink: msg 1..N (канал)
+  Note over Sink: накопление до batchSize
+  Sink->>Sink: bulk OnFlush
+  alt flush OK
+    loop каждое сообщение
+      Sink->>Ack: Ack(msg i)
+      Ack->>Src: Mark / Commit / checkpoint notify
+    end
+  else ошибка flush
+    Note over Sink,Ack: без ack — весь батч может replay
+  end
+```
+
+### Окно дубликатов и семантика при crash
+
+Предположим crash **после** успешной записи в sink, но **до** завершения всех source ack:
+
+| Режим | Худшее окно re-read (примерно) |
+|-------|--------------------------------|
+| `ackGranularity: batch` | До одного полного sink batch |
+| `message` + collapse `true` | ~1 сообщение (write и ack 1:1) |
+| `message` + collapse `false` | Сообщения из in-flight bulk, уже записанные, но ещё не индивидуально ack'нутые (обычно мало; всё равно **≤ batchSize**) |
+
+At-least-once сохраняется во всех режимах: ack никогда не раньше успешной записи в sink.
+Идемпотентные sink (`upsertMode` + `conflictKey`, ReplacingMergeTree и т.п.) по-прежнему нужны, если дубликаты недопустимы.
+
+### Какие sink учитывают collapse / batchSize
+
+`collapseBatchOnMessageAck` применяется при сборке write loop для batch-ориентированных sink:
+
+- PostgreSQL
+- ClickHouse
+- Trino
+- Nessie / Iceberg
+
+Kafka sink не использует этот batching helper; поведение produce/ack отдельное.
+
+### Взаимодействие с `checkpointSyncOnAck`
+
+- Checkpoint polling / CDC: `Save` кладёт состояние в память; `checkpointSyncOnAck: true` вызывает `FlushAfterBatchAck` после ack (ConfigMap Get+Patch), с coalescing по `checkpointSaveInterval` (по умолчанию `30s`).
+- При `ackGranularity: message` и collapse `false` на один bulk flush приходится **много** ack-колбэков → больше *попыток* flush, но coalesce ограничивает частоту API.
+- Связка **высокий объём** + `message` + `checkpointSyncOnAck: true` без учёта coalesce всё ещё может нагружать API server; для migration/cron чаще достаточно `batch` ack, либо sync-on-ack с разумным `checkpointSaveInterval`.
+
+### Как выбрать режим
+
+| Цель | Рекомендация |
+|------|--------------|
+| Обычный streaming | `ackGranularity: batch`, тюнить `batchSize` |
+| Минимальное окно дубликатов, низкий/средний объём | `ackGranularity: message` (collapse по умолчанию `true`) |
+| Высокий Kafka → ClickHouse/Postgres throughput **и** быстрый offset commit | `ackGranularity: message` + `collapseBatchOnMessageAck: false` + крупный `batchSize` + идемпотентный sink |
+| Migration / cron polling | Часто `checkpointSyncOnAck: true` + идемпотентный sink; `ackGranularity: batch`, если не нужны message-level marks |
+
+### Примеры
+
+**Legacy message-ack (батч схлопнут до 1):**
 
 ```yaml
 spec:
   ackGranularity: message
+  # collapseBatchOnMessageAck: true  # по умолчанию
   sink:
     type: postgresql
     config:
       upsertMode: true
       conflictKey: material_id
+      batchSize: 100   # игнорируется, пока collapse = true
 ```
 
-Kafka sink всегда ack'ает по сообщению независимо от этой настройки.
+**Высокий throughput: message ack без схлопывания sink batch:**
 
-!!! tip "Длительные INSERT в Trino"
-    Для крупных JSON и таблиц Iceberg/Nessie держите `batchSize` небольшим (часто `1`) и задавайте `sink.config.queryTimeoutSeconds` так, чтобы покрыть всё время выполнения запроса (включая polling `nextUri`).
-    Таймаут на этапе `nextUri` может произойти уже после старта INSERT в Trino, поэтому повторный запуск может дать дубликаты.
+```yaml
+spec:
+  channelBufferSize: 1000
+  ackGranularity: message
+  collapseBatchOnMessageAck: false
+  sink:
+    type: clickhouse
+    config:
+      batchSize: 1000
+      batchFlushIntervalSeconds: 5
+      upsertMode: true
+      conflictKey: event_id
+```
+
+См. также sample `dataflow/config/samples/kafka-to-clickhouse-high-volume.yaml` и [Примеры — high volume](examples.md).
 
 ## Настройка идемпотентного sink
 
@@ -178,8 +314,8 @@ Producer Kafka использует `RequiredAcks = WaitForAll` и `Producer.Ide
 ## Рекомендации
 
 1. **Используйте идемпотентные sink** для PostgreSQL (UPSERT), ClickHouse (`upsertMode` / ReplacingMergeTree) и Trino Iceberg (MERGE) при polling источниках или когда возможны дубликаты.
-2. **Kafka источник**: Consumer group хранит offset; at-least-once сохраняется. Идемпотентный sink для batch sink. `ackGranularity: message` сужает окно re-read.
-3. **batchSize** / **ackGranularity**: Меньшие батчи или `ackGranularity: message` уменьшают окно дубликатов. Баланс с throughput.
+2. **Kafka источник**: Consumer group хранит offset; at-least-once сохраняется. Идемпотентный sink для batch sink. `ackGranularity: message` сужает окно re-read; добавьте `collapseBatchOnMessageAck: false`, если нужен крупный sink `batchSize`.
+3. **batchSize** / **ackGranularity** / **collapseBatchOnMessageAck**: Watermark доставки и физический размер записи — разные рычаги; см. [Развязка ack и sink batch](#развязка-ack-и-sink-batch-speccollapsebatchonmessageack).
 4. **Migration / cron**: `checkpointSyncOnAck: true`, идемпотентный sink, при наличии колонки версии — `upsertStrategy: ifNewer`.
 5. **Trino `queryTimeoutSeconds`**: Таймаут с запасом под пиковую нагрузку.
 6. **batchFlushIntervalSeconds**: Меньшие интервалы чаще сбрасывают батч.
@@ -286,7 +422,7 @@ metadata:
 | PostgreSQL sink | `upsertMode: true` + `conflictKey`; `upsertStrategy: ifNewer` при колонке версии |
 | ClickHouse sink | `upsertMode: true` или ручной `ReplacingMergeTree` + `ORDER BY` |
 | Trino sink (Iceberg) | `upsertMode: true` + `conflictKey` |
-| Kafka → batch sink | `ackGranularity: message` или меньший `batchSize` + идемпотентный sink |
+| Kafka → batch sink | `ackGranularity: message` (+ опционально `collapseBatchOnMessageAck: false` для throughput) или меньший `batchSize` + идемпотентный sink |
 | Kafka источник | Идемпотентный sink; `ackGranularity: message` для быстрого commit offset |
 | Polling источники | Идемпотентный sink; `checkpointSyncOnAck: true` для migration/cron |
-| batchSize | Меньшие значения или `ackGranularity: message` |
+| batchSize vs ack | Держите раздельно: см. `collapseBatchOnMessageAck` — message-ack не всегда означает `batchSize: 1` |

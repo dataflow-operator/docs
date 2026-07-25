@@ -1584,7 +1584,27 @@ kubectl logs -l app.kubernetes.io/name=dataflow-operator | grep -i secret
 
 #### ackGranularity
 
-Момент коммита offset / checkpoint относительно записи в sink: `batch` (по умолчанию) или `message`. При `message` batch sink сбрасывает по одному сообщению, Kafka source сразу коммитит offset. См. [Отказоустойчивость — гранулярность ack](fault-tolerance.md#гранулярность-ack-specackgranularity).
+Момент коммита offset / checkpoint относительно записи в sink: `batch` (по умолчанию) или `message`.
+
+- **`batch`** — ack всего sink flush целиком (путь по умолчанию для throughput).
+- **`message`** — ack каждого сообщения после успешной записи; Kafka source вызывает `Commit()` после каждого mark.
+
+При `collapseBatchOnMessageAck: true` (по умолчанию) `message` также принудительно ставит batch sink в `MaxBatchSize = 1`. При `collapseBatchOnMessageAck: false` сохраняется `sink.config.batchSize`, а per-message ack идёт после bulk flush.
+
+Полная семантика, матрица режимов, окна crash и взаимодействие с checkpoint:
+[Отказоустойчивость — гранулярность ack](fault-tolerance.md#гранулярность-ack-specackgranularity) и
+[Развязка ack и sink batch](fault-tolerance.md#развязка-ack-и-sink-batch-speccollapsebatchonmessageack).
+
+#### collapseBatchOnMessageAck
+
+Управляет тем, **переопределяет** ли `ackGranularity: message` batching sink:
+
+| Значение | Эффект |
+|----------|--------|
+| `true` (по умолчанию) | Legacy: принудительно `MaxBatchSize = 1` при ack `message`. |
+| `false` | Сохранить `sink.config.batchSize` / flush interval; после успешной bulk-записи всё равно per-message source ack. |
+
+Игнорируется при `ackGranularity: batch`. Применяется к sink PostgreSQL, ClickHouse, Trino, Nessie и Iceberg.
 
 #### checkpointSyncOnAck и checkpointSaveInterval
 

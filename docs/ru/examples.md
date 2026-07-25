@@ -871,8 +871,9 @@ metadata:
 spec:
   # Увеличиваем буфер канала для высокой нагрузки
   channelBufferSize: 1000
-  # Message-level ack для сужения окна возможных дубликатов
+  # Message-level ack без схлопывания ClickHouse bulk insert
   ackGranularity: message
+  collapseBatchOnMessageAck: false
   source:
     type: kafka
     config:
@@ -909,9 +910,9 @@ kubectl apply -f dataflow/config/samples/kafka-to-clickhouse-high-volume.yaml
 - `channelBufferSize: 1000` — увеличенный буфер между source и sink
 - `transformWorkers: 4` — опционально; параллельные transforms с сохранением порядка (оставьте `1`, если transforms дешёвые)
 - `batchSize: 1000` — большие batches для эффективной записи в ClickHouse
-- `ackGranularity: message` — быстрый commit offset для уменьшения дубликатов
+- `ackGranularity: message` + `collapseBatchOnMessageAck: false` — per-message commit Kafka offset **без** схлопывания sink batch до 1 (см. [Отказоустойчивость — развязка ack и batch](fault-tolerance.md#развязка-ack-и-sink-batch-speccollapsebatchonmessageack))
 - Увеличенные CPU/memory limits для обработки больших batches
-
+- Идемпотентный sink (`upsertMode` + `conflictKey`) — обязателен: at-least-once всё ещё может replay после crash
 ## Dead Letter Queue (DLQ) Pattern
 
 Пример реализации паттерна Dead Letter Queue для обработки ошибочных сообщений. Невалидные или ошибочные сообщения направляются в отдельный Kafka топик для последующего анализа.

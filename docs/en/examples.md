@@ -472,6 +472,7 @@ metadata:
 spec:
   channelBufferSize: 1000
   ackGranularity: message
+  collapseBatchOnMessageAck: false
   source:
     type: kafka
     config:
@@ -507,9 +508,9 @@ kubectl apply -f dataflow/config/samples/kafka-to-clickhouse-high-volume.yaml
 - `channelBufferSize: 1000` — increased buffer between source and sink
 - `transformWorkers: 4` — optional; parallel transforms with ordered emit (keep `1` if transforms are cheap)
 - `batchSize: 1000` — large batches for efficient ClickHouse writes
-- `ackGranularity: message` — fast offset commit to reduce duplicates
+- `ackGranularity: message` + `collapseBatchOnMessageAck: false` — per-message Kafka offset commit **without** collapsing the sink batch to 1 (see [Fault Tolerance — decoupling ack and batch](fault-tolerance.md#decoupling-ack-and-sink-batch-speccollapsebatchonmessageack))
 - Increased CPU/memory limits for processing large batches
-
+- Idempotent sink (`upsertMode` + `conflictKey`) — required because at-least-once can still replay after crash
 ## Dead Letter Queue (DLQ) Pattern
 
 Example implementing the Dead Letter Queue pattern for handling invalid or error messages. Failed messages are routed to a separate Kafka topic for later analysis.

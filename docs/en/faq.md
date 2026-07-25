@@ -118,7 +118,10 @@ DataFlow provides **at-least-once** delivery semantics. Duplicates can occur dur
    ```yaml
    spec:
      ackGranularity: message
+     # Optional: keep bulk sink writes while still committing offsets per message
+     collapseBatchOnMessageAck: false
    ```
+   See [Fault Tolerance — decoupling ack and sink batch](fault-tolerance.md#decoupling-ack-and-sink-batch-speccollapsebatchonmessageack).
 
 3. **Application-level deduplication:**
    - Use unique constraints in the database

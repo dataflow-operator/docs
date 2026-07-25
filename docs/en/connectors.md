@@ -1256,7 +1256,27 @@ Buffer size for message channels between source, processor, and sink (default 10
 
 #### ackGranularity
 
-When source offsets / checkpoints are committed relative to sink writes: `batch` (default) or `message`. With `message`, batch sinks flush one row at a time and Kafka source commits offsets immediately after each ack. See [Fault Tolerance — Ack granularity](fault-tolerance.md#ack-granularity-specackgranularity).
+When source offsets / checkpoints are committed relative to sink writes: `batch` (default) or `message`.
+
+- **`batch`** — ack the whole sink flush together (default throughput path).
+- **`message`** — ack each message after a successful write; Kafka source calls `Commit()` after each mark.
+
+With the default `collapseBatchOnMessageAck: true`, `message` also forces batch sinks to `MaxBatchSize = 1`. Set `collapseBatchOnMessageAck: false` to keep `sink.config.batchSize` while still acking per message after the bulk flush.
+
+Full semantics, mode matrix, crash windows, and checkpoint interaction:
+[Fault Tolerance — Ack granularity](fault-tolerance.md#ack-granularity-specackgranularity) and
+[Decoupling ack and sink batch](fault-tolerance.md#decoupling-ack-and-sink-batch-speccollapsebatchonmessageack).
+
+#### collapseBatchOnMessageAck
+
+Controls whether `ackGranularity: message` **overrides** sink batching:
+
+| Value | Effect |
+|-------|--------|
+| `true` (default) | Legacy: force sink `MaxBatchSize = 1` when ack is `message`. |
+| `false` | Keep `sink.config.batchSize` / flush interval; after successful bulk write, still run per-message source ack. |
+
+Ignored when `ackGranularity` is `batch`. Applies to PostgreSQL, ClickHouse, Trino, Nessie, and Iceberg sinks.
 
 #### checkpointSyncOnAck and checkpointSaveInterval
 

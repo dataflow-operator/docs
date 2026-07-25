@@ -55,6 +55,8 @@ flowchart TB
 | **`resources`** | No | CPU/memory for the processor pod. |
 | **`nodeSelector`**, **`affinity`**, **`tolerations`** | No | Pod scheduling constraints. |
 | **`checkpointPersistence`** | No | Default `true`. Polling sources persist read position to a ConfigMap. For Nessie, applies when `source.config.incrementalBySnapshot: true`. Set `false` to disable. |
+| **`ackGranularity`** | No | Default `batch`. When to commit source offsets relative to sink success: `batch` or `message`. See [Fault Tolerance](../fault-tolerance.md#ack-granularity-specackgranularity). |
+| **`collapseBatchOnMessageAck`** | No | Default `true`. When `ackGranularity: message`, whether to force sink `MaxBatchSize = 1`. Set `false` to keep `sink.config.batchSize` and still ack each message after a successful bulk flush. Full guide: [Decoupling ack and sink batch](../fault-tolerance.md#decoupling-ack-and-sink-batch-speccollapsebatchonmessageack). |
 | **`channelBufferSize`** | No | Default `100`. Buffer between source, processor, and sink. Use 500–1000 for high Kafka throughput. See [Architecture — Pipeline concurrency](../architecture.md#pipeline-concurrency-implementation). |
 | **`transformWorkers`** | No | Default `1`. Parallel transform goroutines in one pod (1–64). Output order preserved. |
 | **`replicas`** | No | Default `1`. Values **> 1** allowed **only for Kafka** (consumer group). Webhook rejects `replicas > 1` for polling sources. |

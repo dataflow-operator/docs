@@ -118,7 +118,10 @@ DataFlow обеспечивает **at-least-once** семантику. Дубл
    ```yaml
    spec:
      ackGranularity: message
+     # Опционально: сохранить bulk-запись в sink при per-message commit offset
+     collapseBatchOnMessageAck: false
    ```
+   См. [Отказоустойчивость — развязка ack и sink batch](fault-tolerance.md#развязка-ack-и-sink-batch-speccollapsebatchonmessageack).
 
 3. **Дедупликация на уровне приложения:**
    - Используйте unique constraints в БД

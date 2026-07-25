@@ -136,6 +136,8 @@ flowchart LR
 
 **Ack и порядок.** Source ack — **барьер**: родитель помечается доставленным только после ack всех производных (1→N). Filter (0 выходов) ack сразу. При `transformWorkers > 1` reorder buffer сохраняет порядок.
 
+**Ack vs размер sink batch.** `spec.ackGranularity` задаёт *когда* фиксируется прогресс источника (`batch` vs `message`). Отдельно `spec.collapseBatchOnMessageAck` (по умолчанию `true`) решает, схлопывает ли message-ack sink до `MaxBatchSize = 1`. При `false` bulk-запись сохраняется, а per-message ack идёт после успешного flush. Подробнее: [Отказоустойчивость — развязка ack и sink batch](fault-tolerance.md#развязка-ack-и-sink-batch-speccollapsebatchonmessageack).
+
 **Double-buffer flush.** Пока flush batch N, loop читает batch N+1 (лимит: один in-flight + один active). Порядок flush/ack сохраняется. Кастомные write loop (например PostgreSQL) пока без double-buffer.
 
 **Горизонтальный scale (`replicas`).** `replicas > 1` только для **Kafka**. Иначе — `resources`, `channelBufferSize`, `transformWorkers`, `readBatchSize` / `batchSize`.

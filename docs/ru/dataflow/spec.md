@@ -55,6 +55,8 @@ flowchart TB
 | **`resources`** | Нет | CPU/память для пода процессора. |
 | **`nodeSelector`**, **`affinity`**, **`tolerations`** | Нет | Планирование пода. |
 | **`checkpointPersistence`** | Нет | По умолчанию `true`. Для Nessie — при `incrementalBySnapshot: true`. |
+| **`ackGranularity`** | Нет | По умолчанию `batch`. Когда коммитить offset источника относительно успеха sink: `batch` или `message`. См. [Отказоустойчивость](../fault-tolerance.md#гранулярность-ack-specackgranularity). |
+| **`collapseBatchOnMessageAck`** | Нет | По умолчанию `true`. При `ackGranularity: message` — принудительно ли `MaxBatchSize = 1`. `false` — сохранить `sink.config.batchSize` и всё равно ack каждого сообщения после успешного bulk flush. Полное описание: [Развязка ack и sink batch](../fault-tolerance.md#развязка-ack-и-sink-batch-speccollapsebatchonmessageack). |
 | **`channelBufferSize`** | Нет | По умолчанию `100`. Для высокой нагрузки Kafka — 500–1000. См. [Архитектура — concurrency пайплайна](../architecture.md#pipeline-concurrency-implementation). |
 | **`transformWorkers`** | Нет | По умолчанию `1`. Параллельные transform goroutine в одном поде (1–64). Порядок вывода сохраняется. |
 | **`replicas`** | Нет | По умолчанию `1`. **> 1** только для Kafka. |
