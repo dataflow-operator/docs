@@ -25,6 +25,8 @@ DataFlow Operator обрабатывает сообщения с семанти�
 - **PostgreSQL, PostgreSQL CDC, ClickHouse, Trino, Nessie**: `replicas` должен быть `1` (или не задан). Несколько подов с общим checkpoint ConfigMap приведут к **дублированию** данных.
 - **DataFlowCron**: `replicas > 1` не поддерживается (один Job процессора на тик расписания).
 
+Внутри одного пода для CPU-тяжёлых transforms увеличивайте `spec.transformWorkers` (порядок emit сохраняется); sink использует double-buffer flush — см. [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation). Не поднимайте `replicas` для polling-источников.
+
 ### Kafka источник
 
 Consumer Kafka помечает offset **только после** успешной записи сообщения в sink (через `msg.Ack()`). При `ackGranularity: message` (см. ниже) offset также сразу коммитится в consumer group.

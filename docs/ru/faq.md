@@ -238,11 +238,14 @@ kubectl logs -l app=dataflow-processor --tail=100 -f
        batchFlushIntervalSeconds: 5
    ```
 
-3. **Увеличьте buffer:**
+3. **Увеличьте buffer и (при CPU-тяжёлых transforms) workers:**
    ```yaml
    spec:
      channelBufferSize: 1000
+     transformWorkers: 4   # по умолчанию 1; порядок в sink сохраняется
    ```
+
+   См. [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation).
 
 ### Высокое потребление памяти
 
@@ -250,12 +253,14 @@ kubectl logs -l app=dataflow-processor --tail=100 -f
 - Большие сообщения
 - Массивные flatten трансформации
 - Длинные batch intervals
+- Высокий `transformWorkers` вместе с большим `channelBufferSize` (больше in-flight сообщений)
 
 **Решения:**
 ```yaml
 spec:
-  # Уменьшите buffer
+  # Уменьшите buffer / workers
   channelBufferSize: 100
+  transformWorkers: 1
   sink:
     type: postgresql
     config:

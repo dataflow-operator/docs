@@ -1,6 +1,6 @@
 # DataFlowCron Spec & Schedule
 
-`DataFlowCronSpec` **embeds [`DataFlowSpec`](../dataflow/spec.md)** — all fields that exist on `DataFlow` (`source`, `sink`, `transformations`, `errors`, `resources`, `nodeSelector`, `affinity`, `tolerations`, `checkpointPersistence`, `channelBufferSize`, `processorImage` / `processorVersion`, `imagePullSecrets`, etc.) apply the same way.
+`DataFlowCronSpec` **embeds [`DataFlowSpec`](../dataflow/spec.md)** — all fields that exist on `DataFlow` (`source`, `sink`, `transformations`, `errors`, `resources`, `nodeSelector`, `affinity`, `tolerations`, `checkpointPersistence`, `channelBufferSize`, `transformWorkers`, `processorImage` / `processorVersion`, `imagePullSecrets`, etc.) apply the same way.
 
 ## Cron-specific fields
 

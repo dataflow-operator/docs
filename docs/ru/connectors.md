@@ -1076,7 +1076,7 @@ Nessie — **polling**-источник. Число подов процессо�
 
 `incrementalBySnapshot` у Nessie-источника улучшает поведение при рестарте (checkpoint по Iceberg snapshot), но **не** заменяет горизонтальное масштабирование как у Kafka.
 
-Для большей пропускной способности при записи в Nessie настраивайте `batchSize`, `batchFlushIntervalSeconds` и `channelBufferSize`, а не увеличивайте `replicas`. Подробнее: [отказоустойчивость — горизонтальное масштабирование](fault-tolerance.md#горизонтальное-масштабирование-specreplicas), [DataFlow spec — replicas](dataflow/spec.md#поля-spec).
+Для большей пропускной способности при записи в Nessie настраивайте `batchSize`, `batchFlushIntervalSeconds`, `channelBufferSize` и (при CPU-тяжёлых transforms) `transformWorkers`, а не увеличивайте `replicas`. Подробнее: [отказоустойчивость — горизонтальное масштабирование](fault-tolerance.md#горизонтальное-масштабирование-specreplicas), [DataFlow spec — replicas](dataflow/spec.md#поля-spec), [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation).
 
 #### rawMode и колонка `_metadata` (только sink)
 
@@ -1615,9 +1615,10 @@ kubectl logs -l app.kubernetes.io/name=dataflow-operator | grep -i secret
 
 1. Увеличьте `channelBufferSize` (500–1000) при высокой нагрузке Kafka
 2. Увеличьте размер батчей для приемников
-3. Настройте правильный `pollInterval` для источников
-4. Для Kafka увеличивайте `spec.replicas` (не больше числа партиций топика). Для Nessie и других polling-источников оставляйте `replicas: 1` и настраивайте `batchSize` / `channelBufferSize`
-5. Мониторьте метрики обработки сообщений
+3. При CPU-тяжёлых трансформациях увеличьте `spec.transformWorkers` (1–64; порядок emit сохраняется). См. [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation)
+4. Настройте правильный `pollInterval` для источников
+5. Для Kafka увеличивайте `spec.replicas` (не больше числа партиций топика). Для Nessie и других polling-источников оставляйте `replicas: 1` и настраивайте `batchSize` / `channelBufferSize` / `transformWorkers`
+6. Мониторьте метрики обработки сообщений
 
 ### Логирование
 

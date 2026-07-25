@@ -48,7 +48,7 @@ flowchart LR
   TN -.->|"on failure"| ErrSink
 ```
 
-Transformations are applied in order: `timestamp`, `flatten`, `filter`, `mask`, `router`, `select`, `remove`, `snakeCase`, `camelCase`. Each message passes through the chain before being written to the sink.
+Transformations are applied in list order on each message (`timestamp`, `flatten`, `filter`, …). Multiple messages may be transformed in parallel when `spec.transformWorkers > 1`; sink order is preserved. See [Pipeline concurrency](#pipeline-concurrency-implementation).
 
 ## Kubernetes Architecture
 
@@ -152,6 +152,42 @@ Polling sources with checkpoint load/persist position from a ConfigMap when `che
 3. **Process** — apply transformations in order; filter/flatten/router may change message count or routing metadata.
 4. **Write** — route to main sink, router sinks, or error sink on failure.
 
+### Pipeline concurrency (implementation)
+
+Inside a single processor pod the pipeline is **stage-pipelined via Go channels**. Transform CPU work can run on a worker pool; sink flush overlaps with the next batch accumulation (double-buffer).
+
+```mermaid
+flowchart LR
+  Src[Source.Read]
+  MsgChan["msgChan\n(buffered)"]
+  Proc["transformWorkers\n(default 1, ordered emit)"]
+  ProcChan["processedChan\n(buffered)"]
+  Write["writeMessages\n(1 loop / route)"]
+  Sink["RunBatchWriteLoop\n(double-buffer flush)"]
+
+  Src --> MsgChan --> Proc --> ProcChan --> Write --> Sink
+```
+
+| Stage | Implementation | Concurrency |
+|-------|----------------|-------------|
+| Source → processor | `source.Read` fills `msgChan` | Source-owned; buffer from `channelBufferSize` (default **100**) |
+| Transform | `processMessages` | `transformWorkers` goroutines (default **1**); chain `0..N` per message; **reorder buffer** preserves emit order |
+| Processor → sink | `processedChan` | Blocking send: full buffer stops transform (backpressure) |
+| Sink write | `RunBatchWriteLoop` | One write loop; **at most one** `OnFlush` in flight while the next batch accumulates |
+| Router | Per-condition channel + goroutine | Fan-out across route sinks; **each** route still has one write loop |
+
+**`transformWorkers`.** Raise above `1` for CPU-heavy transform chains. Output order to the sink matches input order. Keep `1` when transforms are cheap (pool overhead dominates). Valid range: 1–64.
+
+**Backpressure.** Sends into `msgChan` / `processedChan` block when the buffer is full. There is no drop or unbounded queue. Raise `spec.channelBufferSize` (e.g. 500–1000 for high Kafka volume) only if memory allows. See [Best Practices — Buffer Sizing](best-practices.md#buffer-sizing).
+
+**Ack / ordering.** Source ack is a **barrier**: the parent message is marked done only after every derived output is acked (1→N fan-out). Filter drops (0 outputs) ack immediately. With `transformWorkers > 1`, a reorder buffer ensures sink writes and ack eligibility still follow input sequence.
+
+**Double-buffer flush.** While batch N is flushing, the loop continues reading into batch N+1 (memory bounded to one in-flight flush + one active batch). Flush/ack order is preserved. Connectors that use a custom write loop (e.g. PostgreSQL) are unchanged until they adopt the same pattern.
+
+**Horizontal scale (`replicas`).** Admission allows `replicas > 1` **only for Kafka** sources. Polling, CDC, Iceberg/Nessie, and plugin sources must stay at **1** replica — scale via `resources`, `channelBufferSize`, `transformWorkers`, and `readBatchSize` / `batchSize`. `DataFlowCron` always rejects `replicas > 1`.
+
+**Code anchors:** `dataflow/internal/processor/process_transform.go`, `dataflow/internal/connectors/batch_writer.go` (`RunBatchWriteLoop`), `dataflow/api/v1/dataflow_types.go` (`transformWorkers`), `dataflow/api/v1/dataflow_validation.go`.
+
 ### Connector Execution Model (optional: subprocess)
 
 When `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1`, connectors run as separate binaries via stdin/stdout JSON Lines protocol. See [Connector Protocol](connector-protocol.md).
@@ -187,10 +223,11 @@ flowchart LR
 
 - **DataFlow**: operator reconciles to ConfigMap + Deployment; processor runs continuously.
 - **DataFlowCron**: operator reconciles to ConfigMap + CronJob; processor runs per schedule tick; optional trigger Jobs after success.
-- **Runtime**: same processor pipeline — source → transformations → sinks.
+- **Runtime**: same processor pipeline — source → transformations → sinks; optional transform worker pool with ordered emit and double-buffered sink flush (see [Pipeline concurrency](#pipeline-concurrency-implementation)).
 
 ## See also
 
 - [DataFlow](dataflow/index.md) · [DataFlowCron](dataflow-cron/index.md)
 - [Workload Types](concepts/workload-types.md)
 - [Getting Started](getting-started.md)
+- [Best Practices](best-practices.md) — `channelBufferSize`, `transformWorkers`, batch sizes, `replicas`

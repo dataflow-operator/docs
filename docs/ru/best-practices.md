@@ -190,6 +190,8 @@ sink:
 
 ### Buffer Sizing
 
+Каналы между source, transform и sink — **буферизованные и блокирующие** (по умолчанию 100). Больший буфер сглаживает короткие паузы sink. Flush sink уже перекрывается с накоплением следующего batch (double-buffer). Для CPU-тяжёлых transforms увеличьте `transformWorkers` (порядок emit сохраняется). Подробности: [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation).
+
 **Channel Buffer:**
 ```yaml
 spec:
@@ -202,6 +204,14 @@ spec:
   # Для ограниченной памяти
   channelBufferSize: 50
 ```
+
+**Transform workers (параллелизм внутри пода):**
+```yaml
+spec:
+  transformWorkers: 4  # по умолчанию 1; диапазон 1–64
+```
+
+`replicas > 1` — только для источника **Kafka**. Для polling/CDC оставляйте `replicas: 1` и увеличивайте `readBatchSize` / `batchSize` / `resources` / `transformWorkers`.
 
 ### Resource Allocation
 
@@ -549,6 +559,7 @@ watch kubectl top pods -l app=dataflow-processor
 - [ ] Идемпотентный sink: `upsertMode: true` + `conflictKey`
 - [ ] Для polling/cron: `checkpointSyncOnAck: true` + upsert
 - [ ] `replicas: 1` для non-Kafka sources
+- [ ] При CPU-тяжёлых transforms: настроен `transformWorkers` (оставьте `1`, если transforms дешёвые)
 - [ ] Error sink настроен
 - [ ] Resources (requests/limits) установлены
 - [ ] `batchSize` / `ackGranularity` сбалансированы

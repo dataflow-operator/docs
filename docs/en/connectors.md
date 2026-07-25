@@ -1075,7 +1075,7 @@ Nessie is a **polling** source. The processor Deployment follows `spec.replicas`
 
 `incrementalBySnapshot` on the Nessie source improves restart behavior (checkpoint by Iceberg snapshot) but **does not** replace Kafka-style horizontal scaling.
 
-For higher throughput with Nessie sink, tune `batchSize`, `batchFlushIntervalSeconds`, and `channelBufferSize` instead of increasing `replicas`. Details: [fault tolerance — horizontal scaling](fault-tolerance.md#horizontal-scaling-specreplicas), [DataFlow spec — replicas](dataflow/spec.md#field-reference).
+For higher throughput with Nessie sink, tune `batchSize`, `batchFlushIntervalSeconds`, `channelBufferSize`, and (for CPU-heavy transforms) `transformWorkers` instead of increasing `replicas`. Details: [fault tolerance — horizontal scaling](fault-tolerance.md#horizontal-scaling-specreplicas), [DataFlow spec — replicas](dataflow/spec.md#field-reference), [Architecture — Pipeline concurrency](architecture.md#pipeline-concurrency-implementation).
 
 ### rawMode and `_metadata` column (sink only)
 
@@ -1287,7 +1287,8 @@ When source offsets / checkpoints are committed relative to sink writes: `batch`
 
 1. Increase `channelBufferSize` (500–1000) for high Kafka load
 2. Increase batch sizes for sinks
-3. Tune `pollInterval` for sources
-4. For Kafka sources, increase `spec.replicas` (up to topic partition count). For Nessie and other polling sources, keep `replicas: 1` and tune `batchSize` / `channelBufferSize` instead
-5. Monitor message processing metrics
+3. For CPU-heavy transform chains, raise `spec.transformWorkers` (1–64; ordered emit). See [Architecture — Pipeline concurrency](architecture.md#pipeline-concurrency-implementation)
+4. Tune `pollInterval` for sources
+5. For Kafka sources, increase `spec.replicas` (up to topic partition count). For Nessie and other polling sources, keep `replicas: 1` and tune `batchSize` / `channelBufferSize` / `transformWorkers` instead
+6. Monitor message processing metrics
 

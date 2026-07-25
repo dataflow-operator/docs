@@ -46,6 +46,8 @@ flowchart LR
   TN -.->|"при ошибке"| ErrSink
 ```
 
+Цепочка `transformations` на **одном** сообщении идёт по порядку списка. Между сообщениями возможен параллелизм через `spec.transformWorkers` — см. [Concurrency пайплайна](#pipeline-concurrency-implementation).
+
 ## Архитектура в Kubernetes
 
 ### Custom Resources
@@ -104,6 +106,42 @@ flowchart LR
 
 Connect → Read → Process (трансформации) → Write (main / router / error sink).
 
+### Concurrency пайплайна (реализация) { #pipeline-concurrency-implementation }
+
+Внутри одного пода конвейер **разбит на стадии через Go-каналы**. Transform может идти в worker pool; flush sink перекрывается с накоплением следующего batch (double-buffer).
+
+```mermaid
+flowchart LR
+  Src[Source.Read]
+  MsgChan["msgChan\n(буфер)"]
+  Proc["transformWorkers\n(default 1, ordered emit)"]
+  ProcChan["processedChan\n(буфер)"]
+  Write["writeMessages\n(1 loop / route)"]
+  Sink["RunBatchWriteLoop\n(double-buffer flush)"]
+
+  Src --> MsgChan --> Proc --> ProcChan --> Write --> Sink
+```
+
+| Стадия | Реализация | Параллелизм |
+|--------|------------|-------------|
+| Источник → процессор | `source.Read` → `msgChan` | Буфер `channelBufferSize` (по умолчанию **100**) |
+| Трансформации | `processMessages` | `transformWorkers` goroutine (default **1**); цепочка `0..N` на сообщение; **reorder buffer** сохраняет порядок emit |
+| Процессор → sink | `processedChan` | Блокирующий send (backpressure) |
+| Запись в sink | `RunBatchWriteLoop` | Не больше одного `OnFlush` in-flight; параллельно копится следующий batch |
+| Router | Канал + goroutine на условие | Fan-out по routes; внутри каждого — один loop |
+
+**`transformWorkers`.** Увеличивайте при CPU-тяжёлых трансформациях. Порядок записи в sink = порядок входа. Диапазон: 1–64.
+
+**Backpressure.** Полный буфер блокирует send. См. [Best Practices — буфер](best-practices.md#buffer-sizing).
+
+**Ack и порядок.** Source ack — **барьер**: родитель помечается доставленным только после ack всех производных (1→N). Filter (0 выходов) ack сразу. При `transformWorkers > 1` reorder buffer сохраняет порядок.
+
+**Double-buffer flush.** Пока flush batch N, loop читает batch N+1 (лимит: один in-flight + один active). Порядок flush/ack сохраняется. Кастомные write loop (например PostgreSQL) пока без double-buffer.
+
+**Горизонтальный scale (`replicas`).** `replicas > 1` только для **Kafka**. Иначе — `resources`, `channelBufferSize`, `transformWorkers`, `readBatchSize` / `batchSize`.
+
+**Якоря:** `process_transform.go`, `batch_writer.go`, `dataflow_types.go` (`transformWorkers`).
+
 Subprocess-коннекторы: `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1` — см. [Протокол коннекторов](connector-protocol.md).
 
 ---
@@ -112,9 +150,10 @@ Subprocess-коннекторы: `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1` — см
 
 - **DataFlow**: ConfigMap + Deployment, непрерывная работа.
 - **DataFlowCron**: ConfigMap + CronJob, прогон по расписанию, опциональные trigger Job.
-- **Рантайм**: один конвейер процессора.
+- **Рантайм**: один конвейер; опциональный transform worker pool с ordered emit и double-buffer flush (см. [Concurrency пайплайна](#pipeline-concurrency-implementation)).
 
 ## См. также
 
 - [DataFlow](dataflow/index.md) · [DataFlowCron](dataflow-cron/index.md)
 - [Начало работы](getting-started.md)
+- [Best Practices](best-practices.md) — `channelBufferSize`, `transformWorkers`, batch sizes, `replicas`

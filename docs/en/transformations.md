@@ -1,6 +1,6 @@
 # Transformations
 
-DataFlow Operator supports message transformations that are applied sequentially to each message in the order specified in the configuration. Transformations use [gjson](https://github.com/tidwall/gjson) JSONPath for field access.
+DataFlow Operator supports message transformations that are applied **in list order** to each message (transformer `0..N` on that message). Across messages, the processor may run transforms in parallel when `spec.transformWorkers > 1`; sink emit order still matches input order. See [Architecture — Pipeline concurrency](architecture.md#pipeline-concurrency-implementation). Transformations use [gjson](https://github.com/tidwall/gjson) JSONPath for field access.
 
 ## Transformation Overview
 
@@ -8,7 +8,7 @@ DataFlow Operator supports message transformations that are applied sequentially
 |----------------|------------|-------|--------|
 | Timestamp | Adds a timestamp field | 1 message | 1 message |
 | Flatten | Expands an array into separate messages | 1 message | N messages |
-| Filter | Keeps messages matching a condition (truthy / `==` / `!=`) | 1 message | 0 or 1 message |
+| Filter | Keeps messages matching a condition (truthy / `==` / `!=` / `metadata.*` / `&&` `||` `!`) | 1 message | 0 or 1 message |
 | Mask | Masks sensitive fields | 1 message | 1 message |
 | Router | Sends matching messages to alternate sinks | 1 message | 0 or 1 message |
 | Select | Keeps only specified fields | 1 message | 1 message |
@@ -24,6 +24,36 @@ DataFlow Operator supports message transformations that are applied sequentially
 | Cast | Converts field values to target types (`string` / `int64` / `float64` / `bool` / `null`) | 1 message | 1 message (or skip on cast error) |
 | Timezone | Converts temporal fields to a target IANA timezone or UTC offset | 1 message | 1 message (or skip on parse error) |
 | InsertField | Inserts or overwrites fields with literals, `${metadata.*}`, `${now}`, or `json:<raw>` | 1 message | 1 message |
+
+## Condition syntax (filter, router, `when`)
+
+Shared DSL for `filter.config.condition`, `router` route conditions, and `transformations[].when`:
+
+- **Truthiness**: `$.field` / `field` — true if the payload field exists and is truthy (boolean `true`, non-empty string, non-zero number).
+- **Metadata**: `metadata.<key>` — same checks against message `Metadata` (e.g. Kafka `topic`, `partition`, `offset`). Use `$.metadata...` only for a JSON field literally named `metadata`.
+- **Equality / inequality**: `==` / `!=` with quoted (`'value'` / `"value"`) or unquoted literals (`true`, `5`).
+- **Combinators**: `&&` (and), `||` (or; `&&` binds tighter), unary `!`, and parentheses `(...)`.
+
+Missing fields fail both truthiness and comparisons. Empty condition is false.
+
+Examples: `$.status == 'active' && metadata.topic == 'orders'`, `$.payload.op == 'u' || $.payload.op == 'c'`, `!($.level == 'debug')`.
+
+## Conditional transforms (`when`)
+
+Optional predicate on any transformation step. If `when` is set and evaluates to false, **this step is skipped** and the message continues unchanged (passthrough). Unlike `filter`, a false `when` does **not** drop the message — analogous to a Kafka Connect SMT predicate.
+
+```yaml
+transformations:
+  - type: debeziumUnwrap
+    when: "$.payload.op == 'u' || $.payload.op == 'c'"
+    config:
+      addOperationFields: true
+  - type: mask
+    when: "metadata.topic == 'dbserver1.public.orders'"
+    config:
+      fields: ["payload.after.email"]
+      maskChar: "*"
+```
 
 ## Timestamp
 
@@ -217,13 +247,7 @@ Keeps only messages that match the condition. Others are dropped.
 
 ### Condition syntax
 
-Same as [Router](#router):
-
-- **Truthiness**: `$.field` — passes if the field exists and is truthy (boolean `true`, non-empty string, non-zero number).
-- **Equality**: `$.field == 'value'` or `$.field == "value"` — passes when the field equals the given value (unquoted literals like `true` / `5` are also accepted).
-- **Inequality**: `$.field != 'value'` — passes when the field exists and is not equal to the given value.
-
-Missing fields fail both truthiness and comparison checks.
+See [Condition syntax](#condition-syntax-filter-router-when) (same DSL as router and `when`).
 
 ### Configuration
 
@@ -432,9 +456,7 @@ Routes messages to different sinks based on conditions. The first matching route
 
 ### Condition syntax
 
-- **Truthiness**: `$.field` — the message matches if the field exists and is truthy (non-empty string, non-zero number, `true`).
-- **Equality**: `$.field == 'value'` or `$.field == "value"` — matches when the field equals the given value (unquoted literals like `true` / `5` are also accepted).
-- **Inequality**: `$.field != 'value'` — matches when the field exists and is not equal to the given value.
+See [Condition syntax](#condition-syntax-filter-router-when) (same DSL as filter and `when`).
 
 Conditions are evaluated in order; the first match wins.
 
@@ -1701,8 +1723,7 @@ transformations:
 
 ## Limitations
 
-- **Filter**: supports truthiness (`$.field`), equality (`$.field == 'value'`), and inequality (`$.field != 'value'`). Missing fields fail the condition. Scripted expressions (AND/OR/Groovy/JS) are not supported.
-- **Router**: conditions are checked in order; the first match determines the route. Same condition syntax as Filter (`$.field`, `==`, `!=`).
+- **Filter / Router / `when`**: shared condition DSL — truthiness, `==` / `!=`, `metadata.*`, `&&` / `||` / `!`, parentheses. Missing fields fail the condition. Groovy/JS/CEL scripting is not supported. `when` skips a step (passthrough); `filter` drops the message.
 - **Flatten**: works only with arrays (including Avro-style wrapper with `array` key), not arbitrary objects. For nested-object flattening use `structFlatten`.
 - **StructFlatten**: 1→1 object flatten; arrays are kept as values (use array `flatten` first to explode). Max nesting depth is 64.
 - **ExtractField**: missing path and non-JSON → passthrough; root may become a non-object (later object-only transforms will passthrough).

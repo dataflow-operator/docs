@@ -310,11 +310,12 @@ For supported fields, TLS certificates, and troubleshooting, see [Using Kubernet
 
 ## High-Throughput Kafka Pipeline
 
-For high Kafka message rates (tens of thousands msg/s), increase `channelBufferSize` and sink `batchSize`:
+For high Kafka message rates (tens of thousands msg/s), increase `channelBufferSize`, sink `batchSize`, and — for CPU-heavy transform chains — `transformWorkers`:
 
 ```yaml
 spec:
   channelBufferSize: 500   # default 100; reduces blocking when sink is slower than source
+  transformWorkers: 4      # default 1; parallel transforms with ordered emit to sink
   source:
     type: kafka
     config:
@@ -504,6 +505,7 @@ kubectl apply -f dataflow/config/samples/kafka-to-clickhouse-high-volume.yaml
 
 **Key settings for high load:**
 - `channelBufferSize: 1000` — increased buffer between source and sink
+- `transformWorkers: 4` — optional; parallel transforms with ordered emit (keep `1` if transforms are cheap)
 - `batchSize: 1000` — large batches for efficient ClickHouse writes
 - `ackGranularity: message` — fast offset commit to reduce duplicates
 - Increased CPU/memory limits for processing large batches

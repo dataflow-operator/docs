@@ -1,6 +1,6 @@
 # Spec и расписание DataFlowCron
 
-`DataFlowCronSpec` **встраивает [`DataFlowSpec`](../dataflow/spec.md)** — поля `source`, `sink`, `transformations`, `errors`, `resources`, `checkpointPersistence` и др. работают так же.
+`DataFlowCronSpec` **встраивает [`DataFlowSpec`](../dataflow/spec.md)** — поля `source`, `sink`, `transformations`, `errors`, `resources`, `checkpointPersistence`, `channelBufferSize`, `transformWorkers` и др. работают так же.
 
 ## Поля cron
 

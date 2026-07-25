@@ -20,6 +20,7 @@ flowchart TB
     Scheduling["scheduling (optional)"]
     Checkpoint["checkpointPersistence (optional)"]
     ChannelBuffer["channelBufferSize (optional)"]
+    TransformWorkers["transformWorkers (optional)"]
     Replicas["replicas (optional, Kafka)"]
     Image["processorImage / processorVersion (optional)"]
     Maintenance["maintenance (optional)"]
@@ -37,6 +38,7 @@ flowchart TB
   Spec --> Scheduling
   Spec --> Checkpoint
   Spec --> ChannelBuffer
+  Spec --> TransformWorkers
   Spec --> Replicas
   Spec --> Image
   Spec --> Maintenance
@@ -53,7 +55,8 @@ flowchart TB
 | **`resources`** | No | CPU/memory for the processor pod. |
 | **`nodeSelector`**, **`affinity`**, **`tolerations`** | No | Pod scheduling constraints. |
 | **`checkpointPersistence`** | No | Default `true`. Polling sources persist read position to a ConfigMap. For Nessie, applies when `source.config.incrementalBySnapshot: true`. Set `false` to disable. |
-| **`channelBufferSize`** | No | Default `100`. Buffer between source, processor, and sink. Use 500–1000 for high Kafka throughput. |
+| **`channelBufferSize`** | No | Default `100`. Buffer between source, processor, and sink. Use 500–1000 for high Kafka throughput. See [Architecture — Pipeline concurrency](../architecture.md#pipeline-concurrency-implementation). |
+| **`transformWorkers`** | No | Default `1`. Parallel transform goroutines in one pod (1–64). Output order preserved. |
 | **`replicas`** | No | Default `1`. Values **> 1** allowed **only for Kafka** (consumer group). Webhook rejects `replicas > 1` for polling sources. |
 | **`processorImage`** / **`processorVersion`** | No | Override processor container image. |
 | **`imagePullSecrets`** | No | Pull secrets for the processor pod. |

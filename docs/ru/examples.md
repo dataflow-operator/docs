@@ -709,11 +709,12 @@ status:
 
 ## Высоконагруженный Kafka-пайплайн
 
-При высокой скорости сообщений Kafka (десятки тысяч msg/s) увеличьте `channelBufferSize` и `batchSize` в sink:
+При высокой скорости сообщений Kafka (десятки тысяч msg/s) увеличьте `channelBufferSize`, `batchSize` в sink и — при CPU-тяжёлых трансформациях — `transformWorkers`:
 
 ```yaml
 spec:
   channelBufferSize: 500   # по умолчанию 100; снижает блокировки, когда sink медленнее source
+  transformWorkers: 4      # по умолчанию 1; параллельные transforms с сохранением порядка в sink
   source:
     type: kafka
     config:
@@ -906,6 +907,7 @@ kubectl apply -f dataflow/config/samples/kafka-to-clickhouse-high-volume.yaml
 
 **Ключевые настройки для высокой нагрузки:**
 - `channelBufferSize: 1000` — увеличенный буфер между source и sink
+- `transformWorkers: 4` — опционально; параллельные transforms с сохранением порядка (оставьте `1`, если transforms дешёвые)
 - `batchSize: 1000` — большие batches для эффективной записи в ClickHouse
 - `ackGranularity: message` — быстрый commit offset для уменьшения дубликатов
 - Увеличенные CPU/memory limits для обработки больших batches

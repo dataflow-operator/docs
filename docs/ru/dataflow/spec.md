@@ -20,6 +20,7 @@ flowchart TB
     Scheduling["scheduling (опционально)"]
     Checkpoint["checkpointPersistence (опционально)"]
     ChannelBuffer["channelBufferSize (опционально)"]
+    TransformWorkers["transformWorkers (опционально)"]
     Replicas["replicas (опционально, Kafka)"]
     Image["processorImage / processorVersion (опционально)"]
     Maintenance["maintenance (опционально)"]
@@ -37,6 +38,7 @@ flowchart TB
   Spec --> Scheduling
   Spec --> Checkpoint
   Spec --> ChannelBuffer
+  Spec --> TransformWorkers
   Spec --> Replicas
   Spec --> Image
   Spec --> Maintenance
@@ -53,7 +55,8 @@ flowchart TB
 | **`resources`** | Нет | CPU/память для пода процессора. |
 | **`nodeSelector`**, **`affinity`**, **`tolerations`** | Нет | Планирование пода. |
 | **`checkpointPersistence`** | Нет | По умолчанию `true`. Для Nessie — при `incrementalBySnapshot: true`. |
-| **`channelBufferSize`** | Нет | По умолчанию `100`. Для высокой нагрузки Kafka — 500–1000. |
+| **`channelBufferSize`** | Нет | По умолчанию `100`. Для высокой нагрузки Kafka — 500–1000. См. [Архитектура — concurrency пайплайна](../architecture.md#pipeline-concurrency-implementation). |
+| **`transformWorkers`** | Нет | По умолчанию `1`. Параллельные transform goroutine в одном поде (1–64). Порядок вывода сохраняется. |
 | **`replicas`** | Нет | По умолчанию `1`. **> 1** только для Kafka. |
 | **`processorImage`** / **`processorVersion`** | Нет | Образ процессора. |
 | **`imagePullSecrets`** | Нет | Pull secrets для пода. |

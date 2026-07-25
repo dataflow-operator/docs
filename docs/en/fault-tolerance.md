@@ -25,6 +25,8 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 - **PostgreSQL, PostgreSQL CDC, ClickHouse, Trino, Nessie**: `replicas` must be `1` (or unset). Multiple pods with a shared checkpoint ConfigMap will **duplicate** data.
 - **DataFlowCron**: `replicas > 1` is not supported (one processor Job per schedule tick).
 
+Within a single pod, raise `spec.transformWorkers` for CPU-heavy transforms (ordered emit) and rely on sink double-buffer flush — see [Architecture — Pipeline concurrency](architecture.md#pipeline-concurrency-implementation). Do not use extra replicas for polling sources.
+
 ### Kafka Source
 
 The Kafka consumer marks offset **only after** the message is successfully written to the sink (via `msg.Ack()`). With `ackGranularity: message` (see below), offsets are also committed to the consumer group immediately after each mark.
