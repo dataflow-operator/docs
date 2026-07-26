@@ -35,8 +35,8 @@ jobs:
       - name: Verify nav files
         run: python3 verify_nav_files.py
 
-      - name: Hooks unit tests
-        run: python3 -m unittest hooks_test -v
+      - name: Docs unit tests
+        run: python3 -m unittest hooks_test verify_nav_files_test -v
 
       - name: Build documentation
         run: mkdocs build -f mkdocs.yml

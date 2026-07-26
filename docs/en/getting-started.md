@@ -4,7 +4,7 @@ Install the operator, create a streaming or scheduled pipeline, or set up a loca
 
 **When to read this:** first install or first pipeline. For connector field details see [Connectors](connectors.md); for DataFlow vs DataFlowCron see [Workload Types](concepts/workload-types.md).
 
-**See also:** [FAQ](faq.md) · [Best Practices](best-practices.md) · [DataFlowCron](dataflow-cron/index.md)
+**See also:** [FAQ](faq.md) · [Best Practices](best-practices.md) · [DataFlowCron](dataflow-cron/index.md) · [Helm Values](helm-values.md) · [CLI](cli.md)
 
 ## Paths
 

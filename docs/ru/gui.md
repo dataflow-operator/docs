@@ -71,13 +71,13 @@ GUI состоит из двух частей:
 
 ## Конфигурация
 
-GUI настраивается через Helm values при развёртывании чарта dataflow-operator. Основные параметры:
+GUI настраивается через Helm values при развёртывании чарта dataflow-operator. Полный справочник чарта: [Helm Values](helm-values.md). Основные параметры GUI:
 
 | Параметр | Описание | По умолчанию |
 |----------|----------|--------------|
 | `gui.enabled` | Включить веб-интерфейс | `false` |
 | `gui.image.repository` | Образ сервера GUI (отдельно от оператора) | `ghcr.io/dataflow-operator/dataflow-web` |
-| `gui.image.tag` | Тег образа | `v0.2.3` |
+| `gui.image.tag` | Тег образа | default чарта (см. [Helm Values](helm-values.md)) |
 | `gui.image.pullPolicy` | Политика загрузки образа | `IfNotPresent` |
 | `gui.replicaCount` | Количество реплик сервера GUI | `1` |
 | `gui.port` | Порт для сервера GUI | `8080` |

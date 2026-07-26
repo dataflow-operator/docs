@@ -71,13 +71,13 @@ For **DataFlowCron**, logs are read from the latest processor Job pod (`kind=dat
 
 ## Configuration
 
-GUI is configured via Helm values when deploying with the dataflow-operator chart. Key parameters:
+GUI is configured via Helm values when deploying with the dataflow-operator chart. Full chart reference: [Helm Values](helm-values.md). Key GUI parameters:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `gui.enabled` | Enable web GUI | `false` |
 | `gui.image.repository` | Image for the GUI server (separate from operator) | `ghcr.io/dataflow-operator/dataflow-web` |
-| `gui.image.tag` | Image tag | `v0.2.3` |
+| `gui.image.tag` | Image tag | chart default (see [Helm Values](helm-values.md)) |
 | `gui.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `gui.replicaCount` | Number of GUI server replicas | `1` |
 | `gui.port` | Bind port for the GUI server | `8080` |

@@ -51,6 +51,8 @@ plugins:
             Kubernetes Events: События Kubernetes
             Tools: Инструменты
             Web GUI: Web GUI
+            CLI: CLI
+            Helm Values: Helm Values
             MCP: MCP
             Agent Skills: Agent Skills
             Development: Разработка
@@ -58,7 +60,10 @@ plugins:
             Release Process: Release Process
             Connector Development: Разработка коннекторов
             Connector Protocol (stdin/stdout): Протокол коннекторов (stdin/stdout)
-  - search
+  - search:
+      lang:
+        - en
+        - ru
   - mermaid2
 
 # Design notes are maintainer drafts — keep out of public site/sitemap
@@ -149,6 +154,8 @@ nav:
       - Kubernetes Events: kubernetes-events.md
   - Tools:
       - Web GUI: gui.md
+      - CLI: cli.md
+      - Helm Values: helm-values.md
       - MCP: mcp.md
       - Agent Skills: agent-skills.md
   - Development:

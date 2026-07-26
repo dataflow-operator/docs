@@ -128,7 +128,7 @@ kubectl get dataflow kafka-to-postgres-secrets
 | DataFlow | [Обзор](dataflow/index.md) · [Spec](dataflow/spec.md) · [Жизненный цикл](dataflow/lifecycle.md) |
 | DataFlowCron | [Обзор](dataflow-cron/index.md) · [Триггеры](dataflow-cron/triggers.md) · [Примеры](dataflow-cron/examples.md) |
 | Эксплуатация | [Ошибки](errors.md) · [Отказоустойчивость](fault-tolerance.md) · [Метрики](metrics.md) |
-| Инструменты | [Web GUI](gui.md) · [MCP](mcp.md) · [Agent Skills](agent-skills.md) |
+| Инструменты | [Web GUI](gui.md) · [CLI](cli.md) · [Helm Values](helm-values.md) · [MCP](mcp.md) · [Agent Skills](agent-skills.md) |
 | Руководства | [FAQ и Troubleshooting](faq.md) · [Best Practices](best-practices.md) · [Примеры](examples.md) |
 
 ## Лицензия

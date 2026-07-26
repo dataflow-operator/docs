@@ -4,7 +4,7 @@
 
 **Когда читать:** первая установка или первый pipeline. Поля коннекторов — [Коннекторы](connectors.md); выбор DataFlow vs DataFlowCron — [Типы нагрузки](concepts/workload-types.md).
 
-**См. также:** [FAQ](faq.md) · [Best Practices](best-practices.md) · [DataFlowCron](dataflow-cron/index.md)
+**См. также:** [FAQ](faq.md) · [Best Practices](best-practices.md) · [DataFlowCron](dataflow-cron/index.md) · [Helm Values](helm-values.md) · [CLI](cli.md)
 
 ## Пути
 

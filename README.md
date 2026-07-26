@@ -63,6 +63,6 @@ After build, `site/llms.txt` is present (default locale copies `docs/en/llms.txt
 | DataFlow | Overview, spec, lifecycle |
 | DataFlowCron | Overview, spec, triggers, examples |
 | Pipeline | Connectors, transformations |
-| Guides | Examples, errors, fault tolerance, metrics |
-| Tools | Web GUI, MCP |
+| Guides | Examples, FAQ, best practices, errors, fault tolerance, metrics |
+| Tools | Web GUI, CLI, Helm Values, MCP, Agent Skills |
 | Development | Developer guide, releases, connector protocol |
