@@ -104,7 +104,7 @@ Kubernetes operator for streaming and scheduled data pipelines between Kafka, Po
     - **Iceberg** — Apache Iceberg via REST Catalog API
 
 !!! note "Rich Transformation Set"
-    Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase, DebeziumUnwrap
+    Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase, DebeziumUnwrap, ReplaceField, HeadersToPayload, StructFlatten, ExtractField, HoistField, Cast, Timezone, InsertField
 
 !!! tip "Flexible Routing"
     Route messages to different sinks using JSONPath conditions.
@@ -116,8 +116,8 @@ Kubernetes operator for streaming and scheduled data pipelines between Kafka, Po
 
 ```bash
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
-kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
-kubectl get dataflow kafka-to-postgres
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
+kubectl get dataflow kafka-to-postgres-secrets
 ```
 
 ## Documentation map

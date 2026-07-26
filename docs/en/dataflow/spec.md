@@ -26,9 +26,9 @@ flowchart TB
     Maintenance["maintenance (optional)"]
   end
 
-  Source --> SourceTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
-  Sink --> SinkTypes["type: kafka | postgresql | trino | clickhouse | nessie"]
-  Trans --> TransTypes["timestamp | flatten | filter | mask | router | select | remove | snakeCase | camelCase"]
+  Source --> SourceTypes["type: kafka | postgresql | postgresql-cdc | trino | clickhouse | nessie | iceberg"]
+  Sink --> SinkTypes["type: kafka | postgresql | trino | clickhouse | nessie | iceberg"]
+  Trans --> TransTypes["timestamp | flatten | filter | mask | router | select | remove | snakeCase | camelCase | debeziumUnwrap | replaceField | headersToPayload | structFlatten | extractField | hoistField | cast | timezone | insertField"]
 
   Spec --> Source
   Spec --> Sink

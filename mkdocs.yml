@@ -40,6 +40,8 @@ plugins:
             Connectors: Коннекторы
             Transformations: Трансформации
             Guides: Руководства
+            FAQ: FAQ
+            Best Practices: Best Practices
             Error Handling: Обработка ошибок
             Fault Tolerance: Отказоустойчивость
             Metrics: Метрики
@@ -47,7 +49,7 @@ plugins:
             Tools: Инструменты
             Web GUI: Web GUI
             MCP: MCP
-            Cursor Agent Skills: Agent Skills
+            Agent Skills: Agent Skills
             Development: Разработка
             Developer Guide: Руководство разработчика
             Release Process: Release Process
@@ -55,6 +57,11 @@ plugins:
             Connector Protocol (stdin/stdout): Протокол коннекторов (stdin/stdout)
   - search
   - mermaid2
+
+# Design notes are maintainer drafts — keep out of public site/sitemap
+exclude_docs: |
+  **/nessie-incremental-snapshots-design.md
+  **/subprocess-connectors-design.md
 
 extra_javascript:
   - javascripts/versions.js
@@ -131,6 +138,8 @@ nav:
       - Transformations: transformations.md
   - Guides:
       - Examples: examples.md
+      - FAQ: faq.md
+      - Best Practices: best-practices.md
       - Error Handling: errors.md
       - Fault Tolerance: fault-tolerance.md
       - Metrics: metrics.md

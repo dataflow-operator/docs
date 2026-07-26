@@ -93,12 +93,31 @@ Kubernetes-оператор для потоковых и scheduled-конвей�
 !!! abstract ""
     DataFlow Operator позволяет декларативно определять потоки данных через Kubernetes CRD. Поддерживаются **непрерывные** (`DataFlow`) и **scheduled** (`DataFlowCron`) нагрузки.
 
+## Ключевые возможности
+
+!!! note "Поддержка источников данных"
+    - **Kafka** — TLS, SASL, Avro, Schema Registry
+    - **PostgreSQL** — custom SQL, batch inserts, UPSERT
+    - **ClickHouse** — polling, batch inserts, auto-create MergeTree
+    - **Trino** — SQL-запросы, Keycloak OAuth2
+    - **Nessie** — Apache Iceberg через каталог Nessie
+    - **Iceberg** — Apache Iceberg через REST Catalog API
+
+!!! note "Набор трансформаций"
+    Timestamp, Flatten, Filter, Mask, Router, Select, Remove, SnakeCase, CamelCase, DebeziumUnwrap, ReplaceField, HeadersToPayload, StructFlatten, ExtractField, HoistField, Cast, Timezone, InsertField
+
+!!! tip "Гибкая маршрутизация"
+    Маршрутизация сообщений в разные sinks по условиям JSONPath.
+
+!!! tip "Безопасная конфигурация"
+    Конфигурация коннекторов из Kubernetes Secrets через `SecretRef`.
+
 ## Быстрый старт
 
 ```bash
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
-kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
-kubectl get dataflow kafka-to-postgres
+kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
+kubectl get dataflow kafka-to-postgres-secrets
 ```
 
 ## Карта документации

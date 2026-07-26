@@ -1,45 +1,51 @@
 # Getting Started
 
-Это руководство поможет вам начать работу с DataFlow Operator. Вы узнаете, как установить оператор, создать первый поток данных и настроить локальную среду разработки.
+Установка оператора, первый потоковый или scheduled-конвейер, либо локальная среда разработки.
 
-## Предварительные требования
+**Когда читать:** первая установка или первый pipeline. Поля коннекторов — [Коннекторы](connectors.md); выбор DataFlow vs DataFlowCron — [Типы нагрузки](concepts/workload-types.md).
 
-### Для production установки
+**См. также:** [FAQ](faq.md) · [Best Practices](best-practices.md) · [DataFlowCron](dataflow-cron/index.md)
 
-- Kubernetes кластер (версия 1.24+)
+## Пути
+
+1. [Установка оператора](#установка-оператора) — Helm / CRD
+2. [Первый потоковый конвейер](#первый-потоковый-конвейер) — `DataFlow` с `SecretRef`
+3. [Первый cron-конвейер](#первый-cron-конвейер) — `DataFlowCron`
+4. [Локальная разработка](#локальная-разработка) — Go, Docker, kind
+
+---
+
+## Установка оператора { #установка-оператора }
+
+### Предварительные требования
+
+- Kubernetes-кластер (1.24+)
 - Helm 3.0+
-- kubectl настроен для работы с кластером
-- Доступ к источникам данных (Kafka, PostgreSQL)
-
-### Для локальной разработки
-
-- Go 1.25+
-- Docker и Docker Compose
-- Task (опционально, для использования команд Taskfile)
-- Доступ к портам: 8080, 5050, 15672, 8081, 5432, 9092, 5672
-
-## Установка { #installation }
+- kubectl, настроенный на кластер
+- Доступ к источникам данных (Kafka, PostgreSQL и т.д.)
 
 ### Управление CRD { #crd }
 
-CRD (Custom Resource Definition) DataFlow определяет тип ресурса `DataFlow` в Kubernetes.
+Оператор ставит два CRD: **`DataFlow`** (`dataflows`) и **`DataFlowCron`** (`dataflowcrons`).
 
 #### Автоматическая установка (через Helm)
 
-При установке через Helm (рекомендуемый способ) CRD устанавливается и обновляется автоматически. Отдельный шаг `kubectl apply` не нужен — чарт управляет жизненным циклом CRD при `crds.install: true` (значение по умолчанию).
+При установке через Helm (рекомендуется) CRD ставятся и обновляются автоматически при `crds.install: true` (по умолчанию). Отдельный `kubectl apply` не нужен.
 
 #### Ручная установка
 
-Если вы управляете CRD отдельно (например, через ArgoCD, FluxCD или с `crds.install: false` в Helm values), установите CRD вручную:
+Если CRD управляются отдельно (ArgoCD, FluxCD или `crds.install: false`), примените **оба** CRD:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/dataflow-operator/dataflow/refs/heads/main/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
+kubectl apply -f https://raw.githubusercontent.com/dataflow-operator/dataflow/refs/heads/main/config/crd/bases/dataflow.dataflow.io_dataflowcrons.yaml
 ```
 
-Или из локального файла:
+Или из локального checkout:
 
 ```bash
 kubectl apply -f dataflow/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
+kubectl apply -f dataflow/config/crd/bases/dataflow.dataflow.io_dataflowcrons.yaml
 ```
 
 #### Конфигурация CRD в Helm
@@ -47,11 +53,11 @@ kubectl apply -f dataflow/config/crd/bases/dataflow.dataflow.io_dataflows.yaml
 | Параметр | По умолчанию | Описание |
 |----------|-------------|----------|
 | `crds.install` | `true` | Устанавливать и обновлять CRD при `helm install` / `helm upgrade` |
-| `crds.keep` | `true` | Добавить аннотацию `helm.sh/resource-policy: keep` для защиты CRD от удаления при `helm uninstall` |
+| `crds.keep` | `true` | Аннотация `helm.sh/resource-policy: keep` — CRD не удаляются при `helm uninstall` |
 
-**Поведение при обновлении**: CRD обновляется при каждом `helm upgrade`, изменения схемы применяются автоматически.
+**Обновление:** CRD обновляются при каждом `helm upgrade`.
 
-**Поведение при удалении**: При `crds.keep: true` (по умолчанию) CRD остаётся в кластере после `helm uninstall`. Это защищает от случайного удаления всех ресурсов `DataFlow`. Чтобы отключить установку CRD через Helm:
+**Удаление:** При `crds.keep: true` (по умолчанию) CRD остаются после `helm uninstall`. Чтобы отключить установку CRD через Helm:
 
 ```yaml
 crds:
@@ -62,15 +68,13 @@ crds:
 
 #### Базовая установка
 
-Самый простой способ установить оператор из OCI registry:
-
 ```bash
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
 ```
 
-Эта команда установит оператор с настройками по умолчанию в namespace `default`.
+Установка в namespace `default` с настройками чарта по умолчанию.
 
-#### Установка в конкретный namespace
+#### Конкретный namespace
 
 ```bash
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
@@ -78,14 +82,13 @@ helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataf
   --create-namespace
 ```
 
-**Примечание**: Для локальной разработки вы также можете использовать локальный chart:
+Для локальной разработки чарта:
+
 ```bash
 helm install dataflow-operator ./helm-charts/dataflow-operator
 ```
 
-#### Установка с кастомными настройками
-
-Вы можете переопределить значения по умолчанию через флаги:
+#### Кастомные настройки
 
 ```bash
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
@@ -98,9 +101,7 @@ helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataf
   --set resources.requests.cpu=100m
 ```
 
-#### Установка с файлом values
-
-Для более сложных конфигураций создайте файл `my-values.yaml`:
+#### Файл values
 
 ```yaml
 image:
@@ -117,19 +118,17 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# Настройки для работы с Kubernetes API
 serviceAccount:
   create: true
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/dataflow-operator
 
-# Настройки безопасности
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
 
-# Опционально: Sentry для мониторинга ошибок и трейсинга
+# Опционально: Sentry
 # sentry:
 #   enabled: true
 #   dsn: "https://xxx@o0.ingest.sentry.io/123"
@@ -137,27 +136,19 @@ securityContext:
 #   tracesSampleRate: 0.1
 ```
 
-Затем установите:
-
 ```bash
 helm install dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator -f my-values.yaml
 ```
 
-#### Проверка установки
-
-После установки проверьте статус:
+#### Проверка
 
 ```bash
-# Проверьте статус подов
 kubectl get pods -l app.kubernetes.io/name=dataflow-operator
 
-# Проверьте CRD
-kubectl get crd dataflows.dataflow.dataflow.io
+# Оба CRD
+kubectl get crd dataflows.dataflow.dataflow.io dataflowcrons.dataflow.dataflow.io
 
-# Проверьте логи оператора
 kubectl logs -l app.kubernetes.io/name=dataflow-operator --tail=50
-
-# Проверьте статус deployment
 kubectl get deployment dataflow-operator
 ```
 
@@ -170,19 +161,17 @@ dataflow-operator-7d8f9c4b5d-xxxxx   1/1     Running   0          1m
 
 ### Обновление
 
-Для обновления оператора до новой версии:
-
 ```bash
 helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator
 ```
 
-С кастомными значениями:
+С values:
 
 ```bash
 helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator -f my-values.yaml
 ```
 
-Для обновления до конкретной версии:
+Конкретная версия:
 
 ```bash
 helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataflow-operator \
@@ -191,37 +180,57 @@ helm upgrade dataflow-operator oci://ghcr.io/dataflow-operator/helm-charts/dataf
 
 ### Удаление
 
-Для удаления оператора:
-
 ```bash
 helm uninstall dataflow-operator
 ```
 
-**Поведение CRD при удалении**: При `crds.keep: true` (по умолчанию) CRD остаётся в кластере после `helm uninstall`. Существующие ресурсы `DataFlow` сохраняются, но перестают обрабатываться.
+При `crds.keep: true` CRD остаются; существующие ресурсы перестают реконсилироваться.
 
-Для полного удаления CRD и **всех** ресурсов DataFlow в кластере:
+Чтобы удалить CRD и **все** ресурсы DataFlow / DataFlowCron:
 
 ```bash
-# Сначала удалите все DataFlow ресурсы
 kubectl delete dataflow --all --all-namespaces
+kubectl delete dataflowcron --all --all-namespaces
 
-# Затем удалите оператор
 helm uninstall dataflow-operator
 
-# Наконец, удалите CRD (только если crds.keep был true)
 kubectl delete crd dataflows.dataflow.dataflow.io
+kubectl delete crd dataflowcrons.dataflow.dataflow.io
 ```
 
 !!! warning
-    Удаление CRD удаляет **все** ресурсы `DataFlow` во всех namespace кластера. Убедитесь, что это намеренное действие.
+    Удаление CRD удаляет **все** ресурсы `DataFlow` и `DataFlowCron` во всех namespace.
 
-## Первый DataFlow
+---
 
-### Простой пример: Kafka → PostgreSQL
+## Первый потоковый конвейер { #первый-потоковый-конвейер }
 
-Создайте простой DataFlow ресурс для передачи данных из Kafka в PostgreSQL:
+Непрерывный `DataFlow` (Deployment). В кластере / production для credentials используйте **`SecretRef`**.
+
+### Kafka → PostgreSQL с SecretRef
 
 ```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kafka-credentials
+  namespace: default
+type: Opaque
+stringData:
+  brokers: "kafka-broker:9092"
+  topic: "input-topic"
+  consumerGroup: "dataflow-group"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  namespace: default
+type: Opaque
+stringData:
+  connectionString: "postgres://user:password@postgres-host:5432/dbname?sslmode=require"
+  table: "output_table"
+---
 apiVersion: dataflow.dataflow.io/v1
 kind: DataFlow
 metadata:
@@ -231,93 +240,44 @@ spec:
   source:
     type: kafka
     config:
-      brokers:
-        - kafka-broker:9092
-      topic: input-topic
-      consumerGroup: dataflow-group
+      brokersSecretRef:
+        name: kafka-credentials
+        key: brokers
+      topicSecretRef:
+        name: kafka-credentials
+        key: topic
+      consumerGroupSecretRef:
+        name: kafka-credentials
+        key: consumerGroup
   sink:
     type: postgresql
     config:
-      connectionString: "postgres://user:password@postgres-host:5432/dbname?sslmode=disable"
-      table: output_table
+      connectionStringSecretRef:
+        name: postgres-credentials
+        key: connectionString
+      tableSecretRef:
+        name: postgres-credentials
+        key: table
       autoCreateTable: true
 ```
 
-Примените ресурс:
-
-```bash
-kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
-```
-
-**Примечание**: Каждый ресурс DataFlow создает отдельный под (Deployment) для обработки данных. Вы можете настроить ресурсы, выбор нод, affinity и tolerations. Подробнее см. [Примеры](examples.md#настройка-ресурсов-и-размещения-подов).
-
-### Пример с Kubernetes Secrets
-
-Для безопасного хранения credentials используйте Kubernetes Secrets. См. пример:
+Sample из репозитория (включая SASL SecretRef):
 
 ```bash
 kubectl apply -f dataflow/config/samples/kafka-to-postgres-secrets.yaml
 ```
 
-Этот пример демонстрирует использование `SecretRef` для конфигурации коннекторов. Подробнее см. раздел [Использование Secrets в Kubernetes](connectors.md#использование-secrets-в-kubernetes) в документации по коннекторам.
-
-## DataFlowCron (запуск по расписанию)
-
-`DataFlowCron` позволяет запускать pipeline по cron-расписанию.
-
-Ключевые особенности:
-
-- `schedule` задаёт расписание в cron-формате.
-- Основной `processor` (блок `source -> transformations -> sink`) запускается первым.
-- `triggers` запускаются **после** успешного завершения `processor`.
-- Для polling-источников (`postgresql`, `trino`, `clickhouse`, `nessie`) `processor` завершается, когда источник исчерпан (`source exhausted`).
-- Для `kafka` источник считается потоковым (streaming) и обычно не завершается по `source exhausted`.
-
-Пример:
-
-```yaml
-apiVersion: dataflow.dataflow.io/v1
-kind: DataFlowCron
-metadata:
-  name: kafka-to-nessie-cron
-spec:
-  schedule: "*/10 * * * *"
-  concurrencyPolicy: Forbid
-  source:
-    type: kafka
-    config:
-      brokers: ["kafka:9092"]
-      topic: input-topic
-      consumerGroup: dataflow-group
-  sink:
-    type: nessie
-    config:
-      baseURL: "http://nessie:19120"
-      namespace: analytics
-      table: events
-  triggers:
-    - name: trigger-airflow
-      image: curlimages/curl:8.8.0
-      command: ["curl"]
-      args: ["-X", "POST", "http://airflow-webserver:8080/api/v1/dags/example/dagRuns"]
-```
+Подробнее: [Использование Secrets](connectors.md#использование-secrets-в-kubernetes). Ресурсы и placement подов: [Примеры](examples.md#настройка-ресурсов-и-размещения-подов).
 
 ### Проверка статуса
 
-Проверьте статус созданного потока данных:
-
 ```bash
-# Получить информацию о DataFlow
 kubectl get dataflow kafka-to-postgres
-
-# Детальная информация
 kubectl describe dataflow kafka-to-postgres
-
-# Посмотреть статус в формате YAML
 kubectl get dataflow kafka-to-postgres -o yaml
 ```
 
-Ожидаемый статус:
+Пример status:
 
 ```yaml
 status:
@@ -330,171 +290,197 @@ status:
 
 ### Отправка тестового сообщения
 
-Для тестирования потока данных отправьте сообщение в Kafka топик:
-
 ```bash
-# Используя kafka-console-producer
-kafka-console-producer --broker-list localhost:9092 --topic input-topic
-# Введите JSON сообщение и нажмите Enter
+kafka-console-producer --broker-list kafka-broker:9092 --topic input-topic
+# Введите JSON и нажмите Enter
 {"id": 1, "name": "Test", "value": 100}
 ```
 
-Или используйте скрипт из проекта:
+Или (локальный стек):
 
 ```bash
 ./scripts/send-test-message.sh
 ```
 
-### Проверка данных в PostgreSQL
-
-Подключитесь к PostgreSQL и проверьте данные:
+### Проверка PostgreSQL
 
 ```bash
-psql postgres://user:password@postgres-host:5432/dbname
-
-# Проверьте таблицу
-SELECT * FROM output_table;
+psql "$CONNECTION_STRING" -c "SELECT * FROM output_table;"
 ```
 
-## Локальная разработка
+---
+
+## Первый cron-конвейер { #первый-cron-конвейер }
+
+`DataFlowCron` запускает тот же Source → Transform → Sink по **cron-расписанию** (CronJob / Job), с опциональными post-run [триггерами](dataflow-cron/triggers.md).
+
+Лучше всего подходит для **polling / batch** источников (`postgresql`, `trino`, `clickhouse`, `nessie`, `iceberg`). Kafka — streaming и обычно не завершается по исчерпанию источника — см. [DataFlowCron](dataflow-cron/index.md) и [Типы нагрузки](concepts/workload-types.md).
+
+### Минимальный пример (PostgreSQL → PostgreSQL)
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  namespace: default
+type: Opaque
+stringData:
+  connectionString: "postgres://user:password@postgres:5432/db?sslmode=require"
+---
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlowCron
+metadata:
+  name: pg-nightly-sync
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  source:
+    type: postgresql
+    config:
+      connectionStringSecretRef:
+        name: postgres-credentials
+        key: connectionString
+      table: public.orders_staging
+      pollInterval: 5
+  sink:
+    type: postgresql
+    config:
+      connectionStringSecretRef:
+        name: postgres-credentials
+        key: connectionString
+      table: public.orders_warehouse
+      autoCreateTable: true
+      batchSize: 200
+```
+
+```bash
+kubectl apply -f pg-nightly-sync.yaml
+kubectl get dataflowcron pg-nightly-sync
+kubectl get cronjob,job -l dataflow.dataflow.io/dataflow-cron=pg-nightly-sync
+```
+
+Sample в репозитории (Kafka → Nessie + triggers): `dataflow/config/samples/dataflowcron-example.yaml`. Больше YAML: [Примеры DataFlowCron](dataflow-cron/examples.md).
+
+---
+
+## Локальная разработка { #локальная-разработка }
+
+Для контрибьюторов: оператор против docker-compose / kind. Plaintext connection strings допустимы **только** в этом локальном пути.
+
+### Предварительные требования
+
+- Go 1.25+
+- Docker и Docker Compose
+- Task (опционально)
+- Порты: 8080, 5050, 15672, 8081, 5432, 9092, 5672
 
 ### Запуск зависимостей
-
-Используйте docker-compose для запуска всех зависимостей локально:
 
 ```bash
 docker-compose up -d
 ```
 
-Эта команда запустит:
+Запускает Kafka (9092) + Kafka UI (8080), PostgreSQL (5432) + pgAdmin (5050).
 
-- **Kafka** (порт 9092) с Kafka UI (порт 8080)
-- **PostgreSQL** (порт 5432) с pgAdmin (порт 5050)
+- **Kafka UI:** http://localhost:8080
+- **pgAdmin:** http://localhost:5050 — `admin@admin.com` / `admin`
 
-### Доступ к UI интерфейсам
+### DataFlow только для local (plaintext)
 
-После запуска доступны следующие UI:
+!!! warning "Только локальная разработка"
+    **Не** используйте plaintext credentials в shared или production-кластерах. Предпочтительнее [SecretRef](#первый-потоковый-конвейер).
 
-- **Kafka UI**: http://localhost:8080
-  - Просмотр топиков, сообщений, consumer groups
-- **pgAdmin**: http://localhost:5050
-  - Логин: `admin@admin.com`, пароль: `admin`
-  - Управление PostgreSQL базами данных
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: kafka-to-postgres
+  namespace: default
+spec:
+  source:
+    type: kafka
+    config:
+      brokers:
+        - localhost:9092
+      topic: input-topic
+      consumerGroup: dataflow-group
+  sink:
+    type: postgresql
+    config:
+      connectionString: "postgres://dataflow:dataflow@localhost:5432/dataflow?sslmode=disable"
+      table: output_table
+      autoCreateTable: true
+```
+
+```bash
+kubectl apply -f dataflow/config/samples/kafka-to-postgres.yaml
+```
 
 ### Запуск оператора локально
 
-Для разработки запустите оператор локально:
-
 ```bash
-# Установите CRD в кластер (если используете kind или minikube)
-task install
-
-# Запустите оператор
+task install   # CRD (kind / minikube)
 task run
 ```
 
-Или используйте скрипт:
+Или:
 
 ```bash
 ./scripts/run-local.sh
 ```
 
-### Настройка локального кластера (опционально)
-
-Для полноценного тестирования используйте kind (Kubernetes in Docker):
+### Опционально: kind-кластер
 
 ```bash
-# Создать kind кластер
 ./scripts/setup-kind.sh
-
-# Установить CRD
 task install
-
-# Запустить оператор локально
 task run
 ```
 
 ### Отладка
 
-Для отладки используйте логи оператора:
-
 ```bash
-# Если оператор запущен локально, логи выводятся в консоль
-# Для оператора в кластере:
 kubectl logs -l app.kubernetes.io/name=dataflow-operator -f
-```
-
-Проверьте события Kubernetes:
-
-```bash
 kubectl get events --sort-by='.lastTimestamp' | grep dataflow
 ```
 
+---
+
 ## Следующие шаги
 
-Теперь, когда вы установили оператор и создали первый поток данных:
+1. [Коннекторы](connectors.md) — источники и приёмники
+2. [Трансформации](transformations.md) — преобразования сообщений
+3. [Примеры](examples.md) — практические манифесты
+4. [Agent Skills](agent-skills.md) — AI-помощь с deploy и манифестами
+5. [Разработка](development.md) — участие в разработке
 
-1. Изучите [Connectors](connectors.md) для понимания всех доступных источников и приемников
-2. Ознакомьтесь с [Transformations](transformations.md) для работы с трансформациями сообщений
-3. Посмотрите [Examples](examples.md) для практических примеров использования
-4. Установите [Agent Skills](agent-skills.md) для AI-помощи с deploy и манифестами
-5. Прочитайте [Development](development.md) для участия в разработке
+---
 
 ## Устранение неполадок
 
 ### Оператор не запускается
 
 ```bash
-# Проверьте логи
 kubectl logs -l app.kubernetes.io/name=dataflow-operator
-
-# Проверьте события
 kubectl describe pod -l app.kubernetes.io/name=dataflow-operator
-
-# Проверьте CRD
-kubectl get crd dataflows.dataflow.dataflow.io -o yaml
+kubectl get crd dataflows.dataflow.dataflow.io dataflowcrons.dataflow.dataflow.io -o yaml
 ```
 
 ### DataFlow не обрабатывает сообщения
 
-1. Проверьте статус DataFlow:
-   ```bash
-   kubectl describe dataflow <name>
-   ```
-
-2. Проверьте подключение к источнику данных:
-   ```bash
-   # Для Kafka
-   kafka-console-consumer --bootstrap-server localhost:9092 --topic <topic>
-
-   # Для PostgreSQL
-   psql <connection-string> -c "SELECT * FROM <table> LIMIT 10;"
-   ```
-
-3. Проверьте логи оператора на наличие ошибок
+1. `kubectl describe dataflow <name>`
+2. Проверьте доступность источника (Kafka consumer / запрос `psql`)
+3. Логи оператора / процессора
 
 ### Проблемы с подключением
 
-- Убедитесь, что источники данных доступны из кластера
-- Проверьте сетевые политики Kubernetes
-- Проверьте правильность connection strings и credentials
-- Для локальной разработки используйте `localhost` или `host.docker.internal`
+- Доступность из кластера (NetworkPolicies, DNS)
+- Credentials и ключи Secret
+- Локально: `localhost` или `host.docker.internal`
 
 ### Trino: REMOTE_TASK_ERROR (код 65542)
 
-При использовании Trino sink может появиться ошибка:
+Воркер не ответил координатору. Оператор ретраит (до 5 попыток с backoff).
 
-```
-Trino query failed: Expected response from http://.../v1/task/.../status is empty (Error: REMOTE_TASK_ERROR, Code: 65542)
-```
-
-Это означает, что воркер Trino не ответил координатору (перегрузка, перезапуск воркера или сетевая проблема). Оператор автоматически повторяет такие запросы (до 5 попыток с экспоненциальной задержкой).
-
-**Если ошибки продолжаются:**
-
-1. **Уменьшите размер батча** — установите `batchSize` в 3–5 в конфигурации Trino sink для больших сообщений (например, JSON с множеством полей)
-2. **Проверьте кластер Trino** — проверьте логи воркеров, память и сетевое подключение
-3. **Увеличьте таймауты** — при медленных воркерах увеличьте таймаут запроса в конфигурации коннектора
-
-
-
+Если ошибки продолжаются: уменьшите `batchSize` Trino sink (например, 3–5), проверьте воркеры Trino, увеличьте таймауты запросов.
