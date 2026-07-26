@@ -35,8 +35,14 @@ jobs:
       - name: Verify nav files
         run: python3 verify_nav_files.py
 
+      - name: Hooks unit tests
+        run: python3 -m unittest hooks_test -v
+
       - name: Build documentation
         run: mkdocs build -f mkdocs.yml
+
+      - name: Assert llms.txt at site root
+        run: test -f site/llms.txt && grep -q 'DataFlow Operator' site/llms.txt
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

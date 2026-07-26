@@ -41,19 +41,43 @@ cp -r /tmp/dataflow-skills/* .cursor/skills/
 | `dataflow-config` | Write or review YAML |
 | `dataflow-fault-tolerance` | Idempotency, checkpoint, ack |
 
-## Typical workflow
+Companion files in the skills repo: [anti-patterns.md](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/anti-patterns.md), [samples-index.md](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/samples-index.md).
 
-1. `dataflow-deploy` — operator installed
-2. `dataflow-config` — draft manifest
-3. `dataflow-fault-tolerance` — pre-apply checklist
-4. `kubectl apply -f manifest.yaml`
+## Typical workflow (skills → validate → apply)
+
+1. **`dataflow-deploy`** — operator installed (Helm/CRD, webhook enabled in prod).
+2. **`dataflow` / `dataflow-config`** — choose kind, draft manifest from skills + [samples](https://github.com/dataflow-operator/dataflow/tree/main/config/samples); check [anti-patterns](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/anti-patterns.md).
+3. **`dataflow-fault-tolerance`** — pre-apply checklist (upsert, checkpoint, replicas, ack).
+4. **Optional MCP** — `generate_dataflow_manifest` / `validate_dataflow_manifest` for a quick draft.
+
+    !!! warning "MCP validate is shallow"
+        MCP checks apiVersion/kind and that source/sink have `type` + `config`. It does **not** replace the operator validating webhook. See [MCP](mcp.md).
+
+5. **Server dry-run (admission)** — before creating the resource:
+
+    ```bash
+    kubectl apply --dry-run=server -f manifest.yaml
+    ```
+
+6. **Apply and verify**
+
+    ```bash
+    kubectl apply -f manifest.yaml
+    kubectl get dataflow,dataflowcron -n <namespace>
+    kubectl describe dataflow <name>
+    ```
+
+## LLM crawlers
+
+Machine-readable map of docs and agent entry points: [llms.txt](llms.txt) (served at the site root `/llms.txt`).
 
 ## Maintainer
 
-Skills are developed in the [dataflow](https://github.com/dataflow-operator/dataflow) monorepo under `skills/` and published to **dataflow-operator/skills**. Extensions for operator development: `.cursor/skills/dataflow-*` in the monorepo.
+Skills are developed in the [dataflow](https://github.com/dataflow-operator/dataflow) monorepo under `skills/` and published to **dataflow-operator/skills**. Extensions for operator development: `.cursor/skills/dataflow-*` in the monorepo (stubs + maintainer-only files — see `SYNC.md`).
 
 ## See also
 
 - [Getting Started](getting-started.md)
 - [Fault Tolerance](fault-tolerance.md)
 - [MCP](mcp.md)
+- [Best Practices](best-practices.md)

@@ -37,10 +37,11 @@ python3 verify_nav_files.py
 ```
 docs/
 ├── mkdocs.yml              # MkDocs + i18n configuration
+├── hooks.py                # Copies en/llms.txt → site/llms.txt
 ├── requirements.txt
 ├── verify_nav_files.py
 ├── docs/
-│   ├── en/                 # English pages
+│   ├── en/                 # English pages (+ llms.txt for LLM crawlers)
 │   │   ├── concepts/       # Workload types, shared concepts
 │   │   ├── dataflow/       # DataFlow CRD reference
 │   │   └── dataflow-cron/  # DataFlowCron CRD reference
@@ -51,6 +52,8 @@ docs/
 └── .github/workflows/
     └── docs.yml
 ```
+
+After build, `site/llms.txt` is present (default locale copies `docs/en/llms.txt` to the site root; `hooks.py` is a safety net).
 
 ## Navigation sections
 

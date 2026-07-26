@@ -41,16 +41,43 @@ cp -r /tmp/dataflow-skills/* .cursor/skills/
 | `dataflow-config` | YAML manifests |
 | `dataflow-fault-tolerance` | Идемпотентность, checkpoint |
 
-## Workflow
+Сопутствующие файлы: [anti-patterns.md](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/anti-patterns.md), [samples-index.md](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/samples-index.md).
 
-1. `dataflow-deploy` → 2. `dataflow-config` → 3. `dataflow-fault-tolerance` → 4. `kubectl apply`
+## Типичный workflow (skills → validate → apply)
+
+1. **`dataflow-deploy`** — оператор установлен (Helm/CRD, webhook в prod).
+2. **`dataflow` / `dataflow-config`** — выбор kind, черновик из skills + [samples](https://github.com/dataflow-operator/dataflow/tree/main/config/samples); проверить [anti-patterns](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/anti-patterns.md).
+3. **`dataflow-fault-tolerance`** — pre-apply checklist (upsert, checkpoint, replicas, ack).
+4. **Опционально MCP** — `generate_dataflow_manifest` / `validate_dataflow_manifest` для черновика.
+
+    !!! warning "MCP validate — поверхностный"
+        MCP проверяет apiVersion/kind и наличие `type` + `config` у source/sink. Это **не** замена validating webhook. См. [MCP](mcp.md).
+
+5. **Server dry-run (admission)** — перед созданием ресурса:
+
+    ```bash
+    kubectl apply --dry-run=server -f manifest.yaml
+    ```
+
+6. **Apply и проверка**
+
+    ```bash
+    kubectl apply -f manifest.yaml
+    kubectl get dataflow,dataflowcron -n <namespace>
+    kubectl describe dataflow <name>
+    ```
+
+## LLM crawlers
+
+Машиночитаемая карта документации: [llms.txt](https://dataflow-operator.github.io/docs/llms.txt).
 
 ## Maintainer
 
-Разработка в monorepo [dataflow](https://github.com/dataflow-operator/dataflow) (`skills/`), публикация в **dataflow-operator/skills**. Расширения: `.cursor/skills/dataflow-*`.
+Разработка в monorepo [dataflow](https://github.com/dataflow-operator/dataflow) (`skills/`), публикация в **dataflow-operator/skills**. Расширения: `.cursor/skills/dataflow-*` (stubs + maintainer-only — см. `SYNC.md`).
 
 ## См. также
 
 - [Начало работы](getting-started.md)
 - [Отказоустойчивость](fault-tolerance.md)
 - [MCP](mcp.md)
+- [Best Practices](best-practices.md)

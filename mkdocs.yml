@@ -7,6 +7,9 @@ edit_uri: edit/main/docs/docs/
 
 docs_dir: docs
 
+hooks:
+  - hooks.py
+
 plugins:
   - i18n:
       docs_structure: folder

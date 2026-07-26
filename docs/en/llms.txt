@@ -1,0 +1,45 @@
+# DataFlow Operator
+
+> Kubernetes operator for streaming (DataFlow) and scheduled (DataFlowCron) pipelines between Kafka, PostgreSQL, ClickHouse, Trino, Nessie, and Iceberg.
+
+Docs site: https://dataflow-operator.github.io/docs/
+Operator repo: https://github.com/dataflow-operator/dataflow
+Agent skills: https://github.com/dataflow-operator/skills
+MCP server: https://github.com/dataflow-operator/dataflow-mcp
+
+## Core docs
+
+- [Getting Started](https://dataflow-operator.github.io/docs/getting-started/): Install the operator (Helm/CRD) and create a first DataFlow or DataFlowCron
+- [Workload Types](https://dataflow-operator.github.io/docs/concepts/workload-types/): When to use DataFlow vs DataFlowCron
+- [DataFlow Spec](https://dataflow-operator.github.io/docs/dataflow/spec/): Top-level DataFlow CRD fields and enums
+- [DataFlowCron](https://dataflow-operator.github.io/docs/dataflow-cron/): Schedule, concurrency, triggers, examples
+- [Connectors](https://dataflow-operator.github.io/docs/connectors/): Source/sink types and per-connector config fields
+- [Transformations](https://dataflow-operator.github.io/docs/transformations/): Transform types, condition DSL, CDC patterns
+- [Fault Tolerance](https://dataflow-operator.github.io/docs/fault-tolerance/): At-least-once, checkpoint, ack, upsert, collapseBatchOnMessageAck
+- [FAQ](https://dataflow-operator.github.io/docs/faq/): Common operator and pipeline questions
+- [Best Practices](https://dataflow-operator.github.io/docs/best-practices/): Production design, security, scaling guidance
+- [Agent Skills](https://dataflow-operator.github.io/docs/agent-skills/): Portable Markdown guides for AI assistants; skills vs MCP
+- [MCP](https://dataflow-operator.github.io/docs/mcp/): generate/validate YAML tools (shallow validate — use kubectl dry-run for admission)
+
+## Agent entry points
+
+- [skills AGENTS.md](https://github.com/dataflow-operator/skills/blob/main/AGENTS.md): Task → skill index and pre-apply checklist
+- [anti-patterns](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/anti-patterns.md): Explicit YAML mistakes to avoid
+- [samples index](https://github.com/dataflow-operator/skills/blob/main/dataflow-config/samples-index.md): Scenario → golden sample mapping
+
+## Canonical YAML samples (raw)
+
+Base: https://raw.githubusercontent.com/dataflow-operator/dataflow/main/config/samples/
+
+- kafka-to-postgres.yaml — Kafka → PostgreSQL with upsert
+- kafka-to-postgres-secrets.yaml — SecretRef credentials pattern
+- dataflowcron-example.yaml — Scheduled DataFlowCron
+- kafka-debezium-to-postgres.yaml — Debezium CDC unwrap → PostgreSQL
+- dead-letter-queue-example.yaml — Error/DLQ sink
+- Tree: https://github.com/dataflow-operator/dataflow/tree/main/config/samples
+
+## Optional
+
+- [Architecture](https://dataflow-operator.github.io/docs/architecture/): Operator vs processor responsibilities
+- [Examples](https://dataflow-operator.github.io/docs/examples/): Curated pipeline examples
+- [Metrics](https://dataflow-operator.github.io/docs/metrics/): Prometheus metrics reference
