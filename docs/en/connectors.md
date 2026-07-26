@@ -541,7 +541,7 @@ sink:
     # Table to write to. Supports schema.table (e.g. public.products_clone)
     table: target_table
 
-    # Batch size (optional, default: 1). 0 = flush only by timer
+    # Batch size (optional, default: 100). 0 = flush only by timer. Admission warns if set below 100.
     batchSize: 100
     # Flush interval in seconds (optional, default: 10). 0 = disable timer
     batchFlushIntervalSeconds: 10
@@ -567,7 +567,8 @@ sink:
 
 ### Sink Features
 
-- **Batch Inserts**: Groups messages for efficient writing. Flush when `batchSize` reached or on timer. Use `batchFlushIntervalSeconds: 0` for size-only flush; `batchSize: 0` for timer-only flush.
+- **Batch Inserts**: Groups messages for efficient writing. Default `batchSize` is **100** (recommended 100–1000). Flush when `batchSize` reached or on timer. Use `batchFlushIntervalSeconds: 0` for size-only flush; `batchSize: 0` for timer-only flush. See [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **Transaction + ack**: Each flush runs in one PostgreSQL transaction; source offsets are acked only after a successful `Commit`.
 - **Auto-create Tables** (when `autoCreateTable: true`):
   - **rawMode: true** — table is created at Connect time. Schema: `id SERIAL PRIMARY KEY`, `data` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN index on `data`
   - **rawMode: false** — table is created at first write from the first message structure (replicates source schema). Column types are inferred automatically (TEXT, BIGINT, NUMERIC, JSONB, etc.)
@@ -701,8 +702,8 @@ sink:
     connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
     table: output_table
 
-    # Batch size for inserts (optional, default: 100). 0 = flush only by timer
-    batchSize: 100
+    # Batch size for inserts (optional, default: 500). 0 = flush only by timer. Admission warns if set below 500.
+    batchSize: 500
     # Flush interval in seconds (optional, default: 10). 0 = disable timer
     batchFlushIntervalSeconds: 10
 
@@ -722,7 +723,9 @@ sink:
 
 ### Sink Features
 
-- **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
+- **Batch Inserts**: Groups messages; default `batchSize` is **500** (recommended 500–1000). Flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`. See [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **Ack barrier**: Source offsets are acked **once after a successful `Commit`**, not mid-batch after each `Exec` (at-least-once).
+- **Raw mode**: Inserts the message payload bytes as-is (no JSON re-encode on the write path).
 - **Upsert mode**: With `upsertMode: true`, auto-created tables use `ReplacingMergeTree`; duplicates are resolved on background merge. See [Fault Tolerance](fault-tolerance.md).
 - **Retry on Transient Errors**: Batch writes automatically retry on connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503, and similar transient errors (up to 5 attempts with exponential backoff)
 
@@ -730,7 +733,7 @@ sink:
 
 - **Error sink**: Use `spec.errors` with ClickHouse (or Kafka) to capture failed messages for replay or analysis. See [Error Handling](errors.md).
 - **Connection string**: Recommended parameters: `dial_timeout=10s`, `max_execution_time=60` (e.g. `clickhouse://host:9000/default?dial_timeout=10s&max_execution_time=60`).
-- **Batch tuning**: For throughput and resilience, use `batchSize` 100–1000 and `batchFlushIntervalSeconds` 5–10. Larger batches reduce insert frequency and can help avoid TOO_MANY_PARTS.
+- **Batch tuning**: For throughput and resilience, use `batchSize` 500–1000 and `batchFlushIntervalSeconds` 5–10. Larger batches reduce insert frequency and can help avoid TOO_MANY_PARTS.
 - **TOO_MANY_PARTS**: If you see this error, increase `batchSize`, decrease flush frequency, or tune ClickHouse merge settings (`background_pool_size`, `parts_to_throw_insert`). Consider `ReplacingMergeTree` for deduplication. See [Fault Tolerance](fault-tolerance.md).
 - **Auto-create Tables** (when `autoCreateTable: true`):
   - **rawMode: true** — table is created at Connect time. Schema: `data String`, `created_at DateTime DEFAULT now()`, MergeTree engine, ORDER BY created_at. Messages are stored as JSON string in `data` column
@@ -899,8 +902,8 @@ sink:
     # Table to write to (required)
     table: target_table
 
-    # Batch size for inserts (optional, default: 1). 0 = flush only by timer
-    batchSize: 100
+    # Batch size for inserts (optional, default: 10). 0 = flush only by timer. Admission warns if set below 10.
+    batchSize: 10
     # Flush interval in seconds (optional, default: 10). 0 = disable timer
     batchFlushIntervalSeconds: 10
 
@@ -913,7 +916,7 @@ sink:
     # When false, uses columnar format matching message keys to table columns
     rawMode: true
 
-    # MERGE upsert for Iceberg catalogs (catalog name must contain "iceberg")
+    # MERGE upsert for Iceberg catalogs (catalog name must contain "iceberg") — slower than multi-row INSERT
     upsertMode: true
     conflictKey: id
     queryTimeoutSeconds: 600
@@ -930,8 +933,9 @@ sink:
 
 ### Features
 
-- **Batch Inserts**: Groups messages; flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`
-- **Upsert mode**: `upsertMode: true` uses `MERGE INTO` for Iceberg tables (`conflictKey` required). See [Fault Tolerance](fault-tolerance.md).
+- **Batch Inserts**: Groups messages; default `batchSize` is **10**. Flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`. Admission warns if `batchSize` is set below 10. See [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **HTTP + nextUri**: Each flush is one Trino statement (multi-row `INSERT ... VALUES`) with `nextUri` polling until finished; set `queryTimeoutSeconds` to cover the full window.
+- **Upsert mode**: `upsertMode: true` uses `MERGE INTO` for Iceberg tables (`conflictKey` required) — slower than plain INSERT; prefer INSERT when you do not need idempotent updates. See [Fault Tolerance](fault-tolerance.md).
 - **Auto-create Tables**: Automatically creates tables if they don't exist
 - **Raw Mode**: When `rawMode: true`, creates table with `data VARCHAR` column; messages stored as JSON string. When `false` (default), uses columnar format matching message keys to table columns
 - **Keycloak Authentication**: OAuth2/OIDC authentication via Keycloak

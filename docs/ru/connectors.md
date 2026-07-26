@@ -359,7 +359,7 @@ sink:
     # Таблица для записи. Поддерживает schema.table (напр. public.products_clone)
     table: target_table
 
-    # Размер батча (опционально, по умолчанию: 1). 0 — сброс только по таймеру
+    # Размер батча (опционально, по умолчанию: 100). 0 — сброс только по таймеру. Admission warning если < 100.
     batchSize: 100
     # Интервал сброса в секундах (опционально, по умолчанию: 10). 0 — отключить сброс по таймеру
     batchFlushIntervalSeconds: 10
@@ -385,7 +385,8 @@ sink:
 
 #### Особенности PostgreSQL приемника
 
-- **Батч-вставки**: Группирует сообщения для эффективной записи. Сброс при достижении `batchSize` или по таймеру. Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
+- **Батч-вставки**: Группирует сообщения для эффективной записи. Default `batchSize` — **100** (рекомендуется 100–1000). Сброс при достижении `batchSize` или по таймеру. Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`. См. [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **Транзакция + ack**: каждый flush — одна TX PostgreSQL; source offsets ack'аются только после успешного `Commit`.
 - **Автосоздание таблиц** (при `autoCreateTable: true`):
   - **rawMode: true** — таблица создаётся при подключении (Connect). Схема: `id SERIAL PRIMARY KEY`, `data` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN индекс по `data`
   - **rawMode: false** — таблица создаётся при первой записи из структуры первого сообщения (реплицирует схему источника). Типы колонок выводятся автоматически (TEXT, BIGINT, NUMERIC, JSONB и т.д.)
@@ -566,8 +567,8 @@ sink:
     connectionString: "clickhouse://default@clickhouse:9000/default?dial_timeout=10s"
     table: output_table
 
-    # Размер батча для вставок (опционально, по умолчанию: 100). 0 — сброс только по таймеру
-    batchSize: 100
+    # Размер батча для вставок (опционально, по умолчанию: 500). 0 — сброс только по таймеру. Admission warning если < 500.
+    batchSize: 500
 
     # Интервал сброса батча в секундах (опционально, по умолчанию: 10). 0 — отключить сброс по таймеру
     batchFlushIntervalSeconds: 10
@@ -588,7 +589,9 @@ sink:
 
 #### Особенности ClickHouse приемника
 
-- **Батч-вставки**: Группирует сообщения; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
+- **Батч-вставки**: Группирует сообщения; default `batchSize` — **500** (рекомендуется 500–1000). Сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`. См. [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **Ack-барьер**: source offsets ack'аются **один раз после успешного `Commit`**, не mid-batch после каждого `Exec` (at-least-once).
+- **Raw mode**: в INSERT идёт payload as-is (без JSON re-encode на пути записи).
 - **Upsert mode**: При `upsertMode: true` автосозданные таблицы используют `ReplacingMergeTree`; дедупликация при background merge. См. [Отказоустойчивость](fault-tolerance.md).
 - **Retry при транзиентных ошибках**: Batch-запись автоматически повторяется при connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503 и подобных ошибках (до 5 попыток с экспоненциальным backoff)
 - **Автосоздание таблиц** (при `autoCreateTable: true`):
@@ -600,7 +603,7 @@ sink:
 
 - **Error sink**: Используйте `spec.errors` с ClickHouse (или Kafka) для сохранения неудачных сообщений. См. [Обработка ошибок](errors.md).
 - **Connection string**: Рекомендуемые параметры: `dial_timeout=10s`, `max_execution_time=60` (например, `clickhouse://host:9000/default?dial_timeout=10s&max_execution_time=60`).
-- **Настройка batch**: Для пропускной способности и устойчивости используйте `batchSize` 100–1000 и `batchFlushIntervalSeconds` 5–10. Большие батчи снижают частоту вставок и помогают избежать TOO_MANY_PARTS.
+- **Настройка batch**: Для пропускной способности и устойчивости используйте `batchSize` 500–1000 и `batchFlushIntervalSeconds` 5–10. Большие батчи снижают частоту вставок и помогают избежать TOO_MANY_PARTS.
 - **TOO_MANY_PARTS**: При этой ошибке увеличьте `batchSize`, уменьшите частоту flush или настройте merge в ClickHouse (`background_pool_size`, `parts_to_throw_insert`). Рассмотрите `ReplacingMergeTree` для дедупликации. См. [Отказоустойчивость](fault-tolerance.md).
 
 #### Пример: Kafka → ClickHouse
@@ -797,8 +800,8 @@ sink:
     # Таблица для записи (обязательно)
     table: target_table
 
-    # Размер батча для вставки (опционально, по умолчанию: 1). 0 — сброс только по таймеру
-    batchSize: 100
+    # Размер батча для вставки (опционально, по умолчанию: 10). 0 — сброс только по таймеру. Admission warning если < 10.
+    batchSize: 10
 
     # Интервал сброса батча в секундах (опционально, по умолчанию: 10). 0 — отключить сброс по таймеру
     batchFlushIntervalSeconds: 10
@@ -812,7 +815,7 @@ sink:
     # При false используется колоночный формат из сообщения
     rawMode: true
 
-    # MERGE upsert для Iceberg-каталогов (имя catalog должно содержать "iceberg")
+    # MERGE upsert для Iceberg-каталогов (имя catalog должно содержать "iceberg") — медленнее multi-row INSERT
     upsertMode: true
     conflictKey: id
     queryTimeoutSeconds: 600
@@ -829,8 +832,9 @@ sink:
 
 #### Особенности Trino приемника
 
-- **Батч-вставки**: Группирует сообщения; по умолчанию сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`
-- **Upsert mode**: `upsertMode: true` использует `MERGE INTO` для Iceberg-таблиц (`conflictKey` обязателен). См. [Отказоустойчивость](fault-tolerance.md).
+- **Батч-вставки**: Группирует сообщения; default `batchSize` — **10**. Сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`. Admission warning если `batchSize` &lt; 10. См. [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **HTTP + nextUri**: каждый flush — один statement Trino (multi-row `INSERT ... VALUES`) с polling `nextUri` до FINISHED; задавайте `queryTimeoutSeconds` на всё окно.
+- **Upsert mode**: `upsertMode: true` использует `MERGE INTO` для Iceberg-таблиц (`conflictKey` обязателен) — медленнее plain INSERT; предпочитайте INSERT, если идемпотентные обновления не нужны. См. [Отказоустойчивость](fault-tolerance.md).
 - **Автосоздание таблиц**: Автоматически создает таблицы, если они не существуют
 - **Режим rawMode**: При `rawMode: true` создает таблицу с колонкой `data VARCHAR`; сообщения сохраняются как JSON-строка. При `false` (по умолчанию) — колоночный формат из сообщения
 - **Аутентификация Keycloak**: OAuth2/OIDC аутентификация через Keycloak

@@ -155,38 +155,77 @@ spec:
 
 ## Производительность
 
-### Batch Size Optimization
+### Batch Size Optimization (SQL sinks)
 
-**PostgreSQL Sink:**
+Физический размер write-batch (`sink.config.batchSize`) и момент source ack (`spec.ackGranularity`) — **разные рычаги**. При default `collapseBatchOnMessageAck: true` значение `ackGranularity: message` всё ещё принудительно ставит `MaxBatchSize = 1` — задайте `collapseBatchOnMessageAck: false`, если нужны bulk SQL-записи **и** per-message commit источника. Подробнее: [Отказоустойчивость — развязка ack и sink batch](fault-tolerance.md#развязка-ack-и-sink-batch-speccollapsebatchonmessageack).
+
+| Sink | Runtime default (если `batchSize` не задан) | Рекомендация | Admission warning если меньше |
+|------|-------------------------|--------------|-------------------------------|
+| PostgreSQL | **100** (`sinkbatch.DefaultPostgreSQLBatchSize`) | 100–500 (до ~1000) | &lt; 100 |
+| ClickHouse | **500** (`sinkbatch.DefaultClickHouseBatchSize`) | 500–1000 | &lt; 500 |
+| Trino | **10** (`sinkbatch.DefaultTrinoBatchSize`) | ≥ 10 (скромнее для крупного JSON / Iceberg) | &lt; 10 |
+
+`sink.config` — неструктурированный `RawExtension`, поэтому эти значения подставляет **processor**, если поле опущено (не OpenAPI default CRD). Единый источник: `dataflow/pkg/sinkbatch`. `batchSize: 0` — flush **только по таймеру** (`batchFlushIntervalSeconds`, default **10** через `sinkbatch.DefaultBatchFlushIntervalSeconds`). Явные значения ниже рекомендованного порога дают admission **warning** (не reject).
+
+#### Как пишет каждый SQL sink
+
+**PostgreSQL**
+
+- Копит до `batchSize` (или flush interval), затем **одна транзакция**: `pgx.Batch` из per-row `INSERT` / `ON CONFLICT`, затем `Commit`.
+- Source ack — **только после** успешного Commit (`AckAfterSuccessfulWrite`).
+- Одно соединение на sink pod (`pgx.Connect`, не pool). Предпочтительнее укрупнять batch, чем плодить соединения.
+- Upsert остаётся row-oriented (`ON CONFLICT` на statement); soft-delete попадает в ту же batch TX.
+
 ```yaml
 sink:
   type: postgresql
   config:
-    # Начните с 100-500 для нормальной нагрузки
     batchSize: 500
-    # При проблемах с памятью уменьшите
-    # Для высокой нагрузки увеличьте до 1000
+    batchFlushIntervalSeconds: 10
+    upsertMode: true
+    conflictKey: id
 ```
 
-**ClickHouse Sink:**
+**ClickHouse**
+
+- Default batch **500**. Flush: `Begin` → `Prepare` → per-row `Exec` → **`Commit`**.
+- Source ack — **один раз**, в `OnAck`, **после** успешного Commit (не mid-batch). Так сохраняется at-least-once, если Commit падает после части `Exec`.
+- В raw mode в INSERT идёт `message.Data` as-is (без Unmarshal→Marshal на пути записи).
+- Крупные batch снижают частоту insert и помогают избежать `TOO_MANY_PARTS`. Обычно `batchFlushIntervalSeconds: 5–10` при `batchSize` 500–1000.
+
 ```yaml
 sink:
   type: clickhouse
   config:
-    # ClickHouse эффективен с большими batches
     batchSize: 1000
     batchFlushIntervalSeconds: 5
+    upsertMode: true
+    conflictKey: id
 ```
 
-**Trino Sink:**
+**Trino**
+
+- Default batch **10**. Каждый flush — один HTTP statement (multi-row `INSERT ... VALUES`) плюс polling `nextUri` до `FINISHED`.
+- Upsert идёт через **`MERGE`** (каталоги Iceberg) — медленнее plain INSERT; admission предупреждает при `upsertMode: true`. Держите batch скромным и задавайте `queryTimeoutSeconds` на всё окно polling.
+- Для throughput предпочитайте multi-row INSERT; MERGE — только когда нужны идемпотентные обновления.
+
 ```yaml
 sink:
   type: trino
   config:
-    # Trino менее эффективен с большими batches
-    # Используйте маленькие batches
     batchSize: 10
+    batchFlushIntervalSeconds: 10
+    queryTimeoutSeconds: 600
+    # upsertMode: true   # MERGE slow-path — только если нужен
+    # conflictKey: id
 ```
+
+#### Чеклист тюнинга
+
+1. Начните с defaults выше; поднимайте PG/CH batch при устойчивой нагрузке, пока не упрётесь в latency/память.
+2. Высокий Kafka volume: `ackGranularity: batch` **или** `message` + `collapseBatchOnMessageAck: false`.
+3. При ClickHouse `TOO_MANY_PARTS` сначала увеличьте `batchSize` / flush interval.
+4. Для Trino Iceberg/Nessie держите `batchSize` таким, чтобы один statement укладывался в `queryTimeoutSeconds`.
 
 ### Buffer Sizing
 

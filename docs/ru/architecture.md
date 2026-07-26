@@ -140,6 +140,8 @@ flowchart LR
 
 **Double-buffer flush.** Пока flush batch N, loop читает batch N+1 (лимит: один in-flight + один active). Порядок flush/ack сохраняется. Кастомные write loop (например PostgreSQL) пока без double-buffer.
 
+**Defaults SQL sinks.** Если `batchSize` не задан, processor ставит PostgreSQL **100**, ClickHouse **500**, Trino **10**. Admission предупреждает, если явное значение ниже рекомендованного порога. ClickHouse ack'ает source offsets только после успешного `Commit`. Подробнее: [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+
 **Горизонтальный scale (`replicas`).** `replicas > 1` только для **Kafka**. Иначе — `resources`, `channelBufferSize`, `transformWorkers`, `readBatchSize` / `batchSize`.
 
 **Якоря:** `process_transform.go`, `batch_writer.go`, `dataflow_types.go` (`transformWorkers`).

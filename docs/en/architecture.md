@@ -186,6 +186,8 @@ flowchart LR
 
 **Double-buffer flush.** While batch N is flushing, the loop continues reading into batch N+1 (memory bounded to one in-flight flush + one active batch). Flush/ack order is preserved. Connectors that use a custom write loop (e.g. PostgreSQL) are unchanged until they adopt the same pattern.
 
+**SQL sink defaults.** When `batchSize` is omitted, the processor uses PostgreSQL **100**, ClickHouse **500**, Trino **10**. Admission warns when an explicit value is below the recommended floor. ClickHouse acks source offsets only after a successful `Commit`. Details: [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+
 **Horizontal scale (`replicas`).** Admission allows `replicas > 1` **only for Kafka** sources. Polling, CDC, Iceberg/Nessie, and plugin sources must stay at **1** replica — scale via `resources`, `channelBufferSize`, `transformWorkers`, and `readBatchSize` / `batchSize`. `DataFlowCron` always rejects `replicas > 1`.
 
 **Code anchors:** `dataflow/internal/processor/process_transform.go`, `dataflow/internal/connectors/batch_writer.go` (`RunBatchWriteLoop`), `dataflow/api/v1/dataflow_types.go` (`transformWorkers`), `dataflow/api/v1/dataflow_validation.go`.
