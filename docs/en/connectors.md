@@ -391,7 +391,28 @@ sink:
       mechanism: scram-sha-256
       username: kafka-user
       password: kafka-password
+
+    # Producer tuning (all optional; defaults preserve durable SyncProducer behavior)
+    # requiredAcks: all (default) | local | none — idempotent (default) requires all
+    # compression: none (default) | gzip | snappy | lz4 | zstd
+    # idempotent: true (default)
+    # maxOpenRequests: 1 when idempotent; raise only with idempotent: false
+    # async: false (default SyncProducer) | true (AsyncProducer; enable flush* for batching)
+    # flushMessages / flushBytes / flushFrequency — most effective with async: true
+    requiredAcks: all
+    compression: snappy
+    async: true
+    flushMessages: 100
+    flushFrequency: 50ms
 ```
+
+#### Sink features
+
+- **Defaults**: `requiredAcks: all`, `idempotent: true`, `maxOpenRequests: 1`, SyncProducer (`async: false`) — same durability as before.
+- **Compression**: `none` | `gzip` | `snappy` | `lz4` | `zstd` reduces wire size on produce.
+- **Async producer**: set `async: true` for higher throughput; combine with `flushMessages` / `flushBytes` / `flushFrequency` so Sarama batches produce requests. Ack still happens after broker success (at-least-once).
+- **Keys**: message key from metadata `key` is preserved when present.
+- **Metadata**: after a successful write, metadata is updated with `partition` and `offset`.
 
 #### Example: SASL_SSL
 

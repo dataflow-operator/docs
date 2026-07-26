@@ -309,7 +309,17 @@ sink:
 
 ### Kafka sink
 
-Producer Kafka использует `RequiredAcks = WaitForAll` и `Producer.Idempotent = true` для надёжности и предотвращения дубликатов при повторной отправке. Consumers по-прежнему должны обрабатывать возможные дубликаты (например, идемпотентной обработкой или дедупликацией по ключу) для end-to-end exactly-once.
+По умолчанию producer Kafka использует `requiredAcks: all` и `idempotent: true` (SyncProducer) для надёжности и предотвращения дубликатов при повторной отправке. Параметры produce задаются в `config` sink:
+
+| Поле | По умолчанию | Заметки |
+|------|--------------|---------|
+| `requiredAcks` | `all` | `all` \| `local` \| `none`; для idempotent нужен `all` |
+| `compression` | `none` | `none` \| `gzip` \| `snappy` \| `lz4` \| `zstd` |
+| `idempotent` | `true` | При true `maxOpenRequests` должен быть `1` |
+| `async` | `false` | `true` → AsyncProducer; с `flush*` для батчинга |
+| `flushMessages` / `flushBytes` / `flushFrequency` | не заданы | Пороги flush Sarama (эффективны при `async: true`) |
+
+Consumers по-прежнему должны обрабатывать возможные дубликаты (например, идемпотентной обработкой или дедупликацией по ключу) для end-to-end exactly-once.
 
 ## Рекомендации
 

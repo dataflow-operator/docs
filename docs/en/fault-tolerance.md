@@ -302,7 +302,17 @@ On match, rows are updated; there is no `ifNewer` version guard for Trino yet.
 
 ### Kafka Sink
 
-The Kafka producer uses `RequiredAcks = WaitForAll` and `Producer.Idempotent = true` for durability and to prevent duplicate messages on retry. Consumers should still handle potential duplicates (e.g., by idempotent processing or deduplication by key) for end-to-end exactly-once semantics.
+By default the Kafka producer uses `requiredAcks: all` and `idempotent: true` (SyncProducer) for durability and to prevent duplicates on retry. You can tune produce behavior in sink `config`:
+
+| Field | Default | Notes |
+|-------|---------|--------|
+| `requiredAcks` | `all` | `all` \| `local` \| `none`; idempotent requires `all` |
+| `compression` | `none` | `none` \| `gzip` \| `snappy` \| `lz4` \| `zstd` |
+| `idempotent` | `true` | When true, `maxOpenRequests` must be `1` |
+| `async` | `false` | `true` → AsyncProducer; use with `flush*` for batching |
+| `flushMessages` / `flushBytes` / `flushFrequency` | unset | Sarama produce flush thresholds (effective with `async: true`) |
+
+Consumers should still handle potential duplicates (e.g., idempotent processing or deduplication by key) for end-to-end exactly-once semantics.
 
 ## Best Practices
 

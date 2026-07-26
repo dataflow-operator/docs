@@ -228,13 +228,28 @@ sink:
       mechanism: scram-sha-256
       username: kafka-user
       password: kafka-password
+
+    # Тюнинг producer (всё опционально; defaults = прежнее durable поведение)
+    # requiredAcks: all (по умолчанию) | local | none — при idempotent нужен all
+    # compression: none (по умолчанию) | gzip | snappy | lz4 | zstd
+    # idempotent: true (по умолчанию)
+    # maxOpenRequests: 1 при idempotent; повышать только с idempotent: false
+    # async: false (SyncProducer) | true (AsyncProducer; включайте flush* для батчинга)
+    # flushMessages / flushBytes / flushFrequency — эффективны при async: true
+    requiredAcks: all
+    compression: snappy
+    async: true
+    flushMessages: 100
+    flushFrequency: 50ms
 ```
 
 #### Особенности Kafka приемника
 
-- **Синхронная запись**: Использует `SyncProducer` для гарантированной доставки
-- **Ключи сообщений**: Сохраняет ключи из метаданных сообщения
-- **Метаданные**: После записи обновляет метаданные с `partition` и `offset`
+- **Defaults**: `requiredAcks: all`, `idempotent: true`, `maxOpenRequests: 1`, SyncProducer (`async: false`) — та же durability, что раньше.
+- **Compression**: `none` | `gzip` | `snappy` | `lz4` | `zstd`.
+- **Async producer**: `async: true` для высокого throughput; комбинируйте с `flushMessages` / `flushBytes` / `flushFrequency`. Ack после успешного ответа брокера (at-least-once).
+- **Ключи сообщений**: сохраняет ключи из метаданных сообщения (`key`).
+- **Метаданные**: после записи обновляет метаданные с `partition` и `offset`.
 
 ## PostgreSQL
 
