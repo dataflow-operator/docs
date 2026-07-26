@@ -16,7 +16,7 @@ DataFlow Operator обрабатывает сообщения с семанти�
 | **PostgreSQL CDC** | ConfigMap (`lastAckedLSN`) | Продолжает logical replication с последнего acked LSN после записи в sink. |
 | **ClickHouse** | ConfigMap (по умолчанию); в памяти при `checkpointPersistence: false` | По умолчанию продолжает с последней позиции. Без персистенции: перечитывает с начала. |
 | **Trino** | ConfigMap (по умолчанию); в памяти при `checkpointPersistence: false` | По умолчанию продолжает с последней позиции. Без персистенции: перечитывает с начала. |
-| **Nessie** | ConfigMap при `incrementalBySnapshot: true` и `checkpointPersistence` (по умолчанию) | Инкрементальное чтение по цепочке Iceberg snapshot; без `incrementalBySnapshot` — полный scan на каждом poll (checkpoint не используется). |
+| **Nessie** | ConfigMap при `incrementalBySnapshot: true` и `checkpointPersistence` (по умолчанию) | Инкрементальное чтение по цепочке Iceberg snapshot (file-level delta добавленных data files при возможности); без `incrementalBySnapshot` — полный scan на каждом poll (checkpoint не используется). |
 | **Iceberg** | ConfigMap при `incrementalBySnapshot: true` и `checkpointPersistence` (по умолчанию) | Как у Nessie; ключ checkpoint — `iceberg`. |
 
 ### Горизонтальное масштабирование (`spec.replicas`)
@@ -39,7 +39,7 @@ Consumer Kafka помечает offset **только после** успешн�
 
 ### Nessie источник (инкрементальный режим)
 
-При `source.config.incrementalBySnapshot: true` процессор читает только **новые** Iceberg snapshot с момента последнего `Ack`. Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) сохраняется в ConfigMap, если включены `snapshotCheckpoints` (по умолчанию) и `spec.checkpointPersistence`.
+При `source.config.incrementalBySnapshot: true` процессор читает только **новые** Iceberg snapshot с момента последнего `Ack`. Внутри нового snapshot предпочтительны добавленные data files относительно parent (пустой delta пропускает scan; append-only parquet без deletes — прямой file read). Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) сохраняется в ConfigMap, если включены `snapshotCheckpoints` (по умолчанию) и `spec.checkpointPersistence`. Опционально `maxRowsPerPoll` / `maxBytesPerPoll` ограничивают объём за poll.
 
 Подробнее: [nessie-incremental-snapshots-design.md](nessie-incremental-snapshots-design.md).
 
@@ -193,8 +193,8 @@ Kafka sink не использует этот batching helper; поведени�
 
 ### Взаимодействие с `checkpointSyncOnAck`
 
-- Checkpoint polling / CDC: `Save` кладёт состояние в память; `checkpointSyncOnAck: true` вызывает `FlushAfterBatchAck` после ack (ConfigMap Get+Patch), с coalescing по `checkpointSaveInterval` (по умолчанию `30s`).
-- При `ackGranularity: message` и collapse `false` на один bulk flush приходится **много** ack-колбэков → больше *попыток* flush, но coalesce ограничивает частоту API.
+- Checkpoint polling / CDC: `Save` кладёт состояние в память; `checkpointSyncOnAck: true` вызывает `FlushAfterBatchAck` после ack. Flush **неблокирующий** (фоновый worker) и coalesced по `checkpointSaveInterval` (по умолчанию `30s`) — ack path не ждёт ConfigMap Get+Patch.
+- При `ackGranularity: message` и collapse `false` на один bulk flush приходится **много** ack-колбэков → больше *попыток* flush, но coalesce + async ограничивают частоту API и не тормозят пайплайн.
 - Связка **высокий объём** + `message` + `checkpointSyncOnAck: true` без учёта coalesce всё ещё может нагружать API server; для migration/cron чаще достаточно `batch` ack, либо sync-on-ack с разумным `checkpointSaveInterval`.
 
 ### Как выбрать режим
@@ -309,15 +309,15 @@ sink:
 
 ### Kafka sink
 
-По умолчанию producer Kafka использует `requiredAcks: all` и `idempotent: true` (SyncProducer) для надёжности и предотвращения дубликатов при повторной отправке. Параметры produce задаются в `config` sink:
+По умолчанию producer Kafka использует `requiredAcks: all`, `idempotent: true`, `compression: snappy` и `async: true` (AsyncProducer с flush defaults 100 сообщений / 100ms) для надёжного батчевого produce. Параметры задаются в `config` sink:
 
 | Поле | По умолчанию | Заметки |
 |------|--------------|---------|
 | `requiredAcks` | `all` | `all` \| `local` \| `none`; для idempotent нужен `all` |
-| `compression` | `none` | `none` \| `gzip` \| `snappy` \| `lz4` \| `zstd` |
+| `compression` | `snappy` | `none` \| `gzip` \| `snappy` \| `lz4` \| `zstd` |
 | `idempotent` | `true` | При true `maxOpenRequests` должен быть `1` |
-| `async` | `false` | `true` → AsyncProducer; с `flush*` для батчинга |
-| `flushMessages` / `flushBytes` / `flushFrequency` | не заданы | Пороги flush Sarama (эффективны при `async: true`) |
+| `async` | `true` | `false` → SyncProducer (исторический RTT на сообщение) |
+| `flushMessages` / `flushBytes` / `flushFrequency` | 100 / не задан / 100ms при async | Пороги flush Sarama |
 
 Consumers по-прежнему должны обрабатывать возможные дубликаты (например, идемпотентной обработкой или дедупликацией по ключу) для end-to-end exactly-once.
 
@@ -387,7 +387,7 @@ spec:
 
 По умолчанию pending checkpoint сбрасывается в ConfigMap по таймеру debounce (`checkpointSaveInterval`, по умолчанию `30s`) и при graceful shutdown. После падения пода polling-источники могут перечитать данные за один интервал debounce.
 
-При `checkpointSyncOnAck: true` checkpoint сбрасывается сразу после ack батча sink (с coalescing, не чаще `checkpointSaveInterval`). Рекомендуется для migration и cron:
+При `checkpointSyncOnAck: true` после каждого ack батча sink запрашивается flush checkpoint. Flush **асинхронный** (не блокирует ack path) и по-прежнему coalesced, не чаще `checkpointSaveInterval`. Рекомендуется для migration и cron:
 
 ```yaml
 spec:

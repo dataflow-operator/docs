@@ -230,25 +230,26 @@ sink:
       username: kafka-user
       password: kafka-password
 
-    # Тюнинг producer (всё опционально; defaults = прежнее durable поведение)
+    # Тюнинг producer (всё опционально)
     # requiredAcks: all (по умолчанию) | local | none — при idempotent нужен all
-    # compression: none (по умолчанию) | gzip | snappy | lz4 | zstd
+    # compression: snappy (по умолчанию) | none | gzip | lz4 | zstd
     # idempotent: true (по умолчанию)
     # maxOpenRequests: 1 при idempotent; повышать только с idempotent: false
-    # async: false (SyncProducer) | true (AsyncProducer; включайте flush* для батчинга)
-    # flushMessages / flushBytes / flushFrequency — эффективны при async: true
+    # async: true (по умолчанию AsyncProducer) | false (SyncProducer)
+    # flushMessages / flushBytes / flushFrequency — при async: true
+    #   (defaults при async: flushMessages=100, flushFrequency=100ms)
     requiredAcks: all
     compression: snappy
     async: true
     flushMessages: 100
-    flushFrequency: 50ms
+    flushFrequency: 100ms
 ```
 
 #### Особенности Kafka приемника
 
-- **Defaults**: `requiredAcks: all`, `idempotent: true`, `maxOpenRequests: 1`, SyncProducer (`async: false`) — та же durability, что раньше.
+- **Defaults**: `requiredAcks: all`, `idempotent: true`, `maxOpenRequests: 1`, `compression: snappy`, `async: true` (AsyncProducer) с `flushMessages: 100` и `flushFrequency: 100ms`, если не заданы. `async: false` — исторический SyncProducer (RTT на сообщение).
 - **Compression**: `none` | `gzip` | `snappy` | `lz4` | `zstd`.
-- **Async producer**: `async: true` для высокого throughput; комбинируйте с `flushMessages` / `flushBytes` / `flushFrequency`. Ack после успешного ответа брокера (at-least-once).
+- **Async producer**: путь по умолчанию батчит produce через пороги flush Sarama. Ack после успешного ответа брокера (at-least-once).
 - **Ключи сообщений**: сохраняет ключи из метаданных сообщения (`key`).
 - **Метаданные**: после записи обновляет метаданные с `partition` и `offset`.
 
@@ -387,6 +388,7 @@ sink:
 #### Особенности PostgreSQL приемника
 
 - **Батч-вставки**: Группирует сообщения для эффективной записи. Default `batchSize` — **100** (рекомендуется 100–1000). Сброс при достижении `batchSize` или по таймеру. Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`. См. [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **Bulk-путь записи (автоматически)**: предпочтительно `COPY FROM` для однородного plain `INSERT` (без `ON CONFLICT`); иначе один multi-row `INSERT … VALUES`; смешанные формы / soft-delete `UPDATE` — `pgx.Batch`. Выбор пути не настраивается через CRD.
 - **Транзакция + ack**: каждый flush — одна TX PostgreSQL; source offsets ack'аются только после успешного `Commit`.
 - **Автосоздание таблиц** (при `autoCreateTable: true`):
   - **rawMode: true** — таблица создаётся при подключении (Connect). Схема: `id SERIAL PRIMARY KEY`, `data` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN индекс по `data`
@@ -591,7 +593,8 @@ sink:
 #### Особенности ClickHouse приемника
 
 - **Батч-вставки**: Группирует сообщения; default `batchSize` — **500** (рекомендуется 500–1000). Сброс при достижении `batchSize` или по таймеру (10 с). Только по размеру: `batchFlushIntervalSeconds: 0`. Только по времени: `batchSize: 0`. См. [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
-- **Ack-барьер**: source offsets ack'аются **один раз после успешного `Commit`**, не mid-batch после каждого `Exec` (at-least-once).
+- **Bulk-путь записи (автоматически)**: native ClickHouse `PrepareBatch` + `Append`/`Send`, если доступно native-соединение; иначе один multi-row `INSERT … VALUES` через `database/sql` Exec. Не настраивается через CRD.
+- **Ack-барьер**: source offsets ack'аются **один раз после успешного flush**, не mid-batch (at-least-once).
 - **Raw mode**: в INSERT идёт payload as-is (без JSON re-encode на пути записи).
 - **Upsert mode**: При `upsertMode: true` автосозданные таблицы используют `ReplacingMergeTree`; дедупликация при background merge. См. [Отказоустойчивость](fault-tolerance.md).
 - **Retry при транзиентных ошибках**: Batch-запись автоматически повторяется при connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503 и подобных ошибках (до 5 попыток с экспоненциальным backoff)
@@ -1001,6 +1004,8 @@ source:
     # incrementalBySnapshot: true
     # startSnapshotID: "1234567890123456789"  # при первом запуске без checkpoint
     # snapshotCheckpoints: true              # по умолчанию
+    # maxRowsPerPoll: 50000                  # лимит строк за poll (0/не задано = без лимита)
+    # maxBytesPerPoll: 67108864              # приблизительный лимит байт payload
 
     # Аутентификация (опционально)
     # authenticationType: AUTO (по умолчанию) | BEARER | BASIC | NONE
@@ -1029,7 +1034,8 @@ source:
 - **Контекст ветки**: Чтение из указанной ветки Nessie; метаданные таблицы берутся из каталога.
 - **Опрос**: Периодическое сканирование таблицы Iceberg для новых данных.
 - **Полный scan (по умолчанию)**: На каждом poll выполняется полное сканирование текущего snapshot таблицы.
-- **Инкрементальный режим** (`incrementalBySnapshot: true`): Читаются только snapshot новее последнего подтверждённого `Ack`; позиция сохраняется в checkpoint ConfigMap (см. [отказоустойчивость](fault-tolerance.md)). Поле `query` в этом режиме не поддерживается.
+- **Инкрементальный режим** (`incrementalBySnapshot: true`): Читаются только snapshot новее последнего подтверждённого `Ack`; позиция сохраняется в checkpoint ConfigMap (см. [отказоустойчивость](fault-tolerance.md)). Внутри нового snapshot предпочтителен **file-level delta** (data files, добавленные относительно parent). Пустой delta пропускает scan. Append-only parquet без delete-файлов может читаться прямым parquet-путём; иначе полный Iceberg `Scan`. Поле `query` в этом режиме не поддерживается.
+- **Лимиты poll**: `maxRowsPerPoll` / `maxBytesPerPoll` ограничивают объём за один poll (streaming resume внутри snapshot). Рекомендуется с incremental на больших таблицах.
 - **Аутентификация**: Bearer токен (OAuth2) или Basic auth для Nessie/Iceberg REST.
 - **Без `rawMode` у источника**: Каждая строка Iceberg отдаётся как JSON-объект с именами колонок (например `data` и `_metadata`, если таблица создана sink с `rawMode: true`). Инкрементальный режим уменьшает дубликаты при рестарте, но **не** включает несколько подов процессора — см. [Горизонтальное масштабирование](#горизонтальное-масштабирование-specreplicas) ниже.
 
@@ -1206,6 +1212,9 @@ source:
     namespace: my_schema
     table: my_table
     pollInterval: 10
+    # incrementalBySnapshot: true
+    # maxRowsPerPoll: 50000
+    # maxBytesPerPoll: 67108864
     authenticationType: BEARER
     bearerToken: "your-token"
     # oauth2ClientID / oauth2ClientSecret — альтернатива bearerToken
@@ -1228,7 +1237,7 @@ sink:
     # s3Endpoint, s3Region, accessKeySecretRef, secretAccessKeySecretRef — для S3 warehouse
 ```
 
-Поведение совпадает с Nessie: опрос, инкрементальные snapshot, батч-дозапись, `rawMode`, `flattenMetadataColumns`. Ключ checkpoint — `iceberg`. Для Iceberg source `spec.replicas` должен быть 1.
+Поведение совпадает с Nessie: опрос, инкрементальные snapshot (file-level delta / parquet fast path), лимиты `maxRowsPerPoll` / `maxBytesPerPoll`, батч-дозапись, `rawMode`, `flattenMetadataColumns`. Ключ checkpoint — `iceberg`. Для Iceberg source `spec.replicas` должен быть 1.
 
 Пример: `dataflow/config/samples/kafka-to-iceberg.yaml`.
 
@@ -1628,7 +1637,7 @@ kubectl logs -l app.kubernetes.io/name=dataflow-operator | grep -i secret
 
 #### checkpointSyncOnAck и checkpointSaveInterval
 
-`checkpointSyncOnAck: true` сбрасывает checkpoint polling-источников в ConfigMap после ack sink (с coalescing по `checkpointSaveInterval`, по умолчанию `30s`). Рекомендуется для migration и cron. Подробнее: [Отказоустойчивость](fault-tolerance.md#синхронизация-checkpoint-при-ack-speccheckpointsynconack).
+`checkpointSyncOnAck: true` запрашивает flush checkpoint polling-источников после ack sink. Flush **асинхронный** и coalesced по `checkpointSaveInterval` (по умолчанию `30s`) — ack path не ждёт ConfigMap Patch. Рекомендуется для migration и cron. Подробнее: [Отказоустойчивость](fault-tolerance.md#синхронизация-checkpoint-при-ack-speccheckpointsynconack).
 
 ### Kafka
 

@@ -115,6 +115,10 @@ flowchart TB
   - Метки: `namespace`, `name`, `queue_type`
   - Типы очередей: `routing`, `output`, `default`, и маршруты роутера
 
+- `dataflow_channel_fill_ratio` - заполненность буферизованного канала (`len/cap`, 0.0–1.0) для видимости backpressure
+  - Метки: `namespace`, `name`, `channel`
+  - Частые значения `channel`: `source` (CDC / Nessie / Iceberg enqueue), `routing` (fan-out процессора). Устойчивые значения около `1.0` обычно означают: увеличить `channelBufferSize` или ускорить sink/transform.
+
 - `dataflow_task_queue_wait_time_seconds` - время ожидания сообщений в очереди (гистограмма)
   - Метки: `namespace`, `name`, `queue_type`
 

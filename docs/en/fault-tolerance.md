@@ -16,7 +16,7 @@ DataFlow Operator processes messages with **at-least-once** delivery semantics. 
 | **PostgreSQL CDC** | ConfigMap (`lastAckedLSN`) | Resumes logical replication from last acked LSN after sink write. |
 | **ClickHouse** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
 | **Trino** | ConfigMap (default); in-memory when `checkpointPersistence: false` | By default resumes from last position. Without persistence: re-reads from beginning. |
-| **Nessie** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Incremental reads along the Iceberg snapshot chain; without `incrementalBySnapshot`, full scan on every poll (no checkpoint). |
+| **Nessie** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Incremental reads along the Iceberg snapshot chain (file-level added-data delta when possible); without `incrementalBySnapshot`, full scan on every poll (no checkpoint). |
 | **Iceberg** | ConfigMap when `incrementalBySnapshot: true` and `checkpointPersistence` (default) | Same as Nessie; checkpoint store key is `iceberg`. |
 
 ### Horizontal scaling (`spec.replicas`)
@@ -39,7 +39,7 @@ If the processor crashes:
 
 ### Nessie source (incremental mode)
 
-When `source.config.incrementalBySnapshot: true`, the processor reads only **new** Iceberg snapshots since the last `Ack`. Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) is stored in a ConfigMap when `snapshotCheckpoints` (default) and `spec.checkpointPersistence` are enabled.
+When `source.config.incrementalBySnapshot: true`, the processor reads only **new** Iceberg snapshots since the last `Ack`. Within a new snapshot, added data files vs the parent are preferred (empty delta skips the scan; append-only parquet without deletes can use a direct file read). Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) is stored in a ConfigMap when `snapshotCheckpoints` (default) and `spec.checkpointPersistence` are enabled. Optional `maxRowsPerPoll` / `maxBytesPerPoll` cap emission per poll.
 
 See [nessie-incremental-snapshots-design.md](nessie-incremental-snapshots-design.md).
 
@@ -185,8 +185,8 @@ Kafka sink does not use this batching helper; produce/ack behavior is separate.
 
 ### Interaction with `checkpointSyncOnAck`
 
-- Polling / CDC checkpoints: `Save` queues state in memory; `checkpointSyncOnAck: true` calls `FlushAfterBatchAck` after ack (ConfigMap Get+Patch), coalesced by `checkpointSaveInterval` (default `30s`).
-- With `ackGranularity: message` and collapse `false`, you still get **many** ack callbacks per bulk flush → more flush *attempts*, but coalesce limits API rate.
+- Polling / CDC checkpoints: `Save` queues state in memory; `checkpointSyncOnAck: true` calls `FlushAfterBatchAck` after ack. The flush is **non-blocking** (background worker) and coalesced by `checkpointSaveInterval` (default `30s`) so the ack path does not wait on ConfigMap Get+Patch.
+- With `ackGranularity: message` and collapse `false`, you still get **many** ack callbacks per bulk flush → more flush *attempts*, but coalesce + async limit API rate and avoid stalling the pipeline.
 - Combining **high volume** + `message` + `checkpointSyncOnAck: true` without coalesce awareness can still pressure the API server; prefer `batch` ack for migration/cron unless you need a tight window, or keep sync-on-ack with a sane `checkpointSaveInterval`.
 
 ### Choosing a mode
@@ -302,15 +302,15 @@ On match, rows are updated; there is no `ifNewer` version guard for Trino yet.
 
 ### Kafka Sink
 
-By default the Kafka producer uses `requiredAcks: all` and `idempotent: true` (SyncProducer) for durability and to prevent duplicates on retry. You can tune produce behavior in sink `config`:
+By default the Kafka producer uses `requiredAcks: all`, `idempotent: true`, `compression: snappy`, and `async: true` (AsyncProducer with flush defaults 100 messages / 100ms) for durable batched produce. You can tune produce behavior in sink `config`:
 
 | Field | Default | Notes |
 |-------|---------|--------|
 | `requiredAcks` | `all` | `all` \| `local` \| `none`; idempotent requires `all` |
-| `compression` | `none` | `none` \| `gzip` \| `snappy` \| `lz4` \| `zstd` |
+| `compression` | `snappy` | `none` \| `gzip` \| `snappy` \| `lz4` \| `zstd` |
 | `idempotent` | `true` | When true, `maxOpenRequests` must be `1` |
-| `async` | `false` | `true` → AsyncProducer; use with `flush*` for batching |
-| `flushMessages` / `flushBytes` / `flushFrequency` | unset | Sarama produce flush thresholds (effective with `async: true`) |
+| `async` | `true` | `false` → SyncProducer (historical per-message RTT) |
+| `flushMessages` / `flushBytes` / `flushFrequency` | 100 / unset / 100ms when async | Sarama produce flush thresholds |
 
 Consumers should still handle potential duplicates (e.g., idempotent processing or deduplication by key) for end-to-end exactly-once semantics.
 
@@ -380,7 +380,7 @@ The controller creates the ConfigMap and RBAC (ServiceAccount, Role, RoleBinding
 
 By default, pending checkpoints are flushed to the ConfigMap on a debounce timer (`checkpointSaveInterval`, default `30s`) and on graceful shutdown. After a pod crash, polling sources may re-read up to one debounce interval of data.
 
-Set `checkpointSyncOnAck: true` to flush the checkpoint immediately after each sink batch ack (coalesced, not more often than `checkpointSaveInterval`). Recommended for migration and cron workloads:
+Set `checkpointSyncOnAck: true` to request a checkpoint flush after each sink batch ack. Flush is **asynchronous** (does not block the ack path) and still coalesced, not more often than `checkpointSaveInterval`. Recommended for migration and cron workloads:
 
 ```yaml
 spec:

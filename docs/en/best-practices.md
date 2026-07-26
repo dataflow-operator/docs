@@ -171,10 +171,11 @@ Physical write-batch size (`sink.config.batchSize`) and source ack timing (`spec
 
 **PostgreSQL**
 
-- Accumulates up to `batchSize` (or flush interval), then runs **one transaction**: `pgx.Batch` of per-row `INSERT` / `ON CONFLICT` statements, then `Commit`.
+- Accumulates up to `batchSize` (or flush interval), then runs **one transaction**.
+- Flush path (automatic): `COPY FROM` for homogeneous plain `INSERT` (no `ON CONFLICT`); else one multi-row `INSERT … VALUES` (including `ON CONFLICT` / upsert); mixed `UPDATE`/heterogeneous shapes use `pgx.Batch`.
 - Source ack runs **only after** a successful Commit (`AckAfterSuccessfulWrite`).
 - One DB connection per sink pod (`pgx.Connect`, not a pool). Prefer larger batches over parallel connections.
-- Upsert stays row-oriented (`ON CONFLICT` per statement); soft-delete is queued into the same batch TX.
+- Soft-delete is queued into the same batch TX (forces `pgx.Batch` for that flush).
 
 ```yaml
 sink:
@@ -188,8 +189,8 @@ sink:
 
 **ClickHouse**
 
-- Default batch **500**. Flush uses `Begin` → `Prepare` → per-row `Exec` → **`Commit`**.
-- Source ack runs **once**, in `OnAck`, **after** a successful Commit (not mid-batch). That preserves at-least-once if Commit fails after some `Exec`s.
+- Default batch **500**. Flush uses native `PrepareBatch` when available; otherwise one multi-row `INSERT … VALUES` via Exec.
+- Source ack runs **once** after a successful flush (not mid-batch). That preserves at-least-once if the flush fails partway.
 - Raw mode writes `message.Data` as-is (no JSON Unmarshal→Marshal on the insert path).
 - Large batches reduce insert frequency and help avoid `TOO_MANY_PARTS`. Prefer `batchFlushIntervalSeconds: 5–10` with `batchSize` 500–1000.
 
@@ -226,10 +227,24 @@ sink:
 2. Pair Kafka high volume with `ackGranularity: batch` **or** `message` + `collapseBatchOnMessageAck: false`.
 3. For ClickHouse `TOO_MANY_PARTS`, increase `batchSize` / flush interval before lowering concurrency.
 4. For Trino Iceberg/Nessie, keep `batchSize` small enough that one statement finishes within `queryTimeoutSeconds`.
+5. For Nessie/Iceberg sources, enable `incrementalBySnapshot` and optionally `maxRowsPerPoll` / `maxBytesPerPoll` on large tables.
+
+### Configurable vs automatic (throughput)
+
+| Knob | Where | Notes |
+|------|--------|--------|
+| `channelBufferSize`, `transformWorkers`, `ackGranularity`, `collapseBatchOnMessageAck` | DataFlow `spec` | Pipeline backpressure and ack vs write batch |
+| `checkpointSyncOnAck`, `checkpointSaveInterval` | DataFlow `spec` | Checkpoint flush policy; sync-on-ack flush is **async/coalesced** (does not block the ack path on ConfigMap Patch) |
+| Sink `batchSize`, `batchFlushIntervalSeconds` | sink `config` | Physical write batch |
+| Kafka `async`, `compression`, `flush*` | Kafka sink `config` | Defaults: `async=true`, `compression=snappy`, flush 100 msgs / 100ms |
+| `incrementalBySnapshot`, `maxRowsPerPoll`, `maxBytesPerPoll` | Nessie/Iceberg source `config` | Snapshot incremental + poll caps |
+| PG `COPY` vs multi-VALUES vs `pgx.Batch` | Automatic | Chosen per flush shape |
+| CH `PrepareBatch` vs Exec | Automatic | Native driver when available |
+| Lakehouse file-delta / parquet fast path | Automatic | When incremental mode finds added files without deletes |
 
 ### Buffer Sizing
 
-Channels between source, transform, and sink are **buffered and blocking** (default size 100). A larger buffer absorbs short sink stalls. Sink flush already overlaps the next batch (double-buffer). For CPU-heavy transforms, raise `transformWorkers` (ordered emit). Details: [Architecture — Pipeline concurrency](architecture.md#pipeline-concurrency-implementation).
+Channels between source, transform, and sink are **buffered and blocking** (default size 100). A larger buffer absorbs short sink stalls. Watch `dataflow_channel_fill_ratio{channel="source|routing|…"}` for sustained saturation (CDC and lakehouse sources sample the source channel). Sink flush already overlaps the next batch (double-buffer). For CPU-heavy transforms, raise `transformWorkers` (ordered emit). Details: [Architecture — Pipeline concurrency](architecture.md#pipeline-concurrency-implementation).
 
 **Channel Buffer:**
 ```yaml

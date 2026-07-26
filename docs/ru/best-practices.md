@@ -171,10 +171,11 @@ spec:
 
 **PostgreSQL**
 
-- Копит до `batchSize` (или flush interval), затем **одна транзакция**: `pgx.Batch` из per-row `INSERT` / `ON CONFLICT`, затем `Commit`.
+- Копит до `batchSize` (или flush interval), затем **одна транзакция**.
+- Путь flush (автоматически): `COPY FROM` для однородного plain `INSERT` (без `ON CONFLICT`); иначе один multi-row `INSERT … VALUES` (включая `ON CONFLICT` / upsert); смешанные `UPDATE`/гетерогенные формы — `pgx.Batch`.
 - Source ack — **только после** успешного Commit (`AckAfterSuccessfulWrite`).
 - Одно соединение на sink pod (`pgx.Connect`, не pool). Предпочтительнее укрупнять batch, чем плодить соединения.
-- Upsert остаётся row-oriented (`ON CONFLICT` на statement); soft-delete попадает в ту же batch TX.
+- Soft-delete попадает в ту же batch TX (для такого flush — `pgx.Batch`).
 
 ```yaml
 sink:
@@ -188,8 +189,8 @@ sink:
 
 **ClickHouse**
 
-- Default batch **500**. Flush: `Begin` → `Prepare` → per-row `Exec` → **`Commit`**.
-- Source ack — **один раз**, в `OnAck`, **после** успешного Commit (не mid-batch). Так сохраняется at-least-once, если Commit падает после части `Exec`.
+- Default batch **500**. Flush: native `PrepareBatch`, если доступно; иначе один multi-row `INSERT … VALUES` через Exec.
+- Source ack — **один раз** после успешного flush (не mid-batch). Так сохраняется at-least-once при частичном сбое.
 - В raw mode в INSERT идёт `message.Data` as-is (без Unmarshal→Marshal на пути записи).
 - Крупные batch снижают частоту insert и помогают избежать `TOO_MANY_PARTS`. Обычно `batchFlushIntervalSeconds: 5–10` при `batchSize` 500–1000.
 
@@ -226,10 +227,24 @@ sink:
 2. Высокий Kafka volume: `ackGranularity: batch` **или** `message` + `collapseBatchOnMessageAck: false`.
 3. При ClickHouse `TOO_MANY_PARTS` сначала увеличьте `batchSize` / flush interval.
 4. Для Trino Iceberg/Nessie держите `batchSize` таким, чтобы один statement укладывался в `queryTimeoutSeconds`.
+5. Для Nessie/Iceberg source включайте `incrementalBySnapshot` и при больших таблицах — `maxRowsPerPoll` / `maxBytesPerPoll`.
+
+### Что настраивается в YAML, а что автоматически
+
+| Рычаг | Где | Заметки |
+|------|-----|---------|
+| `channelBufferSize`, `transformWorkers`, `ackGranularity`, `collapseBatchOnMessageAck` | DataFlow `spec` | Backpressure и ack vs размер записи |
+| `checkpointSyncOnAck`, `checkpointSaveInterval` | DataFlow `spec` | Политика flush checkpoint; sync-on-ack — **async/coalesced** (ack path не ждёт ConfigMap Patch) |
+| Sink `batchSize`, `batchFlushIntervalSeconds` | sink `config` | Физический write batch |
+| Kafka `async`, `compression`, `flush*` | Kafka sink `config` | Defaults: `async=true`, `compression=snappy`, flush 100 msgs / 100ms |
+| `incrementalBySnapshot`, `maxRowsPerPoll`, `maxBytesPerPoll` | Nessie/Iceberg source `config` | Snapshot incremental + лимиты poll |
+| PG `COPY` vs multi-VALUES vs `pgx.Batch` | Автоматически | По форме flush |
+| CH `PrepareBatch` vs Exec | Автоматически | Native driver при наличии |
+| Lakehouse file-delta / parquet fast path | Автоматически | В incremental при added files без deletes |
 
 ### Buffer Sizing
 
-Каналы между source, transform и sink — **буферизованные и блокирующие** (по умолчанию 100). Больший буфер сглаживает короткие паузы sink. Flush sink уже перекрывается с накоплением следующего batch (double-buffer). Для CPU-тяжёлых transforms увеличьте `transformWorkers` (порядок emit сохраняется). Подробности: [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation).
+Каналы между source, transform и sink — **буферизованные и блокирующие** (по умолчанию 100). Больший буфер сглаживает короткие паузы sink. Смотрите `dataflow_channel_fill_ratio{channel="source|routing|…"}` при устойчивой насыщенности (CDC и lakehouse семплируют source channel). Flush sink уже перекрывается с накоплением следующего batch (double-buffer). Для CPU-тяжёлых transforms увеличьте `transformWorkers` (порядок emit сохраняется). Подробности: [Архитектура — concurrency пайплайна](architecture.md#pipeline-concurrency-implementation).
 
 **Channel Buffer:**
 ```yaml

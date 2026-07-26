@@ -178,7 +178,7 @@ flowchart LR
 
 **`transformWorkers`.** Raise above `1` for CPU-heavy transform chains. Output order to the sink matches input order. Keep `1` when transforms are cheap (pool overhead dominates). Valid range: 1–64.
 
-**Backpressure.** Sends into `msgChan` / `processedChan` block when the buffer is full. There is no drop or unbounded queue. Raise `spec.channelBufferSize` (e.g. 500–1000 for high Kafka volume) only if memory allows. See [Best Practices — Buffer Sizing](best-practices.md#buffer-sizing).
+**Backpressure.** Sends into `msgChan` / `processedChan` block when the buffer is full. There is no drop or unbounded queue. Raise `spec.channelBufferSize` (e.g. 500–1000 for high Kafka volume) only if memory allows. Observe `dataflow_channel_fill_ratio` for saturation. See [Best Practices — Buffer Sizing](best-practices.md#buffer-sizing).
 
 **Ack / ordering.** Source ack is a **barrier**: the parent message is marked done only after every derived output is acked (1→N fan-out). Filter drops (0 outputs) ack immediately. With `transformWorkers > 1`, a reorder buffer ensures sink writes and ack eligibility still follow input sequence.
 
@@ -186,7 +186,9 @@ flowchart LR
 
 **Double-buffer flush.** While batch N is flushing, the loop continues reading into batch N+1 (memory bounded to one in-flight flush + one active batch). Flush/ack order is preserved. Connectors that use a custom write loop (e.g. PostgreSQL) are unchanged until they adopt the same pattern.
 
-**SQL sink defaults.** When `batchSize` is omitted, the processor uses PostgreSQL **100**, ClickHouse **500**, Trino **10**. Admission warns when an explicit value is below the recommended floor. ClickHouse acks source offsets only after a successful `Commit`. Details: [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+**SQL sink bulk paths.** PostgreSQL prefers `COPY FROM` / multi-VALUES / `pgx.Batch` by flush shape; ClickHouse prefers native `PrepareBatch` then multi-VALUES Exec. Selection is automatic (not CRD fields). When `batchSize` is omitted, the processor uses PostgreSQL **100**, ClickHouse **500**, Trino **10**. Details: [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+
+**Checkpoint sync-on-ack.** With `checkpointSyncOnAck: true`, ConfigMap flush after ack is asynchronous and coalesced by `checkpointSaveInterval` so the pipeline is not blocked on the API server.
 
 **Horizontal scale (`replicas`).** Admission allows `replicas > 1` **only for Kafka** sources. Polling, CDC, Iceberg/Nessie, and plugin sources must stay at **1** replica — scale via `resources`, `channelBufferSize`, `transformWorkers`, and `readBatchSize` / `batchSize`. `DataFlowCron` always rejects `replicas > 1`.
 

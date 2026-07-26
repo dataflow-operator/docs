@@ -115,6 +115,10 @@ flowchart TB
   - Labels: `namespace`, `name`, `queue_type`
   - Queue types: `routing`, `output`, `default`, and router routes
 
+- `dataflow_channel_fill_ratio` — buffered channel occupancy (`len/cap`, 0.0–1.0) for backpressure visibility
+  - Labels: `namespace`, `name`, `channel`
+  - Common `channel` values: `source` (CDC / Nessie / Iceberg enqueue), `routing` (processor fan-out). Sustained values near `1.0` usually mean raise `channelBufferSize` or speed up the sink/transform.
+
 - `dataflow_task_queue_wait_time_seconds` — time messages spend waiting in queue (histogram)
   - Labels: `namespace`, `name`, `queue_type`
 

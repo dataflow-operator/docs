@@ -132,7 +132,7 @@ flowchart LR
 
 **`transformWorkers`.** Увеличивайте при CPU-тяжёлых трансформациях. Порядок записи в sink = порядок входа. Диапазон: 1–64.
 
-**Backpressure.** Полный буфер блокирует send. См. [Best Practices — буфер](best-practices.md#buffer-sizing).
+**Backpressure.** Полный буфер блокирует send. Наблюдайте `dataflow_channel_fill_ratio`. См. [Best Practices — буфер](best-practices.md#buffer-sizing).
 
 **Ack и порядок.** Source ack — **барьер**: родитель помечается доставленным только после ack всех производных (1→N). Filter (0 выходов) ack сразу. При `transformWorkers > 1` reorder buffer сохраняет порядок.
 
@@ -140,7 +140,9 @@ flowchart LR
 
 **Double-buffer flush.** Пока flush batch N, loop читает batch N+1 (лимит: один in-flight + один active). Порядок flush/ack сохраняется. Кастомные write loop (например PostgreSQL) пока без double-buffer.
 
-**Defaults SQL sinks.** Если `batchSize` не задан, processor ставит PostgreSQL **100**, ClickHouse **500**, Trino **10**. Admission предупреждает, если явное значение ниже рекомендованного порога. ClickHouse ack'ает source offsets только после успешного `Commit`. Подробнее: [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+**Bulk-пути SQL sinks.** PostgreSQL выбирает `COPY FROM` / multi-VALUES / `pgx.Batch` по форме flush; ClickHouse — native `PrepareBatch`, иначе multi-VALUES Exec. Выбор автоматический (не поля CRD). Если `batchSize` не задан: PostgreSQL **100**, ClickHouse **500**, Trino **10**. Подробнее: [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+
+**Checkpoint sync-on-ack.** При `checkpointSyncOnAck: true` flush ConfigMap после ack асинхронный и coalesced по `checkpointSaveInterval`, пайплайн не блокируется на API server.
 
 **Горизонтальный scale (`replicas`).** `replicas > 1` только для **Kafka**. Иначе — `resources`, `channelBufferSize`, `transformWorkers`, `readBatchSize` / `batchSize`.
 

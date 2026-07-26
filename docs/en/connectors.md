@@ -392,25 +392,26 @@ sink:
       username: kafka-user
       password: kafka-password
 
-    # Producer tuning (all optional; defaults preserve durable SyncProducer behavior)
+    # Producer tuning (all optional)
     # requiredAcks: all (default) | local | none — idempotent (default) requires all
-    # compression: none (default) | gzip | snappy | lz4 | zstd
+    # compression: snappy (default) | none | gzip | lz4 | zstd
     # idempotent: true (default)
     # maxOpenRequests: 1 when idempotent; raise only with idempotent: false
-    # async: false (default SyncProducer) | true (AsyncProducer; enable flush* for batching)
-    # flushMessages / flushBytes / flushFrequency — most effective with async: true
+    # async: true (default AsyncProducer) | false (SyncProducer)
+    # flushMessages / flushBytes / flushFrequency — used when async: true
+    #   (defaults when async: flushMessages=100, flushFrequency=100ms)
     requiredAcks: all
     compression: snappy
     async: true
     flushMessages: 100
-    flushFrequency: 50ms
+    flushFrequency: 100ms
 ```
 
 #### Sink features
 
-- **Defaults**: `requiredAcks: all`, `idempotent: true`, `maxOpenRequests: 1`, SyncProducer (`async: false`) — same durability as before.
+- **Defaults**: `requiredAcks: all`, `idempotent: true`, `maxOpenRequests: 1`, `compression: snappy`, `async: true` (AsyncProducer) with `flushMessages: 100` and `flushFrequency: 100ms` when unset. Set `async: false` for historical SyncProducer (per-message RTT).
 - **Compression**: `none` | `gzip` | `snappy` | `lz4` | `zstd` reduces wire size on produce.
-- **Async producer**: set `async: true` for higher throughput; combine with `flushMessages` / `flushBytes` / `flushFrequency` so Sarama batches produce requests. Ack still happens after broker success (at-least-once).
+- **Async producer**: default path batches produce requests via Sarama flush thresholds. Ack still happens after broker success (at-least-once).
 - **Keys**: message key from metadata `key` is preserved when present.
 - **Metadata**: after a successful write, metadata is updated with `partition` and `offset`.
 
@@ -568,6 +569,7 @@ sink:
 ### Sink Features
 
 - **Batch Inserts**: Groups messages for efficient writing. Default `batchSize` is **100** (recommended 100–1000). Flush when `batchSize` reached or on timer. Use `batchFlushIntervalSeconds: 0` for size-only flush; `batchSize: 0` for timer-only flush. See [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
+- **Bulk write path (automatic)**: Prefer `COPY FROM` for homogeneous plain `INSERT` (no `ON CONFLICT`); otherwise one multi-row `INSERT … VALUES`; mixed shapes / soft-delete `UPDATE` fall back to `pgx.Batch`. Path selection is not CRD-configurable.
 - **Transaction + ack**: Each flush runs in one PostgreSQL transaction; source offsets are acked only after a successful `Commit`.
 - **Auto-create Tables** (when `autoCreateTable: true`):
   - **rawMode: true** — table is created at Connect time. Schema: `id SERIAL PRIMARY KEY`, `data` JSONB, `_metadata` JSONB, `created_at`, `updated_at`, `deleted_at`, GIN index on `data`
@@ -724,7 +726,8 @@ sink:
 ### Sink Features
 
 - **Batch Inserts**: Groups messages; default `batchSize` is **500** (recommended 500–1000). Flush when batch size or timer (10s) is reached. Size only: `batchFlushIntervalSeconds: 0`. Timer only: `batchSize: 0`. See [Best Practices — Batch Size Optimization](best-practices.md#batch-size-optimization-sql-sinks).
-- **Ack barrier**: Source offsets are acked **once after a successful `Commit`**, not mid-batch after each `Exec` (at-least-once).
+- **Bulk write path (automatic)**: Native ClickHouse `PrepareBatch` + `Append`/`Send` when the native driver connection is available; otherwise one multi-row `INSERT … VALUES` via `database/sql` Exec. Not CRD-configurable.
+- **Ack barrier**: Source offsets are acked **once after a successful flush**, not mid-batch (at-least-once).
 - **Raw mode**: Inserts the message payload bytes as-is (no JSON re-encode on the write path).
 - **Upsert mode**: With `upsertMode: true`, auto-created tables use `ReplacingMergeTree`; duplicates are resolved on background merge. See [Fault Tolerance](fault-tolerance.md).
 - **Retry on Transient Errors**: Batch writes automatically retry on connection refused, TOO_MANY_PARTS, memory limit, HTTP 502/503, and similar transient errors (up to 5 attempts with exponential backoff)
@@ -1017,6 +1020,8 @@ source:
     # incrementalBySnapshot: true
     # startSnapshotID: "1234567890123456789"  # first run without checkpoint
     # snapshotCheckpoints: true              # default
+    # maxRowsPerPoll: 50000                  # optional cap per poll (0/unset = unlimited)
+    # maxBytesPerPoll: 67108864              # optional approx payload byte cap
 
     # Authentication (optional)
     # authenticationType: AUTO (default) | BEARER | BASIC | NONE
@@ -1033,7 +1038,8 @@ source:
 - **Branch context**: Reads from the specified Nessie branch; table metadata is resolved from the catalog.
 - **Polling**: Periodically scans the Iceberg table for new data.
 - **Full scan (default)**: Each poll scans the table’s current snapshot in full.
-- **Incremental mode** (`incrementalBySnapshot: true`): Reads only snapshots newer than the last `Ack`; position is stored in the checkpoint ConfigMap (see [fault tolerance](fault-tolerance.md)). The `query` field is not supported in this mode.
+- **Incremental mode** (`incrementalBySnapshot: true`): Reads only snapshots newer than the last `Ack`; position is stored in the checkpoint ConfigMap (see [fault tolerance](fault-tolerance.md)). Within each new snapshot the reader prefers a **file-level delta** (data files added vs parent). An empty delta skips the scan. Append-only parquet without delete files can be read via a direct parquet path; otherwise the full Iceberg `Scan` is used. The `query` field is not supported in this mode.
+- **Poll caps**: `maxRowsPerPoll` / `maxBytesPerPoll` limit how much is emitted per poll (streaming resume within the snapshot). Prefer with incremental mode on large tables.
 - **Authentication**: Bearer token (OAuth2) or Basic auth for Nessie/Iceberg REST.
 - **No `rawMode` on source**: Each Iceberg row is emitted as a JSON object keyed by column names (for example `data` and `_metadata` if the table was written with sink `rawMode: true`). Incremental mode reduces duplicates on restart but does **not** enable multiple processor pods — see [Horizontal scaling](#horizontal-scaling-specreplicas) below.
 
@@ -1221,6 +1227,8 @@ source:
     # incrementalBySnapshot: true
     # startSnapshotID: "1234567890123456789"
     # snapshotCheckpoints: true
+    # maxRowsPerPoll: 50000
+    # maxBytesPerPoll: 67108864
 
     # Authentication (optional)
     authenticationType: BEARER
@@ -1231,6 +1239,8 @@ source:
     # oauth2ServerURI: https://auth.example.com/oauth/token
     # oauth2Scope: catalog
 ```
+
+Same incremental / file-delta / poll-cap behavior as the [Nessie source](#features) when `incrementalBySnapshot: true`.
 
 ### Sink
 
@@ -1305,7 +1315,7 @@ Ignored when `ackGranularity` is `batch`. Applies to PostgreSQL, ClickHouse, Tri
 
 #### checkpointSyncOnAck and checkpointSaveInterval
 
-`checkpointSyncOnAck: true` flushes polling checkpoints to the ConfigMap after each sink ack (coalesced by `checkpointSaveInterval`, default `30s`). Recommended for migration and cron workloads. Details: [Fault Tolerance](fault-tolerance.md#sync-checkpoint-on-ack-speccheckpointsynconack).
+`checkpointSyncOnAck: true` requests a checkpoint flush after each sink ack. Flush is **async** and coalesced by `checkpointSaveInterval` (default `30s`) so the ack path does not wait on ConfigMap Patch. Recommended for migration and cron workloads. Details: [Fault Tolerance](fault-tolerance.md#sync-checkpoint-on-ack-speccheckpointsynconack).
 
 ### Kafka
 
