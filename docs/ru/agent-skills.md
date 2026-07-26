@@ -71,6 +71,19 @@ cp -r /tmp/dataflow-skills/* .cursor/skills/
 
 Машиночитаемая карта документации: [llms.txt](https://dataflow-operator.github.io/docs/llms.txt).
 
+## JSON Schema (машиночитаемый контракт)
+
+Стабильные URL: [`/schemas/`](https://dataflow-operator.github.io/docs/schemas/):
+
+| Артефакт | Назначение |
+|----------|------------|
+| [`catalog.json`](https://dataflow-operator.github.io/docs/schemas/catalog.json) | Allow-list типов; pin `operatorVersion` |
+| [`dataflow.json`](https://dataflow-operator.github.io/docs/schemas/dataflow.json) / [`dataflowcron.json`](https://dataflow-operator.github.io/docs/schemas/dataflowcron.json) | CRD envelope |
+| `connectors/sources|sinks/<type>.json` | Типизированный `config` коннектора |
+| `transforms/<type>.json` | Типизированные конфиги трансформаций |
+
+Workflow: skills → опционально MCP (shallow) → schemas / `kubectl apply --dry-run=server`.
+
 ## Maintainer
 
 Разработка в monorepo [dataflow](https://github.com/dataflow-operator/dataflow) (`skills/`), публикация в **dataflow-operator/skills**. Расширения: `.cursor/skills/dataflow-*` (stubs + maintainer-only — см. `SYNC.md`).

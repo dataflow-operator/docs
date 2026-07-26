@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -45,6 +46,24 @@ class HooksTest(unittest.TestCase):
             docs.mkdir()
             on_post_build({"site_dir": str(site), "docs_dir": str(docs)})
             self.assertFalse((site / "llms.txt").exists())
+
+    def test_copies_schemas_from_monorepo_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            # Mimic docs/docs as docs_dir → parent.parent/schemas
+            docs = root / "docs" / "docs"
+            docs.mkdir(parents=True)
+            site = root / "site"
+            site.mkdir()
+            schemas = root / "schemas"
+            schemas.mkdir()
+            (schemas / "catalog.json").write_text(
+                json.dumps({"operatorVersion": "1.9.0"}), encoding="utf-8"
+            )
+            (schemas / "dataflow.json").write_text("{}", encoding="utf-8")
+            on_post_build({"site_dir": str(site), "docs_dir": str(docs)})
+            self.assertTrue((site / "schemas" / "catalog.json").is_file())
+            self.assertTrue((site / "schemas" / "dataflow.json").is_file())
 
 
 if __name__ == "__main__":

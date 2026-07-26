@@ -71,6 +71,19 @@ Companion files in the skills repo: [anti-patterns.md](https://github.com/datafl
 
 Machine-readable map of docs and agent entry points: [llms.txt](llms.txt) (served at the site root `/llms.txt`).
 
+## JSON Schemas (machine-readable contract)
+
+Stable URLs under [`/schemas/`](https://dataflow-operator.github.io/docs/schemas/):
+
+| Artifact | Use |
+|----------|-----|
+| [`catalog.json`](https://dataflow-operator.github.io/docs/schemas/catalog.json) | Allow-list of source/sink/transform types; `operatorVersion` pin |
+| [`dataflow.json`](https://dataflow-operator.github.io/docs/schemas/dataflow.json) / [`dataflowcron.json`](https://dataflow-operator.github.io/docs/schemas/dataflowcron.json) | CRD envelope (top-level spec) |
+| `connectors/sources|sinks/<type>.json` | Typed connector `config` (CRD stores it as opaque `RawExtension`) |
+| `transforms/<type>.json` | Typed transformation configs |
+
+Workflow: draft from skills → optional MCP (shallow) → validate against schemas / `kubectl apply --dry-run=server`.
+
 ## Maintainer
 
 Skills are developed in the [dataflow](https://github.com/dataflow-operator/dataflow) monorepo under `skills/` and published to **dataflow-operator/skills**. Extensions for operator development: `.cursor/skills/dataflow-*` in the monorepo (stubs + maintainer-only files — see `SYNC.md`).

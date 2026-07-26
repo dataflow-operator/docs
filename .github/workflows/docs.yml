@@ -44,6 +44,17 @@ jobs:
       - name: Assert llms.txt at site root
         run: test -f site/llms.txt && grep -q 'DataFlow Operator' site/llms.txt
 
+      - name: Assert schemas published (when monorepo schemas/ exists)
+        run: |
+          if [ -f ../schemas/catalog.json ] || [ -f schemas/catalog.json ]; then
+            test -f site/schemas/catalog.json
+            test -f site/schemas/dataflow.json
+            test -f site/schemas/dataflowcron.json
+            grep -q '"operatorVersion"' site/schemas/catalog.json
+          else
+            echo "schemas/ not in checkout; skip publish assert"
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

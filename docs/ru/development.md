@@ -148,6 +148,18 @@ task generate
 
 Генерирует методы `DeepCopy` для всех типов в `api/v1/`.
 
+### Генерация JSON Schema
+
+```bash
+task schemas
+```
+
+Пишет машиночитаемые схемы в `schemas/` монорепозитория (CRD envelope + per-connector/transform config + `catalog.json`). Артефакты коммитятся; CI `provider-types-drift` перегенерирует и падает при diff. Проверка дрейфа:
+
+```bash
+python3 scripts/check_provider_types_drift.py
+```
+
 ### Обновление controller-gen
 
 Если возникают проблемы с генерацией:

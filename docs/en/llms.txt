@@ -38,6 +38,17 @@ Base: https://raw.githubusercontent.com/dataflow-operator/dataflow/main/config/s
 - dead-letter-queue-example.yaml — Error/DLQ sink
 - Tree: https://github.com/dataflow-operator/dataflow/tree/main/config/samples
 
+## Machine-readable schemas
+
+Base: https://dataflow-operator.github.io/docs/schemas/
+
+- [catalog.json](https://dataflow-operator.github.io/docs/schemas/catalog.json) — allow-list of connector/transform types + schema paths (pin: operatorVersion)
+- [dataflow.json](https://dataflow-operator.github.io/docs/schemas/dataflow.json) — DataFlow CRD as JSON Schema
+- [dataflowcron.json](https://dataflow-operator.github.io/docs/schemas/dataflowcron.json) — DataFlowCron CRD as JSON Schema
+- connectors/sources|sinks/<type>.json — typed `config` for opaque RawExtension fields
+- transforms/<type>.json — typed transformation configs
+- Raw GitHub: https://raw.githubusercontent.com/dataflow-operator/dataflow/main/schemas/
+
 ## Optional
 
 - [Architecture](https://dataflow-operator.github.io/docs/architecture/): Operator vs processor responsibilities

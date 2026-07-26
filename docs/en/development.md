@@ -148,6 +148,18 @@ task generate
 
 Generates `DeepCopy` methods for all types in `api/v1/`.
 
+### Generate JSON Schemas
+
+```bash
+task schemas
+```
+
+Writes machine-readable schemas to monorepo `schemas/` (CRD envelope + per-connector/transform config schemas + `catalog.json`). Keep them committed; CI `provider-types-drift` regenerates and fails on diff. Drift check:
+
+```bash
+python3 scripts/check_provider_types_drift.py
+```
+
 ### Updating controller-gen
 
 If you encounter issues with code generation:

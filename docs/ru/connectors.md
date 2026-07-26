@@ -8,6 +8,7 @@ DataFlow Operator поддерживает различные коннектор
 |-----------|----------|----------|-------------|
 | Kafka | ✅ | ✅ | Consumer groups, TLS, SASL, Avro, Schema Registry |
 | PostgreSQL | ✅ | ✅ | SQL запросы, батч-вставки, автосоздание таблиц, UPSERT режим |
+| PostgreSQL CDC | ✅ | — | Logical replication (pgoutput), initial snapshot, LSN checkpoint |
 | Trino | ✅ | ✅ | SQL запросы, аутентификация Keycloak OAuth2, батч-вставки |
 | ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
 | Nessie | ✅ | ✅ | Iceberg через каталог Nessie, опрос, батч-дозапись, sink `rawMode` (`data` + `_metadata`); `spec.replicas` только 1 |

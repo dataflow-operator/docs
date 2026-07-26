@@ -2,6 +2,9 @@
 
 This document captures all current "lists of truth" where DataFlow provider/transformer types are enumerated.
 
+**Machine-readable catalog (preferred for agents/CI):** [`schemas/catalog.json`](../schemas/catalog.json) — generated from Go (`task schemas` in `dataflow/`).  
+CI: `.github/workflows/provider-types-drift.yml` + `scripts/check_provider_types_drift.py`.
+
 ## 1) Go runtime factories
 
 ### Source connectors
@@ -11,9 +14,11 @@ Registered in `dataflow/internal/connectors/provider_registrations.go` (`init`);
 Types:
 - `kafka`
 - `postgresql`
+- `postgresql-cdc`
 - `trino`
 - `clickhouse`
 - `nessie`
+- `iceberg`
 
 ### Sink connectors
 
@@ -25,6 +30,7 @@ Types:
 - `trino`
 - `clickhouse`
 - `nessie`
+- `iceberg`
 
 ### Transformers
 
@@ -65,6 +71,8 @@ Admission logic in **`dataflow/api/v1/dataflow_validation.go`** (`validateSource
 - Resolves allowed source/sink types via `providers.ListSourceTypes()` / `providers.ListSinkTypes()`.
 - Runs `providers.SourceValidator(type)` / `providers.SinkValidator(type)` on `spec.*.config` raw JSON.
 
+Typed config structs (source of truth for **JSON Schema** under `schemas/connectors/`) live in **`dataflow/api/v1/dataflow_types.go`**.
+
 ### Transformation types
 
 File: **`dataflow/pkg/transformtypes/transformtypes.go`**
@@ -76,21 +84,24 @@ Notes:
 
 - Connector runtime factories (`dataflow/internal/connectors/provider_registrations.go`) and provider validators (`provider_registry.go`) must agree on the same type strings.
 - Transformation factory (`internal/transformers/factory.go`) and `transformtypes` must stay aligned.
+- `dataflow/hack/genschemas` fails if its type→struct map drifts from `providers` / `transformtypes`.
 
 ## 3) Processor checkpoint eligibility
 
 File: **`dataflow/internal/connectors/provider_registrations.go`** — third argument to `registerSourceConnector(..., supportsCheckpoint bool)`.
 
-Checkpoint-enabled sources today:
+Checkpoint-enabled sources today (also `SupportsCheckpoint` in `provider_registry.go`):
 
 - `postgresql`
+- `postgresql-cdc`
 - `trino`
 - `clickhouse`
+- `nessie`
+- `iceberg`
 
 Not checkpoint-enabled:
 
 - `kafka`
-- `nessie`
 
 At runtime, **`dataflow/internal/processor/options.go`** (`buildSourceConnectorOptions`) gates checkpoint wiring with **`providers.SourceSupportsCheckpoint(sourceType)`**, which reflects the merged registration metadata in **`dataflow/pkg/providers`**.
 
@@ -100,8 +111,8 @@ At runtime, **`dataflow/internal/processor/options.go`** (`buildSourceConnectorO
 
 File: **`dataflow-mcp/src/tools/reference.rs`**
 
-- `default_connectors_raw()` — documented fields for **list_dataflow_connectors** (sources/sinks).
-- `default_transformations_raw()` — **list_dataflow_transformations** (includes `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`, `extractField`, `hoistField`, `cast`, `timezone`, `insertField`).
+- `default_connectors_raw()` — documented fields for **list_dataflow_connectors** (sources/sinks). Must match `schemas/catalog.json` keys.
+- `default_transformations_raw()` — **list_dataflow_transformations**.
 
 ### Manifest tools
 
@@ -120,21 +131,28 @@ Transformation reference (Wave 1 + Wave 2 types):
 - `docs/docs/en/transformations.md`
 - `docs/docs/ru/transformations.md`
 
-Current docs connector set:
+Current docs connector set (overview table):
 - `kafka`
 - `postgresql`
+- `postgresql-cdc`
 - `trino`
 - `clickhouse`
 - `nessie`
+- `iceberg`
 
 Related API commentary:
 - `dataflow/api/v1/dataflow_types.go` comments mention `kafka`, `postgresql`, `trino`, `clickhouse`, `nessie`, "or plugin type".
 
+JSON Schemas for agents/IDE:
+- `schemas/dataflow.json`, `schemas/dataflowcron.json` (CRD OpenAPI export)
+- `schemas/connectors/{sources,sinks}/<type>.json`
+- `schemas/transforms/<type>.json`
+
 ## 6) Web UI flow constructor
 
-File: **`dataflow-web/web/src/composables/useFlowManifest.js`** (`TRANSFORM_TYPES`)
+File: **`dataflow-web/web/src/composables/useFlowManifest.js`** (`TRANSFORM_TYPES`, `CONNECTOR_TYPES`)
 
-Must stay aligned with `transformtypes.All()` / MCP `default_transformations_raw()`:
+Must stay aligned with `transformtypes.All()` / MCP `default_transformations_raw()` / `schemas/catalog.json`:
 
 - `timestamp`, `flatten`, `filter`, `mask`, `router`, `select`, `remove`, `snakeCase`, `camelCase`
 - `debeziumUnwrap`, `replaceField`, `headersToPayload`, `structFlatten`
@@ -146,15 +164,16 @@ Related UI surfaces (forms + locales):
 - `dataflow-web/web/src/components/config-forms/useConfigForm.js`
 - `dataflow-web/web/src/locales/en.js` / `ru.js`
 
-## Current drift (confirmed)
+## Drift policy
 
-**MCP connector reference vs operator**
-
-`nessie` is supported by the operator (connector registry + `provider_registry.go` validators + docs matrix), but **`reference.rs` `default_connectors_raw()`** does not document `nessie` under sources or sinks. **`list_dataflow_connectors`** can therefore under-report capabilities compared to the cluster webhook.
+1. Change Go registries / typed structs.
+2. Run `cd dataflow && task schemas` (updates `schemas/`).
+3. Update MCP `reference.rs`, docs overview tables, and this inventory if needed.
+4. CI `provider-types-drift` must pass (catalog ↔ docs ↔ MCP ↔ inventory ↔ web).
 
 **MCP validation vs operator webhook**
 
-**`validate_dataflow_manifest`** does not enforce the provider allow-list or field-level rules from **`dataflow_validation.go`**. Invalid manifests may pass MCP validation yet fail on `kubectl apply` when the validating webhook is enabled.
+**`validate_dataflow_manifest`** does not enforce the provider allow-list or field-level rules from **`dataflow_validation.go`**. Invalid manifests may pass MCP validation yet fail on `kubectl apply` when the validating webhook is enabled. Prefer JSON Schemas + `kubectl apply --dry-run=server`.
 
 **Kafka Connect migration**
 
