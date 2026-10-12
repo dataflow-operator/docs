@@ -8,7 +8,61 @@ Command-line client for DataFlow: talk to the [Web GUI](gui.md) API, or run a Da
 
 ## Install
 
-Build from source (Go 1.25+):
+### Release binary
+
+A `v*` tag publishes binaries and `SHA256SUMS` to [GitHub Releases](https://github.com/dataflow-operator/dataflow-operator/releases).
+
+| OS | Architecture | Asset |
+|----|--------------|-------|
+| Linux | amd64 | `dataflow-cli-linux-amd64` |
+| Linux | arm64 | `dataflow-cli-linux-arm64` |
+| Linux | armv7 | `dataflow-cli-linux-arm-v7` |
+| macOS | amd64 | `dataflow-cli-darwin-amd64` |
+| macOS | arm64 | `dataflow-cli-darwin-arm64` |
+| Windows | amd64 | `dataflow-cli-windows-amd64.exe` |
+| Windows | arm64 | `dataflow-cli-windows-arm64.exe` |
+
+```bash
+curl -fsSL -o dataflow-cli \
+  "https://github.com/dataflow-operator/dataflow-operator/releases/download/vX.Y.Z/dataflow-cli-linux-amd64"
+chmod +x dataflow-cli
+```
+
+Replace `vX.Y.Z` and the asset name for your OS.
+
+### Docker
+
+Images: `ghcr.io/dataflow-operator/dataflow-cli` (`linux/amd64`, `linux/arm64`). `:latest` and the version tag come from a `v*` release. `:main` tracks the `main` branch.
+
+```bash
+docker pull ghcr.io/dataflow-operator/dataflow-cli:latest
+
+docker run --rm ghcr.io/dataflow-operator/dataflow-cli:latest --help
+
+# On Linux, --network host reaches a source or sink on the host.
+# On Docker Desktop, use host.docker.internal in the manifest instead of localhost.
+docker run --rm --network host \
+  -v "$PWD:/work" -w /work \
+  ghcr.io/dataflow-operator/dataflow-cli:latest \
+  run manifest.yaml --once
+
+# SecretRef is read from the mounted kubeconfig.
+docker run --rm --network host \
+  -v "$HOME/.kube:/root/.kube:ro" \
+  -v "$PWD:/work" -w /work \
+  ghcr.io/dataflow-operator/dataflow-cli:latest \
+  run manifest.yaml --once
+```
+
+Build from the monorepo root:
+
+```bash
+docker build -f dataflow-cli/Dockerfile -t dataflow-cli .
+```
+
+### From source
+
+Go 1.25+:
 
 ```bash
 cd dataflow-cli
@@ -17,9 +71,7 @@ go build -o dataflow-cli .
 
 In the monorepo, `go.mod` already has `replace github.com/dataflow-operator/dataflow => ../dataflow` for local development.
 
-Release binaries (when published): [GitHub Releases](https://github.com/dataflow-operator/dataflow-operator/releases).
-
-Source: [`dataflow-cli/`](https://github.com/dataflow-operator/dataflow-operator/tree/main/dataflow-cli).
+Source: [`dataflow-cli/`](https://github.com/dataflow-operator/dataflow-operator/tree/main/dataflow-cli). CI: [`.github/workflows/dataflow-cli.yml`](https://github.com/dataflow-operator/dataflow-operator/blob/main/.github/workflows/dataflow-cli.yml).
 
 ## Global flags
 
@@ -73,10 +125,66 @@ dataflow-cli run manifest.yaml --log-level=debug
 
 Stop with Ctrl+C.
 
+## One-shot migration
+
+`--once` reads a polling source until it is exhausted, flushes the sink, writes a local checkpoint, and exits. Use it for a snapshot copy (for example PostgreSQL to PostgreSQL) without a cluster. `kind: DataFlowCron` is accepted; `schedule` and `triggers` are ignored.
+
+Supported sources: `postgresql`, `clickhouse`, `trino`, `iceberg`, `nessie`. `kafka` and `postgresql-cdc` stay open, so `--once` fails before connecting.
+
+```bash
+dataflow-cli run manifest.yaml --once
+dataflow-cli run manifest.yaml --once --checkpoint-file .dataflow/pg-migration.json --reset
+dataflow-cli run manifest.yaml --once --timeout 2h
+```
+
+| Flag | Description |
+|------|-------------|
+| `--once` | Exit when the source is exhausted |
+| `--checkpoint-file` | Checkpoint JSON. Default for `--once`: `.dataflow/<metadata.name>.json` |
+| `--reset` | Clear that source's checkpoint before start |
+| `--timeout` | Maximum run time (`2h`, `30m`). `0` means no limit |
+| `--log-level` | `debug`, `info`, `warn`, `error` |
+
+Ctrl+C or a timeout flushes the checkpoint and exits with a non-zero status. The next run resumes from the file. On success the CLI prints source, sink, processed, errors, and the checkpoint path.
+
+`checkpointPersistence: false` skips the file. `SecretRef` is resolved from the current kubeconfig (or in-cluster config) before the pipeline starts. A missing secret or key fails the run before connect.
+
+The manifest stays a normal DataFlow. On the source set `changeTrackingColumn`, `orderByColumn`, and `readBatchSize`. On the sink set `upsertMode` and `conflictKey`.
+
+```yaml
+apiVersion: dataflow.dataflow.io/v1
+kind: DataFlow
+metadata:
+  name: pg-migration
+spec:
+  checkpointSyncOnAck: true
+  source:
+    type: postgresql
+    config:
+      connectionString: "postgres://user:pass@localhost:5432/src?sslmode=disable"
+      table: public.source_table
+      changeTrackingColumn: id
+      orderByColumn: id
+      readBatchSize: 10000
+      pollInterval: 5
+  sink:
+    type: postgresql
+    config:
+      connectionString: "postgres://user:pass@localhost:5432/dst?sslmode=disable"
+      table: public.target_table
+      upsertMode: true
+      conflictKey: id
+      batchSize: 1000
+```
+
+```bash
+dataflow-cli run pg-migration.yaml --once --timeout 2h
+```
+
 !!! warning "Credentials in local manifests"
     Local-dev samples may use plaintext connection strings. Prefer `SecretRef` for anything shared or production-like. See [Best Practices](best-practices.md).
 
-### Example manifest
+## Example manifest
 
 Standard DataFlow CR YAML:
 
