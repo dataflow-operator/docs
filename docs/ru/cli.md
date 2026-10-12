@@ -69,7 +69,7 @@ cd dataflow-cli
 go build -o dataflow-cli .
 ```
 
-В монорепозитории в `go.mod` уже есть `replace github.com/dataflow-operator/dataflow => ../dataflow` для локальной разработки.
+В монорепозитории `go.work` собирает CLI из локального каталога `dataflow`. В `go.mod` записан выпущенный модуль `github.com/dataflow-operator/dataflow v1.12.0`, директивы `replace` нет. Push в `main` запускает semantic-release: тег `dataflow-cli/vX.Y.Z` и обновление зависимости через `go get @latest`. Сборка по тегу вшивает версию в бинарник (`dataflow-cli --version`).
 
 Исходники: [`dataflow-cli/`](https://github.com/dataflow-operator/dataflow-operator/tree/main/dataflow-cli). CI: [`.github/workflows/dataflow-cli.yml`](https://github.com/dataflow-operator/dataflow-operator/blob/main/.github/workflows/dataflow-cli.yml).
 

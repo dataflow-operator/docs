@@ -69,7 +69,7 @@ cd dataflow-cli
 go build -o dataflow-cli .
 ```
 
-In the monorepo, `go.mod` already has `replace github.com/dataflow-operator/dataflow => ../dataflow` for local development.
+In the monorepo, `go.work` builds the CLI against the local `dataflow` checkout. `go.mod` records the released module (`github.com/dataflow-operator/dataflow v1.12.0`) and does not use a `replace` directive. Pushes to `main` run semantic-release, which tags `dataflow-cli/vX.Y.Z` and updates that requirement to `@latest`. The tag build stamps the version into the binary (`dataflow-cli --version`).
 
 Source: [`dataflow-cli/`](https://github.com/dataflow-operator/dataflow-operator/tree/main/dataflow-cli). CI: [`.github/workflows/dataflow-cli.yml`](https://github.com/dataflow-operator/dataflow-operator/blob/main/.github/workflows/dataflow-cli.yml).
 
