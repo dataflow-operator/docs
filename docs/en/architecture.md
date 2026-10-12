@@ -190,13 +190,13 @@ flowchart LR
 
 **Checkpoint sync-on-ack.** With `checkpointSyncOnAck: true`, ConfigMap flush after ack is asynchronous and coalesced by `checkpointSaveInterval` so the pipeline is not blocked on the API server.
 
-**Horizontal scale (`replicas`).** Admission allows `replicas > 1` **only for Kafka** sources. Polling, CDC, Iceberg/Nessie, and plugin sources must stay at **1** replica — scale via `resources`, `channelBufferSize`, `transformWorkers`, and `readBatchSize` / `batchSize`. `DataFlowCron` always rejects `replicas > 1`.
+**Horizontal scale (`replicas`).** Admission allows `replicas > 1` **only for Kafka** sources. Every other built-in source stays at **1** replica — scale via `resources`, `channelBufferSize`, `transformWorkers`, and `readBatchSize` / `batchSize`. `DataFlowCron` always rejects `replicas > 1`.
 
 **Code anchors:** `dataflow/internal/processor/process_transform.go`, `dataflow/internal/connectors/batch_writer.go` (`RunBatchWriteLoop`), `dataflow/api/v1/dataflow_types.go` (`transformWorkers`), `dataflow/api/v1/dataflow_validation.go`.
 
-### Connector Execution Model (optional: subprocess)
+### Connector execution
 
-When `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1`, connectors run as separate binaries via stdin/stdout JSON Lines protocol. See [Connector Protocol](connector-protocol.md).
+Connectors run in-process. Factories in `internal/connectors` unmarshal `type` + `config`.
 
 ### Connectors and Transformations
 

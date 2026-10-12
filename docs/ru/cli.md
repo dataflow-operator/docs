@@ -8,9 +8,17 @@
 
 ## Установка
 
+### Homebrew
+
+```bash
+brew install dataflow-operator/tap/dataflow-cli
+```
+
+Формула публикуется в tap `dataflow-operator/tap` с каждым релизом `v*` (macOS и Linux, amd64 и arm64).
+
 ### Готовый бинарник
 
-Тег `v*` публикует бинарники и `SHA256SUMS` в [GitHub Releases](https://github.com/dataflow-operator/dataflow-operator/releases).
+Тег `v*` публикует бинарники и `SHA256SUMS` в [GitHub Releases](https://github.com/dataflow-operator/dataflow-cli/releases).
 
 | ОС | Архитектура | Файл |
 |----|-------------|------|
@@ -24,7 +32,7 @@
 
 ```bash
 curl -fsSL -o dataflow-cli \
-  "https://github.com/dataflow-operator/dataflow-operator/releases/download/vX.Y.Z/dataflow-cli-linux-amd64"
+  "https://github.com/dataflow-operator/dataflow-cli/releases/download/vX.Y.Z/dataflow-cli-linux-amd64"
 chmod +x dataflow-cli
 ```
 
@@ -54,10 +62,10 @@ docker run --rm --network host \
   run manifest.yaml --once
 ```
 
-Сборка из корня монорепозитория:
+Сборка из каталога `dataflow-cli`:
 
 ```bash
-docker build -f dataflow-cli/Dockerfile -t dataflow-cli .
+docker build -t dataflow-cli .
 ```
 
 ### Из исходников
@@ -69,9 +77,9 @@ cd dataflow-cli
 go build -o dataflow-cli .
 ```
 
-В монорепозитории `go.work` собирает CLI из локального каталога `dataflow`. В `go.mod` записан выпущенный модуль `github.com/dataflow-operator/dataflow v1.12.0`, директивы `replace` нет. Push в `main` запускает semantic-release: тег `dataflow-cli/vX.Y.Z` и обновление зависимости через `go get @latest`. Сборка по тегу вшивает версию в бинарник (`dataflow-cli --version`).
+В монорепозитории `go.work` собирает CLI из локального каталога `dataflow`. В `go.mod` указан `github.com/dataflow-operator/dataflow v1.12.1-0.20261012061201-dec4eee83b3d` (ветка `feat/pkg-run-oneshot`), директивы `replace` нет. В теге `v1.12.0` нет one-shot API `pkg/run`. Push в `main` репозитория `dataflow-operator/dataflow-cli` запускает semantic-release: тег `vX.Y.Z` и переход на `@latest` только если этот модуль по-прежнему собирает CLI. Тот же workflow вшивает версию в бинарник (`dataflow-cli --version`).
 
-Исходники: [`dataflow-cli/`](https://github.com/dataflow-operator/dataflow-operator/tree/main/dataflow-cli). CI: [`.github/workflows/dataflow-cli.yml`](https://github.com/dataflow-operator/dataflow-operator/blob/main/.github/workflows/dataflow-cli.yml).
+Исходники: [`dataflow-operator/dataflow-cli`](https://github.com/dataflow-operator/dataflow-cli). CI: [`.github/workflows/build.yml`](https://github.com/dataflow-operator/dataflow-cli/blob/main/.github/workflows/build.yml).
 
 ## Глобальные флаги
 

@@ -19,6 +19,7 @@ Types:
 - `clickhouse`
 - `nessie`
 - `iceberg`
+- `hive`
 
 ### Sink connectors
 
@@ -31,6 +32,7 @@ Types:
 - `clickhouse`
 - `nessie`
 - `iceberg`
+- `hive`
 
 ### Transformers
 
@@ -86,24 +88,27 @@ Notes:
 - Transformation factory (`internal/transformers/factory.go`) and `transformtypes` must stay aligned.
 - `dataflow/hack/genschemas` fails if its type→struct map drifts from `providers` / `transformtypes`.
 
-## 3) Processor checkpoint eligibility
+## 3) Checkpoint and one-shot eligibility
 
-File: **`dataflow/internal/connectors/provider_registrations.go`** — third argument to `registerSourceConnector(..., supportsCheckpoint bool)`.
+Both flags are fields of the single source record in **`dataflow/api/v1/provider_registry.go`** (`providers.SourceDefinition`):
 
-Checkpoint-enabled sources today (also `SupportsCheckpoint` in `provider_registry.go`):
+- `SupportsCheckpoint`
+- `Exhausts` — the source closes its read channel after a finite snapshot (`dataflow-cli run --once`)
 
-- `postgresql`
-- `postgresql-cdc`
-- `trino`
-- `clickhouse`
-- `nessie`
-- `iceberg`
+`providers.RegisterSource` panics on a duplicate type or a missing validator. Runtime factories in **`dataflow/internal/connectors/provider_registrations.go`** do not register metadata again. Process startup panics if those factories are not exactly `providers.ListSourceTypes()` / `ListSinkTypes()`.
 
-Not checkpoint-enabled:
+| source | checkpoint | exhausts |
+| --- | --- | --- |
+| `kafka` | no | no |
+| `postgresql` | yes | yes |
+| `postgresql-cdc` | yes | no |
+| `trino` | yes | yes |
+| `clickhouse` | yes | yes |
+| `nessie` | yes | yes |
+| `iceberg` | yes | yes |
+| `hive` | yes | yes |
 
-- `kafka`
-
-At runtime, **`dataflow/internal/processor/options.go`** (`buildSourceConnectorOptions`) gates checkpoint wiring with **`providers.SourceSupportsCheckpoint(sourceType)`**, which reflects the merged registration metadata in **`dataflow/pkg/providers`**.
+**`dataflow/internal/processor/options.go`** (`buildSourceConnectorOptions`) gates checkpoint wiring with **`providers.SourceSupportsCheckpoint`**. **`dataflow/pkg/run/exhaust.go`** (`SourceExhausts`) reads **`providers.SourceExhausts`**.
 
 ## 4) MCP reference and shallow YAML validation
 
@@ -139,6 +144,7 @@ Current docs connector set (overview table):
 - `clickhouse`
 - `nessie`
 - `iceberg`
+- `hive`
 
 Related API commentary:
 - `dataflow/api/v1/dataflow_types.go` comments mention `kafka`, `postgresql`, `trino`, `clickhouse`, `nessie`, "or plugin type".

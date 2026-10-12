@@ -43,7 +43,7 @@ Used when the connector performs long-running read operations (e.g., SQL queries
 
 ### Step 1. Define Types
 
-Define your connector's config struct (it will be parsed from `Config json.RawMessage` at runtime):
+Define your connector's config struct. The factory unmarshals `Config` (`*runtime.RawExtension`) into it at runtime:
 
 ```go
 // MyDBSourceSpec defines MyDB source configuration
@@ -54,7 +54,7 @@ type MyDBSourceSpec struct {
 }
 ```
 
-Users will specify the connector in a DataFlow manifest using the unified `type` + `config` format:
+Users specify the connector in a DataFlow manifest with `type` + `config`:
 
 ```yaml
 source:
@@ -64,7 +64,7 @@ source:
     table: my_table
 ```
 
-The `SourceSpec` and `SinkSpec` structs use `Type string` + `Config json.RawMessage`. The factory parses `Config` into your spec struct.
+`SourceSpec` and `SinkSpec` hold `Type string` and `Config *runtime.RawExtension`. The API has no `source.mydb` field: the factory and the webhook unmarshal `Config.Raw` into your spec struct. A new type ships only when the operator and CLI binaries are rebuilt.
 
 ### Step 2. Choose baseConnector or baseConnectorRWMutex
 
@@ -237,46 +237,68 @@ For sink connectors, you can add raw mode — storing messages as `{"value": ...
 
 Note: rawMode is supported only in sink connectors. Sources always emit plain columnar format.
 
-### Step 6. Register in Factory
+### Step 6. Registration
 
-In `internal/connectors/factory.go`, parse `Config` into your spec struct:
+`CreateSourceConnector` and `CreateSinkConnector` look up a map. Unmarshalling is done by `createSourceConnector`, `createSourceConnectorWithOptions`, and `createSinkConnector`. The factory has no `switch` on `source.Type`.
+
+Source metadata is one call in the `init` of `api/v1/provider_registry.go`. Registering the same type again panics.
 
 ```go
-func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
-    switch source.Type {
-    // ...
-    case "mydb":
-        var cfg MyDBSourceSpec
-        if err := json.Unmarshal(source.Config.Raw, &cfg); err != nil {
-            return nil, fmt.Errorf("invalid mydb source config: %w", err)
-        }
-        return NewMyDBSourceConnector(&cfg), nil
-    default:
-        return nil, fmt.Errorf("unknown source type: %s", source.Type)
-    }
-}
+providers.RegisterSource(providers.SourceDefinition{
+    Type:               "mydb",
+    SupportsCheckpoint: true,
+    Exhausts:           true,
+    ValidateConfig: func(raw []byte, path *field.Path) field.ErrorList {
+        return validateSourceConfig(raw, "mydb", path, validateMyDBSource)
+    },
+})
 
-func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
-    switch sink.Type {
-    // ...
-    case "mydb":
-        var cfg MyDBSinkSpec
-        if err := json.Unmarshal(sink.Config.Raw, &cfg); err != nil {
-            return nil, fmt.Errorf("invalid mydb sink config: %w", err)
-        }
-        return NewMyDBSinkConnector(&cfg), nil
-    default:
-        return nil, fmt.Errorf("unknown sink type: %s", sink.Type)
-    }
-}
+providers.RegisterSink(providers.SinkDefinition{
+    Type: "mydb",
+    ValidateConfig: func(raw []byte, path *field.Path) field.ErrorList {
+        return validateSinkConfig(raw, "mydb", path, validateMyDBSink)
+    },
+})
 ```
 
-### Step 7. Generate and Test
+Add `validateMyDBSource` / `validateMyDBSink` next to the other validators in `dataflow_validation.go`.
+
+The factory is the `init` in `internal/connectors/provider_registrations.go`. Every current source receives `SourceConnectorOptions` (the checkpoint store). `registerSourceConnector` does not write `pkg/providers`: the admission registration already created the record. `init` panics when a type has no factory or a factory has no catalog entry.
+
+```go
+registerSourceConnector("mydb", createSourceConnectorWithOptions[v1.MyDBSourceSpec](
+    "mydb source",
+    func(cfg *v1.MyDBSourceSpec, opts *SourceConnectorOptions) SourceConnector {
+        return NewMyDBSourceConnectorWithOptions(cfg, opts)
+    },
+))
+
+registerSinkConnector("mydb", createSinkConnector[v1.MyDBSinkSpec](
+    "mydb sink",
+    func(cfg *v1.MyDBSinkSpec) SinkConnector { return NewMyDBSinkConnector(cfg) },
+))
+```
+
+If the source does not use options, use `createSourceConnector[v1.MyDBSourceSpec]`.
+
+The CLI has no separate type list. `dataflow-cli run` calls `pkg/run`, which imports the processor, which imports `internal/connectors`.
+
+### Step 7. `run --once`
+
+Mark a finite polling source with `Exhausts: true` on the same `SourceDefinition`. `pkg/run.SourceExhausts` reads that field. Checkpoint does not imply it: CDC checkpoints and sets `Exhausts` to false. `TestSourceExhausts` is built from `providers.ListSourceTypes()`.
+
+### Step 8. Schema catalog and published lists
+
+Add a sample to `sourceEntries` and `sinkEntries` in `hack/genschemas/main.go`. `task schemas` checks those slices against `providers.ListSourceTypes()` and `ListSinkTypes()`.
+
+Update the tables in `docs/docs/{ru,en}/connectors.md`, `docs/provider-types-inventory.md`, `dataflow-mcp/src/tools/reference.rs`, and `CONNECTOR_TYPES` in `dataflow-web/web/src/composables/useFlowManifest.js`.
 
 ```bash
 task generate
 task manifests
+task schemas
 task test-unit
+python3 scripts/check_provider_types_drift.py
 ```
 
 ## Important Notes
@@ -344,10 +366,6 @@ func TestMyDBSourceConnector_Connect_WhenClosed(t *testing.T) {
     assert.Contains(t, err.Error(), "closed")
 }
 ```
-
-## Subprocess Connectors
-
-Connectors can also run as **separate binaries** communicating via stdin/stdout (JSON Lines). When `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1` is set and a binary like `dataflow-connector-kafka` is found, the processor spawns it instead of using in-process connectors. See [Connector Protocol](connector-protocol.md) for the wire format. Example: `dataflow/cmd/connector-kafka/main.go`.
 
 ## See Also
 

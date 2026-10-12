@@ -148,7 +148,7 @@ flowchart LR
 
 **Якоря:** `process_transform.go`, `batch_writer.go`, `dataflow_types.go` (`transformWorkers`).
 
-Subprocess-коннекторы: `DATAFLOW_USE_SUBPROCESS_CONNECTORS=1` — см. [Протокол коннекторов](connector-protocol.md).
+Коннекторы исполняются в процессе процессора: фабрики в `internal/connectors` разбирают `type` + `config`.
 
 ---
 

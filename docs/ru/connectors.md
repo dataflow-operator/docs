@@ -13,6 +13,7 @@ DataFlow Operator поддерживает различные коннектор
 | ClickHouse | ✅ | ✅ | Опрос таблиц, батч-вставки, автосоздание MergeTree таблиц |
 | Nessie | ✅ | ✅ | Iceberg через каталог Nessie, опрос, батч-дозапись, sink `rawMode` (`data` + `_metadata`); `spec.replicas` только 1 |
 | Iceberg | ✅ | ✅ | Apache Iceberg через официальный REST Catalog API; опрос, батч-дозапись, Bearer/Basic/OAuth2, опционально S3; `spec.replicas` только 1 |
+| Hive | ✅ | ✅ | Hive Metastore (Thrift) и Parquet на S3, HDFS или `file://`; опрос, checkpoint, append-партиции; `spec.replicas` только 1 |
 
 ## Kafka
 
@@ -1241,9 +1242,62 @@ sink:
 
 Пример: `dataflow/config/samples/kafka-to-iceberg.yaml`.
 
+## Hive
+
+Коннектор Hive читает и пишет таблицы **Parquet**, зарегистрированные в Hive Metastore (Thrift, обычно порт 9083). Файлы читаются и пишутся напрямую по `s3://`, `s3a://`, `s3n://`, `hdfs://host:port` или `file://`. ORC, text, Avro и Hive ACID завершаются ошибкой при подключении. Kerberos и HA nameservice HDFS не поддерживаются.
+
+### Источник
+
+```yaml
+source:
+  type: hive
+  config:
+    metastoreURI: thrift://hive-metastore:9083   # или metastoreURISecretRef
+    database: analytics                           # или databaseSecretRef
+    table: events                                 # или tableSecretRef
+    pollInterval: 10
+    maxRowsPerPoll: 1000
+    maxBytesPerPoll: 8388608
+```
+
+- **Опрос**: перечисляет партиции и Parquet-файлы, пока не появится пустой poll; после этого источник исчерпан (`DataFlowCron` и `dataflow run --once`).
+- **Checkpoint**: партиция, путь файла и смещение строки. `spec.replicas` только 1.
+- Строка — JSON-объект. Значения ключей партиции дописываются в объект.
+
+### Приёмник
+
+```yaml
+sink:
+  type: hive
+  config:
+    metastoreURI: thrift://hive-metastore:9083
+    database: analytics
+    table: events
+    batchSize: 500
+    autoCreateTable: true
+    rawMode: true
+    location: s3a://warehouse/analytics/events
+    s3Endpoint: http://minio:9000
+    s3Region: us-east-1
+    accessKeySecretRef:
+      name: hive-s3
+      key: accessKey
+    secretAccessKeySecretRef:
+      name: hive-s3
+      key: secretKey
+```
+
+- Только **append**. Row-level upsert нет. Батч группируется по партиции и пишется как `dataflow-<hash>.parquet`. Хеш считается по id сообщений, повторная запись перезаписывает тот же объект.
+- **`add_partition`** пропускается, если партиция уже есть.
+- **`autoCreateTable`** создаёт external Parquet-таблицу и требует `rawMode: true` и `location`. В raw-режиме колонки `data` и `_metadata` (string JSON).
+- Колоночный режим берёт схему из metastore. Колонки партиции заполняются из полей сообщения.
+- Ключи S3 из SecretRef попадают в `AWS_ACCESS_KEY_ID` и `AWS_SECRET_ACCESS_KEY` и не копируются в ConfigMap процессора.
+
+Пример: `dataflow/config/samples/kafka-to-hive.yaml`.
+
 ## Error Sink
 
-DataFlow Operator поддерживает настройку отдельного приёмника для сообщений, которые не удалось записать в основной sink. Секция `errors` использует те же типы коннекторов (Kafka, PostgreSQL, Trino, ClickHouse, Nessie, Iceberg), что и основной sink.
+DataFlow Operator поддерживает настройку отдельного приёмника для сообщений, которые не удалось записать в основной sink. Секция `errors` использует те же типы коннекторов (Kafka, PostgreSQL, Trino, ClickHouse, Nessie, Iceberg, Hive), что и основной sink.
 
 Конфигурация, структура сообщений об ошибках и типы ошибок описаны в разделе [Обработка ошибок](errors.md).
 
@@ -1633,7 +1687,7 @@ kubectl logs -l app.kubernetes.io/name=dataflow-operator | grep -i secret
 | `true` (по умолчанию) | Legacy: принудительно `MaxBatchSize = 1` при ack `message`. |
 | `false` | Сохранить `sink.config.batchSize` / flush interval; после успешной bulk-записи всё равно per-message source ack. |
 
-Игнорируется при `ackGranularity: batch`. Применяется к sink PostgreSQL, ClickHouse, Trino, Nessie и Iceberg.
+Игнорируется при `ackGranularity: batch`. Применяется к sink PostgreSQL, ClickHouse, Trino, Nessie, Iceberg и Hive.
 
 #### checkpointSyncOnAck и checkpointSaveInterval
 

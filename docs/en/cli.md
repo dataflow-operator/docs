@@ -8,9 +8,17 @@ Command-line client for DataFlow: talk to the [Web GUI](gui.md) API, or run a Da
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install dataflow-operator/tap/dataflow-cli
+```
+
+The formula is published to the `dataflow-operator/tap` tap with each `v*` release (macOS and Linux, amd64 and arm64).
+
 ### Release binary
 
-A `v*` tag publishes binaries and `SHA256SUMS` to [GitHub Releases](https://github.com/dataflow-operator/dataflow-operator/releases).
+A `v*` tag publishes binaries and `SHA256SUMS` to [GitHub Releases](https://github.com/dataflow-operator/dataflow-cli/releases).
 
 | OS | Architecture | Asset |
 |----|--------------|-------|
@@ -24,7 +32,7 @@ A `v*` tag publishes binaries and `SHA256SUMS` to [GitHub Releases](https://gith
 
 ```bash
 curl -fsSL -o dataflow-cli \
-  "https://github.com/dataflow-operator/dataflow-operator/releases/download/vX.Y.Z/dataflow-cli-linux-amd64"
+  "https://github.com/dataflow-operator/dataflow-cli/releases/download/vX.Y.Z/dataflow-cli-linux-amd64"
 chmod +x dataflow-cli
 ```
 
@@ -54,10 +62,10 @@ docker run --rm --network host \
   run manifest.yaml --once
 ```
 
-Build from the monorepo root:
+Build from the `dataflow-cli` directory:
 
 ```bash
-docker build -f dataflow-cli/Dockerfile -t dataflow-cli .
+docker build -t dataflow-cli .
 ```
 
 ### From source
@@ -69,9 +77,9 @@ cd dataflow-cli
 go build -o dataflow-cli .
 ```
 
-In the monorepo, `go.work` builds the CLI against the local `dataflow` checkout. `go.mod` records the released module (`github.com/dataflow-operator/dataflow v1.12.0`) and does not use a `replace` directive. Pushes to `main` run semantic-release, which tags `dataflow-cli/vX.Y.Z` and updates that requirement to `@latest`. The tag build stamps the version into the binary (`dataflow-cli --version`).
+In the monorepo, `go.work` builds the CLI against the local `dataflow` checkout. `go.mod` requires `github.com/dataflow-operator/dataflow v1.12.1-0.20261012061201-dec4eee83b3d` (branch `feat/pkg-run-oneshot`) and does not use a `replace` directive. Tag `v1.12.0` does not contain the one-shot `pkg/run` API. Pushes to `main` in the `dataflow-operator/dataflow-cli` repository run semantic-release, which tags `vX.Y.Z` and updates that requirement to `@latest` only when the module still builds the CLI. The same workflow stamps the version into the binary (`dataflow-cli --version`).
 
-Source: [`dataflow-cli/`](https://github.com/dataflow-operator/dataflow-operator/tree/main/dataflow-cli). CI: [`.github/workflows/dataflow-cli.yml`](https://github.com/dataflow-operator/dataflow-operator/blob/main/.github/workflows/dataflow-cli.yml).
+Source: [`dataflow-operator/dataflow-cli`](https://github.com/dataflow-operator/dataflow-cli). CI: [`.github/workflows/build.yml`](https://github.com/dataflow-operator/dataflow-cli/blob/main/.github/workflows/build.yml).
 
 ## Global flags
 

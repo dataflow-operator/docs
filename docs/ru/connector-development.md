@@ -54,7 +54,7 @@ type MyDBSourceSpec struct {
 }
 ```
 
-Пользователи указывают коннектор в манифесте DataFlow через единый формат `type` + `config`:
+Пользователи указывают коннектор в манифесте DataFlow через `type` + `config`:
 
 ```yaml
 source:
@@ -64,7 +64,7 @@ source:
     table: my_table
 ```
 
-Структуры `SourceSpec` и `SinkSpec` используют `Type string` + `Config json.RawMessage`. Фабрика парсит `Config` в вашу spec-структуру.
+`SourceSpec` и `SinkSpec` содержат `Type string` и `Config *runtime.RawExtension`. Поля `source.mydb` в API нет: фабрика и webhook разбирают `Config.Raw` в вашу spec-структуру. Новый тип попадает в оператор и CLI только пересборкой бинарника.
 
 ### Шаг 2. Выбор baseConnector или baseConnectorRWMutex
 
@@ -237,46 +237,68 @@ func (c *MyDBSinkConnector) Close() error {
 
 Примечание: rawMode поддерживается только в sink-коннекторах. Источники всегда отдают plain колоночный формат.
 
-### Шаг 6. Регистрация в фабрике
+### Шаг 6. Регистрация
 
-В `internal/connectors/factory.go`:
+`CreateSourceConnector` и `CreateSinkConnector` ищут тип в map. Разбор `config` делают `createSourceConnector`, `createSourceConnectorWithOptions` и `createSinkConnector`. Ветки `switch` по `source.Type` в фабрике нет.
+
+Метаданные source — один вызов в `init` файла `api/v1/provider_registry.go`. Повтор того же типа вызывает panic.
 
 ```go
-func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
-    switch source.Type {
-    // ...
-    case "mydb":
-        var cfg MyDBSourceSpec
-        if err := json.Unmarshal(source.Config.Raw, &cfg); err != nil {
-            return nil, fmt.Errorf("invalid mydb source config: %w", err)
-        }
-        return NewMyDBSourceConnector(&cfg), nil
-    default:
-        return nil, fmt.Errorf("unknown source type: %s", source.Type)
-    }
-}
+providers.RegisterSource(providers.SourceDefinition{
+    Type:               "mydb",
+    SupportsCheckpoint: true,
+    Exhausts:           true,
+    ValidateConfig: func(raw []byte, path *field.Path) field.ErrorList {
+        return validateSourceConfig(raw, "mydb", path, validateMyDBSource)
+    },
+})
 
-func CreateSinkConnector(sink *v1.SinkSpec) (SinkConnector, error) {
-    switch sink.Type {
-    // ...
-    case "mydb":
-        var cfg MyDBSinkSpec
-        if err := json.Unmarshal(sink.Config.Raw, &cfg); err != nil {
-            return nil, fmt.Errorf("invalid mydb sink config: %w", err)
-        }
-        return NewMyDBSinkConnector(&cfg), nil
-    default:
-        return nil, fmt.Errorf("unknown sink type: %s", sink.Type)
-    }
-}
+providers.RegisterSink(providers.SinkDefinition{
+    Type: "mydb",
+    ValidateConfig: func(raw []byte, path *field.Path) field.ErrorList {
+        return validateSinkConfig(raw, "mydb", path, validateMyDBSink)
+    },
+})
 ```
 
-### Шаг 7. Генерация и тестирование
+Напишите `validateMyDBSource` / `validateMyDBSink` рядом с остальными валидаторами в `dataflow_validation.go`.
+
+Фабрика — `init` в `internal/connectors/provider_registrations.go`. Все текущие source передают `SourceConnectorOptions` (checkpoint store). `registerSourceConnector` не пишет в `pkg/providers`: запись уже создана admission-регистрацией. Если типа нет в каталоге или у каталога нет фабрики, `init` паникует.
+
+```go
+registerSourceConnector("mydb", createSourceConnectorWithOptions[v1.MyDBSourceSpec](
+    "mydb source",
+    func(cfg *v1.MyDBSourceSpec, opts *SourceConnectorOptions) SourceConnector {
+        return NewMyDBSourceConnectorWithOptions(cfg, opts)
+    },
+))
+
+registerSinkConnector("mydb", createSinkConnector[v1.MyDBSinkSpec](
+    "mydb sink",
+    func(cfg *v1.MyDBSinkSpec) SinkConnector { return NewMyDBSinkConnector(cfg) },
+))
+```
+
+Если source не использует options, фабрика — `createSourceConnector[v1.MyDBSourceSpec]`.
+
+Отдельный список типов в CLI не нужен. `dataflow-cli run` идёт в `pkg/run`, который импортирует процессор, а тот — `internal/connectors`.
+
+### Шаг 7. `run --once`
+
+Конечный polling-source помечайте `Exhausts: true` в той же `SourceDefinition`. `pkg/run.SourceExhausts` читает это поле. Checkpoint его не заменяет: у CDC checkpoint есть, а `Exhausts` равен false. Тест `TestSourceExhausts` строится от `providers.ListSourceTypes()`.
+
+### Шаг 8. Каталог схем и опубликованные списки
+
+В `hack/genschemas/main.go` добавьте sample в `sourceEntries` и `sinkEntries`. `task schemas` сверяет слайсы с `providers.ListSourceTypes()` и `ListSinkTypes()`.
+
+Обновите таблицы в `docs/docs/{ru,en}/connectors.md`, `docs/provider-types-inventory.md`, `dataflow-mcp/src/tools/reference.rs` и `CONNECTOR_TYPES` в `dataflow-web/web/src/composables/useFlowManifest.js`.
 
 ```bash
 task generate
 task manifests
+task schemas
 task test-unit
+python3 scripts/check_provider_types_drift.py
 ```
 
 ## Важные замечания

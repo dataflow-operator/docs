@@ -59,7 +59,6 @@ plugins:
             Developer Guide: Руководство разработчика
             Release Process: Release Process
             Connector Development: Разработка коннекторов
-            Connector Protocol (stdin/stdout): Протокол коннекторов (stdin/stdout)
   - search:
       lang:
         - en
@@ -157,7 +156,6 @@ nav:
       - Developer Guide: development.md
       - Release Process: semver-release.md
       - Connector Development: connector-development.md
-      - Connector Protocol (stdin/stdout): connector-protocol.md
 
 markdown_extensions:
   - attr_list

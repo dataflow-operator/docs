@@ -13,6 +13,7 @@ DataFlow Operator supports various connectors for data sources and sinks. Each c
 | ClickHouse | ✅ | ✅ | Polling, batch inserts, auto-create MergeTree tables |
 | Nessie | ✅ | ✅ | Iceberg via Nessie catalog, polling, batch appends, sink `rawMode` (`data` + `_metadata`); `spec.replicas` must be 1 |
 | Iceberg | ✅ | ✅ | Apache Iceberg via official REST Catalog API; polling, batch appends, Bearer/Basic/OAuth2, optional S3 credentials; `spec.replicas` must be 1 |
+| Hive | ✅ | ✅ | Hive Metastore (Thrift) plus Parquet on S3, HDFS, or `file://`; polling, checkpoint, append-only partitions; `spec.replicas` must be 1 |
 
 
 ## Using Kubernetes Secrets
@@ -1275,9 +1276,65 @@ Behavior matches the Nessie connector for polling, incremental snapshots, batch 
 
 See sample manifest: `dataflow/config/samples/kafka-to-iceberg.yaml`.
 
+## Hive
+
+The Hive connector reads and writes **Parquet** tables registered in a Hive Metastore (Thrift, typically port 9083). Data files are read and written directly on `s3://`, `s3a://`, `s3n://`, `hdfs://host:port`, or `file://`. ORC, text, Avro, and Hive ACID tables fail at connect. Kerberos and HDFS HA nameservices are not supported.
+
+### Source
+
+```yaml
+source:
+  type: hive
+  config:
+    metastoreURI: thrift://hive-metastore:9083   # or metastoreURISecretRef
+    database: analytics                           # or databaseSecretRef
+    table: events                                 # or tableSecretRef
+    pollInterval: 10
+    maxRowsPerPoll: 1000
+    maxBytesPerPoll: 8388608
+```
+
+- **Polling**: lists partitions and Parquet files from the metastore location until a poll finds nothing new, then the source is exhausted (suitable for `DataFlowCron` and `dataflow run --once`).
+- **Checkpoint**: stores partition, file path, and row offset. `spec.replicas` must be 1.
+- Each row is a JSON object. Partition key values are added to the object.
+
+### Sink
+
+```yaml
+sink:
+  type: hive
+  config:
+    metastoreURI: thrift://hive-metastore:9083
+    database: analytics
+    table: events
+    batchSize: 500
+    autoCreateTable: true
+    rawMode: true
+    location: s3a://warehouse/analytics/events
+    s3Endpoint: http://minio:9000
+    s3Region: us-east-1
+    accessKeySecretRef:
+      name: hive-s3
+      key: accessKey
+    secretAccessKeySecretRef:
+      name: hive-s3
+      key: secretKey
+    # hdfsUser: dataflow
+```
+
+- **Append only**. There is no row-level upsert. A batch is grouped by partition and written as `dataflow-<hash>.parquet`. The hash is derived from message ids, so a retry overwrites the same object.
+- **`add_partition`** is skipped when the partition already exists.
+- **`autoCreateTable`** creates an external Parquet table and requires `rawMode: true` and `location`. Raw mode writes string columns `data` and `_metadata`.
+- Columnar mode uses the existing metastore schema. Partition columns are taken from message fields.
+- S3 keys from `accessKeySecretRef` / `secretAccessKeySecretRef` are injected as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` and are not copied into the processor ConfigMap. An `s3` location used with `autoCreateTable` requires keys or those SecretRefs.
+
+### Example: Kafka to Hive
+
+See sample manifest: `dataflow/config/samples/kafka-to-hive.yaml`.
+
 ## Error Sink
 
-DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse, Nessie, Iceberg) as the main sink.
+DataFlow Operator supports configuring a separate sink for messages that failed to be written to the main sink. The `errors` section uses the same connector types (Kafka, PostgreSQL, Trino, ClickHouse, Nessie, Iceberg, Hive) as the main sink.
 
 For configuration, error message structure, and error types, see [Error Handling](errors.md).
 
@@ -1311,7 +1368,7 @@ Controls whether `ackGranularity: message` **overrides** sink batching:
 | `true` (default) | Legacy: force sink `MaxBatchSize = 1` when ack is `message`. |
 | `false` | Keep `sink.config.batchSize` / flush interval; after successful bulk write, still run per-message source ack. |
 
-Ignored when `ackGranularity` is `batch`. Applies to PostgreSQL, ClickHouse, Trino, Nessie, and Iceberg sinks.
+Ignored when `ackGranularity` is `batch`. Applies to PostgreSQL, ClickHouse, Trino, Nessie, Iceberg, and Hive sinks.
 
 #### checkpointSyncOnAck and checkpointSaveInterval
 

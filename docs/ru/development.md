@@ -90,17 +90,24 @@ task run
 ```
 dataflow/
 ├── api/v1/                    # CRD определения
-│   ├── dataflow_types.go      # Типы DataFlow ресурсов
-│   └── groupversion_info.go    # Версия API
+│   ├── dataflow_types.go      # Типы DataFlow; конфиг коннектора — отдельная структура
+│   ├── provider_registry.go   # Регистрация source: валидатор, checkpoint, Exhausts
+│   ├── dataflow_validation.go # Валидация spec, в том числе switch трансформаций
+│   └── groupversion_info.go   # Версия API
+├── pkg/
+│   ├── providers/             # Реестр типов source/sink (checkpoint, Exhausts, валидаторы)
+│   ├── transformtypes/        # Канонические ключи трансформаций
+│   └── run/                   # dataflow-cli run; SourceExhausts читает реестр providers
 ├── internal/
 │   ├── connectors/            # Коннекторы для источников/приемников
 │   │   ├── interface.go       # Интерфейсы коннекторов
-│   │   ├── factory.go         # Фабрика коннекторов
+│   │   ├── factory.go         # createSourceConnector / registerSourceConnector
+│   │   ├── provider_registrations.go  # init: фабрики, сверка с каталогом providers
 │   │   ├── kafka.go           # Kafka коннектор
 │   │   ├── postgresql.go      # PostgreSQL коннектор
 │   ├── transformers/          # Трансформации сообщений
 │   │   ├── interface.go       # Интерфейс трансформаций
-│   │   ├── factory.go         # Фабрика трансформаций
+│   │   ├── factory.go         # transformerRegistry + createTransformer
 │   │   ├── timestamp.go        # Timestamp трансформация
 │   │   ├── flatten.go         # Flatten трансформация
 │   │   ├── filter.go          # Filter трансформация
@@ -264,7 +271,7 @@ webhook:
 
 **DataFlow** (`dataflows`):
 
-- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из реестра провайдеров (`kafka`, `postgresql`, `trino`, `clickhouse`, `nessie` — см. `dataflow/api/v1/provider_registry.go` и `pkg/providers`), наличие соответствующей конфигурации (например `source.config` при `source.type: kafka`).
+- Обязательные поля: `spec.source`, `spec.sink`, типы source/sink из реестра провайдеров (`kafka`, `postgresql`, `postgresql-cdc`, `trino`, `clickhouse`, `nessie`, `iceberg` — см. `dataflow/api/v1/provider_registry.go` и `pkg/providers`), наличие `source.config` / `sink.config` при заданном `type`.
 - Для каждого типа source/sink — обязательные поля или SecretRef (например для Kafka: brokers или brokersSecretRef, topic или topicSecretRef).
 - Список трансформаций: допустимые типы и наличие конфигурации для каждого типа; для router — валидация вложенных sink.
 - Опционально: `spec.errors` (если задан — как SinkSpec), SecretRef (name и key), неотрицательные ресурсы.
@@ -345,185 +352,150 @@ docker push your-registry/dataflow-operator:v1.0.0
 
 ## Добавление нового коннектора
 
-> **Подробное руководство:** см. [Разработка коннекторов с baseConnector](connector-development.md) — пошаговая инструкция с примерами использования `baseConnector` и `baseConnectorRWMutex`.
+Новый тип попадает в бинарник оператора и CLI только пересборкой. Внешней загрузки плагинов нет: манифест везде задаёт `type` и `config`, а `SourceSpec` / `SinkSpec` держат конфиг как `*runtime.RawExtension`. Поля вроде `source.kafka` в API нет.
 
-### 1. Определение типов в API
+> **Подробное руководство:** [Разработка коннекторов с baseConnector](connector-development.md) — `baseConnector`, два `init` и каталог схем.
 
-Добавьте спецификацию в `api/v1/dataflow_types.go`:
+### 1. Структура конфига
+
+Добавьте spec в `api/v1/dataflow_types.go`. В `SourceSpec` и `SinkSpec` её не вкладывайте: фабрика и webhook разбирают `config` по `type`.
 
 ```go
-// NewConnectorSourceSpec defines new connector source configuration
-type NewConnectorSourceSpec struct {
-    // Configuration fields
-    Endpoint string `json:"endpoint"`
-    // ...
-}
-
-// Добавьте в SourceSpec
-type SourceSpec struct {
-    // ...
-    NewConnector *NewConnectorSourceSpec `json:"newConnector,omitempty"`
+type MyDBSourceSpec struct {
+    ConnectionString string `json:"connectionString"`
+    Table            string `json:"table"`
 }
 ```
 
-### 2. Реализация коннектора
-
-Создайте файл `internal/connectors/newconnector.go`. **Рекомендуется** встраивать `baseConnector` для общей синхронизации Connect/Close:
-
-```go
-package connectors
-
-import (
-    "context"
-    "fmt"
-    v1 "github.com/dataflow-operator/dataflow/api/v1"
-    "github.com/dataflow-operator/dataflow/internal/types"
-    "github.com/go-logr/logr"
-)
-
-type NewConnectorSourceConnector struct {
-    baseConnector
-    config *v1.NewConnectorSourceSpec
-    conn   *Connection
-    logger logr.Logger
-}
-
-func NewNewConnectorSourceConnector(config *v1.NewConnectorSourceSpec) *NewConnectorSourceConnector {
-    return &NewConnectorSourceConnector{config: config, logger: logr.Discard()}
-}
-
-func (n *NewConnectorSourceConnector) Connect(ctx context.Context) error {
-    if !n.guardConnect() {
-        return fmt.Errorf("connector is closed")
-    }
-    defer n.Unlock()
-    // ... connection logic
-    return nil
-}
-
-func (n *NewConnectorSourceConnector) Read(ctx context.Context) (<-chan *types.Message, error) {
-    // Implement read logic
-    return nil, nil
-}
-
-func (n *NewConnectorSourceConnector) Close() error {
-    if n.guardClose() {
-        return nil
-    }
-    defer n.Unlock()
-    // ... close logic
-    return nil
-}
+```yaml
+source:
+  type: mydb
+  config:
+    connectionString: "mydb://localhost:3306/db"
+    table: my_table
 ```
 
-### 3. Регистрация в фабрике
+### 2. Реализация
 
-Добавьте в `internal/connectors/factory.go`:
+Файл `internal/connectors/mydb.go`. Встраивайте `baseConnector` или `baseConnectorRWMutex` и реализуйте `SourceConnector` / `SinkConnector`. Пример Connect/Close — в [руководстве по коннекторам](connector-development.md).
+
+### 3. Одна регистрация метаданных и фабрика
+
+Валидатор, `SupportsCheckpoint` и `Exhausts` задаются одним вызовом `providers.RegisterSource` в `api/v1/provider_registry.go`. Повторная регистрация того же типа вызывает panic, слияния флагов нет. Без валидатора source не регистрируется.
+
+Пакет `api/v1` не импортирует реализации коннекторов, поэтому фабрика живёт рядом, в `internal/connectors/provider_registrations.go`. `registerSourceConnector` только сохраняет фабрику. В конце `init` набор фабрик сверяется с `providers.ListSourceTypes()` и `ListSinkTypes()`: лишняя фабрика или тип без фабрики останавливают процесс. Для sink то же самое через `providers.RegisterSink` и `registerSinkConnector`.
 
 ```go
-func CreateSourceConnector(source *v1.SourceSpec) (SourceConnector, error) {
-    switch source.Type {
-    // ...
-    case "newconnector":
-        if source.NewConnector == nil {
-            return nil, fmt.Errorf("newconnector source configuration is required")
-        }
-        return NewNewConnectorSourceConnector(source.NewConnector), nil
-    // ...
-    }
-}
+providers.RegisterSource(providers.SourceDefinition{
+    Type:               "mydb",
+    SupportsCheckpoint: true,
+    Exhausts:           true,
+    ValidateConfig: func(raw []byte, path *field.Path) field.ErrorList {
+        return validateSourceConfig(raw, "mydb", path, validateMyDBSource)
+    },
+})
 ```
 
-### 4. Генерация кода
+```go
+registerSourceConnector("mydb", createSourceConnectorWithOptions[v1.MyDBSourceSpec](
+    "mydb source",
+    func(cfg *v1.MyDBSourceSpec, opts *SourceConnectorOptions) SourceConnector {
+        return NewMyDBSourceConnectorWithOptions(cfg, opts)
+    },
+))
+
+registerSinkConnector("mydb", createSinkConnector[v1.MyDBSinkSpec](
+    "mydb sink",
+    func(cfg *v1.MyDBSinkSpec) SinkConnector { return NewMyDBSinkConnector(cfg) },
+))
+```
+
+`Exhausts` означает, что чтение завершается. Это не то же самое, что checkpoint: у `postgresql-cdc` checkpoint включён, а `Exhausts` равен false. У `kafka` оба флага выключены.
+
+`createSourceConnector` — если source не принимает `SourceConnectorOptions`. `CreateSourceConnector` / `CreateSinkConnector` в `factory.go` ищут тип в map и разворачивают `config`. Ветки `switch source.Type` в фабрике нет.
+
+`dataflow-cli run` вызывает `pkg/run`, тот импортирует `internal/processor` → `internal/connectors`, поэтому отдельного списка типов в CLI нет. Валидаторы подключаются импортом `api/v1`. Процессор включает checkpoint через `providers.SourceSupportsCheckpoint`.
+
+### 4. Одноразовый прогон (`run --once`)
+
+`pkg/run.SourceExhausts` читает поле `Exhausts` той же записи. Отдельный `switch` в `exhaust.go` не нужен. Тест `TestSourceExhausts` обходит `providers.ListSourceTypes()`, поэтому новый source без явной классификации в тесте не пройдёт незаметно.
+
+### 5. Схемы и списки для UI
+
+В `dataflow/hack/genschemas/main.go` добавьте sample-struct в `sourceEntries` и, если есть sink, в `sinkEntries`. Затем из каталога `dataflow`:
 
 ```bash
 task generate
 task manifests
+task schemas
 ```
 
-### 5. Тестирование
+`task schemas` сверяет эти слайсы с `providers.ListSourceTypes` / `ListSinkTypes` и пишет `schemas/catalog.json`. Дальше обновите обзорные таблицы `docs/docs/{ru,en}/connectors.md`, `docs/provider-types-inventory.md`, списки в `dataflow-mcp/src/tools/reference.rs` и `CONNECTOR_TYPES` в web (`dataflow-web/web/src/composables/useFlowManifest.js`). Проверка:
 
-Создайте тесты в `internal/connectors/newconnector_test.go`:
-
-```go
-func TestNewConnectorSourceConnector(t *testing.T) {
-    // Test implementation
-}
+```bash
+python3 scripts/check_provider_types_drift.py
 ```
+
+### 6. Тесты
+
+Тесты коннектора — в `internal/connectors/mydb_test.go`: идемпотентный `Close`, ошибка `Connect` после `Close`, разбор `config`.
 
 ## Добавление новой трансформации
 
-### 1. Определение типов в API
+Манифест задаёт `type` и `config` (`*runtime.RawExtension` на `TransformationSpec`). Отдельного поля `transformation.flatten` нет. Обёртка `when` навешивается в `CreateTransformer` и в список типов не входит.
 
-Добавьте в `api/v1/dataflow_types.go`:
+Ключ живёт в трёх местах: константа в `pkg/transformtypes`, строка `transformerRegistry`, ветка `switch` в `validateTransformations`. Первые два связаны константой, третий — нет: пропущенный `case` пропускает тип в webhook без проверки полей.
+
+### 1. Структура конфига
+
+В `api/v1/dataflow_types.go`:
 
 ```go
-// NewTransformation defines new transformation configuration
-type NewTransformation struct {
+type MyTransform struct {
     Field string `json:"field"`
-    // ...
-}
-
-// Добавьте в TransformationSpec
-type TransformationSpec struct {
-    // ...
-    NewTransformation *NewTransformation `json:"newTransformation,omitempty"`
 }
 ```
 
-### 2. Реализация трансформации
+### 2. Ключ типа
 
-Создайте файл `internal/transformers/newtransformation.go`:
+В `pkg/transformtypes/transformtypes.go` добавьте константу и допишите её в слайс `keys`:
 
 ```go
-package transformers
+const MyTransform = "myTransform"
 
-import (
-    "context"
-    v1 "github.com/dataflow-operator/dataflow/api/v1"
-    "github.com/dataflow-operator/dataflow/internal/types"
-)
-
-type NewTransformer struct {
-    config *v1.NewTransformation
-}
-
-func NewNewTransformer(config *v1.NewTransformation) *NewTransformer {
-    return &NewTransformer{config: config}
-}
-
-func (n *NewTransformer) Transform(ctx context.Context, message *types.Message) ([]*types.Message, error) {
-    // Implement transformation logic
-    return []*types.Message{message}, nil
+var keys = []string{
+    // ...
+    MyTransform,
 }
 ```
 
-### 3. Регистрация в фабрике
+`IsRegistered` и `All()` читают этот слайс. Webhook отклоняет тип, которого там нет.
 
-Добавьте в `internal/transformers/factory.go`:
+### 3. Реализация и фабрика
+
+Файл `internal/transformers/mytransform.go` с методом `Transform`. В map `transformerRegistry` в `internal/transformers/factory.go`:
 
 ```go
-func CreateTransformer(transformation *v1.TransformationSpec) (Transformer, error) {
-    switch transformation.Type {
-    // ...
-    case "newtransformation":
-        if transformation.NewTransformation == nil {
-            return nil, fmt.Errorf("newtransformation configuration is required")
-        }
-        return NewNewTransformer(transformation.NewTransformation), nil
-    // ...
-    }
-}
+transformtypes.MyTransform: {create: createTransformer[v1.MyTransform](
+    transformtypes.MyTransform,
+    func(cfg *v1.MyTransform) Transformer { return NewMyTransformer(cfg) },
+)},
 ```
 
-### 4. Генерация и тестирование
+`createTransformer` разворачивает `config`. `CreateTransformer` ищет запись в map и при непустом `when` оборачивает результат.
 
-```bash
-task generate
-task test
-```
+### 4. Валидатор
 
-## Отладка
+В `validateTransformations` (`api/v1/dataflow_validation.go`) добавьте `case` по константе: пустой `config` — `field.Required`, битый JSON — `field.Invalid`, дальше проверки полей spec.
+
+### 5. Схемы и списки
+
+Sample-struct — в `transformEntries` в `dataflow/hack/genschemas/main.go` (тип берите из `transformtypes`, как у соседних записей). Затем `task schemas`. Обновите таблицы `docs/docs/{ru,en}/transformations.md`, блок Transformers в `docs/provider-types-inventory.md`, `reference.rs` и `TRANSFORMATION_TYPES` в web. `task schemas` сверяет имена с `transformtypes.All()`; `scripts/check_provider_types_drift.py` сверяет каталог с docs, MCP, inventory и web.
+
+### 6. Тесты
+
+Тест трансформации и тест webhook на обязательные поля `config`.
+
 
 ### Логирование
 
