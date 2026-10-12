@@ -137,4 +137,3 @@ mkdir -p connectors && cp bin/dataflow-connector-kafka connectors/
 ## See Also
 
 - [Connector Development](connector-development.md) — Adding in-process connectors
-- [Subprocess connectors: design notes](subprocess-connectors-design.md) — Goals and tradeoffs only; the wire format on **this** page is authoritative

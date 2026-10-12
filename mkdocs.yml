@@ -66,11 +66,6 @@ plugins:
         - ru
   - mermaid2
 
-# Design notes are maintainer drafts — keep out of public site/sitemap
-exclude_docs: |
-  **/nessie-incremental-snapshots-design.md
-  **/subprocess-connectors-design.md
-
 extra_javascript:
   - javascripts/versions.js
 

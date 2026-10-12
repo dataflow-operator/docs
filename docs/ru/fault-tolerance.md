@@ -41,7 +41,7 @@ Consumer Kafka помечает offset **только после** успешн�
 
 При `source.config.incrementalBySnapshot: true` процессор читает только **новые** Iceberg snapshot с момента последнего `Ack`. Внутри нового snapshot предпочтительны добавленные data files относительно parent (пустой delta пропускает scan; append-only parquet без deletes — прямой file read). Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) сохраняется в ConfigMap, если включены `snapshotCheckpoints` (по умолчанию) и `spec.checkpointPersistence`. Опционально `maxRowsPerPoll` / `maxBytesPerPoll` ограничивают объём за poll.
 
-Подробнее: [nessie-incremental-snapshots-design.md](nessie-incremental-snapshots-design.md).
+Подробнее: [коннектор Nessie](connectors.md#nessie).
 
 ### Polling источники (PostgreSQL, ClickHouse, Trino)
 

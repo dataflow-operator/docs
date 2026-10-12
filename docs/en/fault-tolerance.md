@@ -41,7 +41,7 @@ If the processor crashes:
 
 When `source.config.incrementalBySnapshot: true`, the processor reads only **new** Iceberg snapshots since the last `Ack`. Within a new snapshot, added data files vs the parent are preferred (empty delta skips the scan; append-only parquet without deletes can use a direct file read). Checkpoint (`lastAckedSnapshotID`, `lastAckedSnapshotSequence`) is stored in a ConfigMap when `snapshotCheckpoints` (default) and `spec.checkpointPersistence` are enabled. Optional `maxRowsPerPoll` / `maxBytesPerPoll` cap emission per poll.
 
-See [nessie-incremental-snapshots-design.md](nessie-incremental-snapshots-design.md).
+See [Nessie connector](connectors.md#nessie).
 
 ### Polling Sources (PostgreSQL, ClickHouse, Trino)
 

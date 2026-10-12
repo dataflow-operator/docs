@@ -53,7 +53,3 @@ DATAFLOW_USE_SUBPROCESS_CONNECTORS=1
 ```
 
 Подробнее см. [Connector Protocol (EN)](../en/connector-protocol.md).
-
-## См. также
-
-- [Заметки по дизайну subprocess-коннекторов](subprocess-connectors-design.md)
